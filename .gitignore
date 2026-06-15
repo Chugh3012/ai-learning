@@ -4,6 +4,8 @@
 # Local Python venv & scratch
 .venv/
 *.tmp
+__pycache__/
+*.pyc
 
 # FreshRSS persistent data (system of record)
 data/freshrss/
