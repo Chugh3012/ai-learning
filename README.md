@@ -34,25 +34,29 @@ docker compose up -d          # starts rsshub (:1200) and freshrss (:8080)
 RSSHub-based feeds need the `rsshub` container running; they point at `http://localhost:1200`.
 Native feeds work regardless. Reddit and GitHub-trending are deferred (see `config/sources.yml`).
 
-## Digest (Layer C)
-Generate a grouped markdown digest of recent items (reads FreshRSS via its API; tags from
-`config/tags.json`):
+## Digest & owned knowledge base (Layers C/D)
+The **owned system of record is a SQLite KB** built directly from the feeds, backed up to
+Azure Blob. It runs in the cloud on a schedule (GitHub Actions) so it works whether or not
+this laptop is on. FreshRSS stays as an optional **local reader**.
 
 ```sh
-python tools/digest.py --days 7        # writes digests/YYYY-MM-DD.md
+python tools/kb_sync.py --days 7      # feeds → data/kb/kb.sqlite → digest → Azure Blob
+python tools/kb_sync.py --no-upload   # local only, skip Blob
 ```
 
-Grow the tagging = add a topic/keyword in `config/tags.json`. No code change. Email delivery
-is a config-gated extension for later (SMTP), not built until needed.
+- Tagging grows via `config/tags.json` (keyword→topic). No code change.
+- Auth is **passwordless** (Entra): `az login` locally, GitHub OIDC in CI. No keys/secrets.
+- Cloud cron: `.github/workflows/kb-sync.yml` (daily). Azure pieces: resource group
+  `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, user-assigned managed
+  identity `id-ai-scout-gh` federated to this repo's `main`.
 
 ## Grow it (the only way sources grow)
 Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
 `config/sources.yml`. Keep both deduped. No code changes. See PLAN.md.
 
 ## Data & privacy
-- `.env` and `data/` are git-ignored. FreshRSS data persists in `data/freshrss/`.
-- `digests/` holds generated digests; `data/kb/` is reserved for the owned KB (P3).
+- `.env`, `.venv/`, and `data/` are git-ignored. Owned KB persists in Azure Blob + `data/kb/`.
+- `digests/` holds generated digests (also pushed to Blob).
 
 ## What's next
-P3 owned knowledge base (Azure) → P4 learning loop (LLM ranking) → P5 Instagram funnel.
-Tracked in [PLAN.md](PLAN.md).
+P4 learning loop (LLM relevance ranking) → P5 Instagram funnel. Tracked in [PLAN.md](PLAN.md).

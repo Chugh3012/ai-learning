@@ -80,10 +80,12 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [ ] P3  - [ ] P4  - [ ] P5
+- [x] P1  - [x] P2  - [x] P3  - [ ] P4  - [ ] P5
 - P1 DONE (2026-06-15): RSSHub+FreshRSS up; 19 native feeds, 2829 articles; dedupe proven.
-- P2 DONE (2026-06-15): config/tags.json (keyword→topic) + tools/digest.py (stdlib, reads
-  FreshRSS Greader API) → grouped markdown in digests/. Verified: 400 items → 10 topics.
-  Email delivery left as config-gated extension (SMTP), not built until needed.
-- Observed for P4: arXiv cs.LG volume floods topics → needs LLM relevance ranking (P4).
-- Next: P3 — sync FreshRSS API → owned DB (Azure Postgres + Blob) for durable knowledge.
+- P2 DONE (2026-06-15): config/tags.json + digest rendering; grouped markdown by topic.
+- P3 DONE (2026-06-15): owned SQLite KB (tools/kb_sync.py, generic schema item·source·tag·
+  signal) synced to Azure Blob; passwordless GitHub Actions cron (OIDC + user-assigned
+  managed identity, no secrets). Verified: cloud run green, kb.sqlite+digest in Blob.
+  Consolidated digest into kb_sync (retired FreshRSS-coupled digest.py) — single path.
+  Azure: rg-ai-scout / Storage (keys off) / container 'knowledge' / id-ai-scout-gh (FIC main).
+- Next: P4 — LLM relevance ranking/summary (arXiv cs.LG volume needs it); Azure OpenAI/Foundry.
