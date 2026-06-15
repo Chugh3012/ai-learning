@@ -1,0 +1,4 @@
+# Azure Functions feedback endpoint — passwordless (managed identity → Tables)
+azure-functions
+azure-data-tables
+azure-identity

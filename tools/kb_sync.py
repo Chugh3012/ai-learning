@@ -77,7 +77,8 @@ def load_env() -> dict[str, str]:
     env.update({k: v for k, v in os.environ.items()
                 if k in ("STORAGE_ACCOUNT", "BLOB_CONTAINER",
                          "FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME",
-                         "ACS_ENDPOINT", "EMAIL_SENDER", "EMAIL_TO")})
+                         "ACS_ENDPOINT", "EMAIL_SENDER", "EMAIL_TO",
+                         "FEEDBACK_URL", "FEEDBACK_STORAGE")})
     return env
 
 
@@ -155,16 +156,18 @@ def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
     rows = con.execute(
         "SELECT i.title, i.url, s.title, i.published, t.topic, "
         "       (SELECT value FROM signal sg WHERE sg.item_id=i.id AND sg.kind='relevance' "
-        "        ORDER BY sg.ts DESC LIMIT 1) AS score "
+        "        ORDER BY sg.ts DESC LIMIT 1) AS score, "
+        "       (SELECT value FROM signal af WHERE af.item_id=i.id AND af.kind='affinity' "
+        "        ORDER BY af.ts DESC LIMIT 1) AS aff "
         "FROM item i JOIN tag t ON t.item_id=i.id JOIN source s ON s.id=i.source_id "
         "WHERE i.published>=? "
-        "ORDER BY score IS NULL, score DESC, i.published DESC",
+        "ORDER BY score IS NULL, (COALESCE(score,0)+COALESCE(aff,0)) DESC, i.published DESC",
         (cutoff,),
     ).fetchall()
 
     buckets: dict[str, list] = {}
     kept = set()
-    for title, url, feed, ts, topic, score in rows:
+    for title, url, feed, ts, topic, score, aff in rows:
         buckets.setdefault(topic, []).append((title, url, feed, score))
         kept.add(url)
 
@@ -262,6 +265,8 @@ def main() -> int:
     ap.add_argument("--draft-max", type=int, default=5, help="max drafts per run (cost cap)")
     ap.add_argument("--email", action="store_true", help="email top ranked items (ACS, passwordless)")
     ap.add_argument("--email-top", type=int, default=5, help="items per email")
+    ap.add_argument("--feedback", action="store_true",
+                    help="ingest email feedback events into the KB and recompute ranking affinity")
     args = ap.parse_args()
 
     env = load_env()
@@ -280,13 +285,17 @@ def main() -> int:
     if args.rank:
         from rank import score_unscored
         score_unscored(con, endpoint, model, args.days, args.rank_max)
+    if args.feedback:
+        from feedback_ingest import ingest_feedback
+        ingest_feedback(con, env.get("FEEDBACK_STORAGE", ""))
     if args.draft:
         from draft import generate_drafts
         generate_drafts(con, endpoint, model, args.draft_profile, args.draft_min, args.draft_max)
     if args.email:
         from notify import send_email
         send_email(con, env.get("ACS_ENDPOINT", ""), env.get("EMAIL_SENDER", ""),
-                   env.get("EMAIL_TO", ""), endpoint, model, args.email_top)
+                   env.get("EMAIL_TO", ""), endpoint, model, args.email_top,
+                   env.get("FEEDBACK_URL", ""), env.get("FEEDBACK_STORAGE", ""))
     digest = render_digest(con, rules, args.days)
     review = render_review(con)
     con.close()

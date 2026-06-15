@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -102,6 +102,15 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   Feedback (next, opt-in): 👍/👎, save, click → KB signal table; leaning tiny passwordless
   Azure Function (consumption ~$0). Email will carry feedback links when endpoint exists.
   Delivery channel-agnostic (WhatsApp deferred = Meta Business + templates + tokens, non-Entra).
+- P7 DONE (2026-06-16): feedback loop, NewsBlur-style (researched first — no drop-in OSS fits
+  passwordless-Azure + owned-SQLite). Email carries 👍/👎/⭐save links + click-tracked source,
+  each an opaque per-(item,action) token in Azure Table `feedbacktokens`. A passwordless Flex-
+  Consumption Function (function/function_app.py, system MI → Tables) validates the token and
+  records an event in `feedbackevents` — never touches the SQLite KB (decoupled, no write races).
+  Daily `kb_sync --feedback` (tools/feedback_ingest.py) drains events → KB fb_* signals →
+  recomputes a bounded per-source/per-topic `affinity` (additive, config/feedback.json), blended
+  into email + digest ordering. Idempotent (votes changeable). Verified end-to-end in cloud:
+  real clicks → 200 → +20/−20 affinity → reorder. GH vars FEEDBACK_URL/FEEDBACK_STORAGE.
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

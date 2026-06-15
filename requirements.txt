@@ -9,3 +9,5 @@ azure-storage-blob>=12.24.0
 azure-ai-projects>=2.0.0
 # Azure Communication Services Email (P6 delivery), passwordless via azure-identity.
 azure-communication-email>=1.0.0
+# Azure Tables (P7 feedback): mint email feedback tokens + drain feedback events, passwordless.
+azure-data-tables>=12.5.0

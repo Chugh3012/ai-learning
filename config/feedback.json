@@ -1,0 +1,5 @@
+{
+  "_comment": "How feedback nudges ranking. Borrowed from NewsBlur's additive 'intelligence' model: gestures add/subtract a small, bounded number of points; the LLM relevance score (0-100) still dominates ordering.",
+  "weights": { "vote": 1.0, "save": 0.5, "click": 0.25 },
+  "influence": { "source": 12, "topic": 8 }
+}
