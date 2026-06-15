@@ -76,7 +76,8 @@ def load_env() -> dict[str, str]:
                 env[k.strip()] = v.strip()
     env.update({k: v for k, v in os.environ.items()
                 if k in ("STORAGE_ACCOUNT", "BLOB_CONTAINER",
-                         "FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME")})
+                         "FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME",
+                         "ACS_ENDPOINT", "EMAIL_SENDER", "EMAIL_TO")})
     return env
 
 
@@ -256,6 +257,8 @@ def main() -> int:
     ap.add_argument("--draft-profile", default="social", help="content profile from config/content.yml")
     ap.add_argument("--draft-min", type=int, default=70, help="min relevance score to draft")
     ap.add_argument("--draft-max", type=int, default=5, help="max drafts per run (cost cap)")
+    ap.add_argument("--email", action="store_true", help="email top ranked items (ACS, passwordless)")
+    ap.add_argument("--email-top", type=int, default=5, help="items per email")
     args = ap.parse_args()
 
     env = load_env()
@@ -277,6 +280,10 @@ def main() -> int:
     if args.draft:
         from draft import generate_drafts
         generate_drafts(con, endpoint, model, args.draft_profile, args.draft_min, args.draft_max)
+    if args.email:
+        from notify import send_email
+        send_email(con, env.get("ACS_ENDPOINT", ""), env.get("EMAIL_SENDER", ""),
+                   env.get("EMAIL_TO", ""), endpoint, model, args.email_top)
     digest = render_digest(con, rules, args.days)
     review = render_review(con)
     con.close()

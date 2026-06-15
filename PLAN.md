@@ -81,7 +81,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -91,5 +91,12 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   Verified locally (3 drafts). PUBLISHING is intentionally NOT built (manual/opt-in).
 - Publishing (future, opt-in): Instagram needs Meta pro account + Page + PPA + app review +
   OAuth + public JPEG hosting (non-Entra, hard to reverse). Add only with a real account.
-- Pipeline complete end-to-end. Ongoing work = data/config (sources, tags, profiles) +
-  prompt tuning for rank/draft quality; not new infrastructure.
+- P6 DONE (2026-06-15): daily email of top-5 ranked items (one-line "why it matters" +
+  source link) via Azure Communication Services Email, passwordless (managed identity).
+  tools/notify.py + shared tools/foundry.py helper. Each item emailed once (KB signal
+  kind='emailed'). Azure: email-ai-scout (Email svc) + AzureManaged domain + acs-ai-scout
+  (Communication), role "Communication and Email Service Owner" on me+UAMI. GH vars
+  ACS_ENDPOINT/EMAIL_SENDER/EMAIL_TO; workflow runs --rank --email. Verified: real email sent.
+  Feedback (next, opt-in): 👍/👎, save, click → KB signal table; leaning tiny passwordless
+  Azure Function (consumption ~$0). Email will carry feedback links when endpoint exists.
+  Delivery channel-agnostic (WhatsApp deferred = Meta Business + templates + tokens, non-Entra).

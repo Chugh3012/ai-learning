@@ -42,8 +42,7 @@ this laptop is on. FreshRSS stays as an optional **local reader**.
 ```sh
 python tools/kb_sync.py --days 7      # feeds → data/kb/kb.sqlite → digest → Azure Blob
 python tools/kb_sync.py --days 7 --rank     # also score relevance (Microsoft Foundry)
-python tools/kb_sync.py --rank --draft      # also draft top items for review
-python tools/kb_sync.py --no-upload         # local only, skip Blob
+python tools/kb_sync.py --rank --draft      # also draft top items for reviewpython tools/kb_sync.py --rank --email      # also email top-5 ranked items (ACS)python tools/kb_sync.py --no-upload         # local only, skip Blob
 ```
 
 - Tagging grows via `config/tags.json` (keyword→topic). No code change.
@@ -55,6 +54,11 @@ python tools/kb_sync.py --no-upload         # local only, skip Blob
   (KB `draft` table → `drafts/YYYY-MM-DD-review.md`). The content target is a **profile in
   `config/content.yml`** (default `social`) — add LinkedIn/blog/etc. = add a profile, no
   code. Nothing is published; publishing to any platform is a manual, opt-in future step.
+- **Email delivery (P6):** `--email` sends the top-N not-yet-emailed ranked items (one-line
+  "why it matters" + title + source link) via **Azure Communication Services Email**,
+  passwordless. Each item is emailed once (KB `signal` kind='emailed'). Feedback buttons
+  (👍/👎, save) drop into the email when their capture endpoint is added — not shipped as
+  dead buttons.
 - Auth is **passwordless** (Entra): `az login` locally, GitHub OIDC in CI. No keys/secrets.
 - Cloud cron: `.github/workflows/kb-sync.yml` (daily, `--rank`). Azure: resource group
   `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, Foundry resource

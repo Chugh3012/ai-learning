@@ -61,11 +61,8 @@ def _load_profile(name: str) -> dict:
 
 
 def _client(endpoint: str):
-    from azure.ai.projects import AIProjectClient
-    from azure.identity import DefaultAzureCredential
-
-    project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
-    return project.get_openai_client()
+    from foundry import openai_client
+    return openai_client(endpoint)
 
 
 def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str,

@@ -42,4 +42,7 @@ jobs:
           BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
-        run: python tools/kb_sync.py --days 7 --rank
+          ACS_ENDPOINT: ${{ vars.ACS_ENDPOINT }}
+          EMAIL_SENDER: ${{ vars.EMAIL_SENDER }}
+          EMAIL_TO: ${{ vars.EMAIL_TO }}
+        run: python tools/kb_sync.py --days 7 --rank --email

@@ -35,11 +35,8 @@ SYSTEM = (
 
 def _client(endpoint: str):
     """Return an authenticated OpenAI client from the Foundry project (passwordless)."""
-    from azure.ai.projects import AIProjectClient
-    from azure.identity import DefaultAzureCredential
-
-    project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
-    return project.get_openai_client()
+    from foundry import openai_client
+    return openai_client(endpoint)
 
 
 def _score_batch(client, deployment: str, rows: list[tuple[int, str]]) -> dict[int, int]:
