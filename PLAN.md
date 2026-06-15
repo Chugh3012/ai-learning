@@ -80,12 +80,12 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [ ] P4  - [ ] P5
-- P1 DONE (2026-06-15): RSSHub+FreshRSS up; 19 native feeds, 2829 articles; dedupe proven.
-- P2 DONE (2026-06-15): config/tags.json + digest rendering; grouped markdown by topic.
-- P3 DONE (2026-06-15): owned SQLite KB (tools/kb_sync.py, generic schema item·source·tag·
-  signal) synced to Azure Blob; passwordless GitHub Actions cron (OIDC + user-assigned
-  managed identity, no secrets). Verified: cloud run green, kb.sqlite+digest in Blob.
-  Consolidated digest into kb_sync (retired FreshRSS-coupled digest.py) — single path.
-  Azure: rg-ai-scout / Storage (keys off) / container 'knowledge' / id-ai-scout-gh (FIC main).
-- Next: P4 — LLM relevance ranking/summary (arXiv cs.LG volume needs it); Azure OpenAI/Foundry.
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [ ] P5
+- P1–P3 DONE (2026-06-15): ingest (RSSHub+FreshRSS), tag+digest, owned SQLite KB → Azure
+  Blob via passwordless GitHub Actions (OIDC + user-assigned managed identity).
+- P4 DONE (2026-06-15): relevance ranking via **Microsoft Foundry project** (resource
+  aiscoutageony / project 'scout' / 'nano' = gpt-4.1-nano). Code uses Foundry SDK
+  azure-ai-projects 2.x `AIProjectClient.get_openai_client()` (NOT the classic AzureOpenAI
+  client). Passwordless (Entra), incremental, cost-capped. Scores in KB `signal` table
+  re-order the digest. Verified green in cloud with --rank.
+- Next: P5 — Instagram content funnel (KB item → LLM draft → human review → schedule).

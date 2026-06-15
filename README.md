@@ -41,14 +41,20 @@ this laptop is on. FreshRSS stays as an optional **local reader**.
 
 ```sh
 python tools/kb_sync.py --days 7      # feeds → data/kb/kb.sqlite → digest → Azure Blob
-python tools/kb_sync.py --no-upload   # local only, skip Blob
+python tools/kb_sync.py --days 7 --rank     # also score relevance (Microsoft Foundry)
+python tools/kb_sync.py --no-upload         # local only, skip Blob
 ```
 
 - Tagging grows via `config/tags.json` (keyword→topic). No code change.
+- **Relevance ranking (P4):** a cheap nano model in a **Microsoft Foundry project** scores
+  each new item 0–100 for "new ways to USE AI"; scores live in the KB `signal` table and
+  re-order the digest. Uses the Foundry SDK `AIProjectClient.get_openai_client()` —
+  passwordless (Entra). Incremental + capped (`--rank-max`) so cost stays sub-cent/run.
 - Auth is **passwordless** (Entra): `az login` locally, GitHub OIDC in CI. No keys/secrets.
-- Cloud cron: `.github/workflows/kb-sync.yml` (daily). Azure pieces: resource group
-  `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, user-assigned managed
-  identity `id-ai-scout-gh` federated to this repo's `main`.
+- Cloud cron: `.github/workflows/kb-sync.yml` (daily, `--rank`). Azure: resource group
+  `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, Foundry resource
+  `aiscoutageony` + project `scout` + `nano` deployment, user-assigned managed identity
+  `id-ai-scout-gh` federated to this repo's `main`.
 
 ## Grow it (the only way sources grow)
 Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
@@ -59,4 +65,4 @@ Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
 - `digests/` holds generated digests (also pushed to Blob).
 
 ## What's next
-P4 learning loop (LLM relevance ranking) → P5 Instagram funnel. Tracked in [PLAN.md](PLAN.md).
+P5 Instagram funnel (KB → draft → review → schedule). Tracked in [PLAN.md](PLAN.md).
