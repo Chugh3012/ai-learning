@@ -1,0 +1,6 @@
+# ai-scout P3 — owned knowledge base sync.
+# feedparser: robust RSS/Atom parsing (industry standard, handles feed variants).
+# azure-identity + azure-storage-blob: passwordless Blob access via Entra (DefaultAzureCredential).
+feedparser>=6.0.11
+azure-identity>=1.19.0
+azure-storage-blob>=12.24.0

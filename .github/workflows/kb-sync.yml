@@ -1,0 +1,43 @@
+name: kb-sync
+
+# Cloud-always-on ingestion (P3). Runs whether or not the laptop is on.
+# Passwordless: OIDC federation → Entra → Blob (RBAC). No secrets stored.
+
+on:
+  schedule:
+    - cron: "30 1 * * *"   # daily ~07:00 IST (01:30 UTC)
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write    # fetch the OIDC token for Azure login
+  contents: read
+
+concurrency:
+  group: kb-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Azure login (OIDC, passwordless)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync knowledge base → Blob
+        env:
+          STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+          BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
+        run: python tools/kb_sync.py --days 7

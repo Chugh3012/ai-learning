@@ -1,6 +1,10 @@
 # Secrets & local state — never commit
 .env
 
+# Local Python venv & scratch
+.venv/
+*.tmp
+
 # FreshRSS persistent data (system of record)
 data/freshrss/
 
