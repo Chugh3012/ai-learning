@@ -2,7 +2,8 @@
 """ai-scout email delivery (Layer F / P6) — pluggable, called by kb_sync.
 
 Sends a daily email of the top relevance-ranked items the user hasn't been emailed yet:
-each = a one-line "why it matters" (Foundry nano) + title + link to the source. No quiz.
+each = a short multi-sentence crux of the article (Foundry nano, grounded in the feed
+summary) + title + link to read the source if it's worth going deeper. No quiz.
 
 Passwordless throughout: Azure Communication Services Email via DefaultAzureCredential
 (az login locally, OIDC managed identity in CI), and Foundry for the blurbs. No keys.
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import secrets
 import sqlite3
 import time
@@ -28,8 +30,17 @@ import time
 _ACTIONS = ("up", "down", "save", "click")
 
 
+def _clean(text: str, limit: int = 900) -> str:
+    """Strip HTML tags/entities from a feed summary so the model sees clean prose."""
+    text = re.sub(r"<[^>]+>", " ", text or "")
+    text = html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:limit]
+
+
 def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str]:
-    """One-line 'why it matters' per item, in a single batched Foundry call."""
+    """A short multi-sentence crux per item (the gist of the article + why it matters),
+    grounded in the article summary, in a single batched Foundry call."""
     if not endpoint:
         return {}
     try:
@@ -38,11 +49,17 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
     except Exception as e:  # noqa: BLE001
         print(f"email: blurb client failed ({e}); sending titles only")
         return {}
-    listing = "\n".join(f"{i}: {t}" for i, t, _u in items)
+    listing = "\n\n".join(
+        f"[{i}] {t}\n{_clean(s)}" if _clean(s) else f"[{i}] {t}"
+        for i, t, s in items
+    )
     system = (
-        "For each item, write ONE concise sentence (<=22 words) on why it matters for someone "
-        "learning new ways to USE AI/LLMs. Practical, non-hyped. Return ONLY JSON: "
-        '{"blurbs":[{"id":<int>,"s":"<sentence>"}, ...]} for every id.'
+        "You summarize tech/AI articles for a busy reader who wants the core crux up front and "
+        "will click through only if it's worth it. For each item write 2-4 sentences (about 45-75 "
+        "words) capturing what it actually says — the key idea, what's new, and why it matters for "
+        "someone learning new ways to USE AI/LLMs. Be concrete and non-hyped; ground it in the "
+        "provided text and never invent specifics. Return ONLY JSON: "
+        '{"blurbs":[{"id":<int>,"s":"<summary>"}, ...]} for every id.'
     )
     try:
         resp = client.chat.completions.create(
@@ -51,7 +68,7 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
                       {"role": "user", "content": listing}],
             temperature=0.3,
             response_format={"type": "json_object"},
-            max_tokens=500,
+            max_tokens=1300,
         )
         data = json.loads(resp.choices[0].message.content)
         return {int(b["id"]): str(b["s"]) for b in data.get("blurbs", [])}
@@ -117,7 +134,7 @@ def _render(items: list[tuple], blurbs: dict[int, str],
         row = [
             f'<div style="margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid #eee">',
             f'<div style="font-weight:600;font-size:15px">{html.escape(title)}</div>',
-            f'<div style="color:#444;font-size:14px;margin:4px 0 6px">{html.escape(blurb)}</div>',
+            f'<div style="color:#444;font-size:14px;line-height:1.5;margin:6px 0 8px">{html.escape(blurb)}</div>',
             f'<a href="{html.escape(src)}" style="color:#0a66c2;font-size:13px">Read the source \u2192</a>',
         ]
         if fb:
@@ -144,8 +161,8 @@ def send_email(con: sqlite3.Connection, acs_endpoint: str, sender: str, to: str,
     """
     if not (acs_endpoint and sender and to):
         return 0
-    rows = con.execute(
-        "SELECT i.id, i.title, i.url FROM item i "
+    selected = con.execute(
+        "SELECT i.id, i.title, i.url, i.summary FROM item i "
         "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
         "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind='emailed') "
         "ORDER BY (s.value + COALESCE("
@@ -153,11 +170,13 @@ def send_email(con: sqlite3.Connection, acs_endpoint: str, sender: str, to: str,
         "i.published DESC LIMIT ?",
         (top,),
     ).fetchall()
-    if not rows:
+    if not selected:
         print("email: nothing new to send")
         return 0
 
-    blurbs = _blurbs(foundry_endpoint, model, rows)
+    rows = [(r[0], r[1], r[2]) for r in selected]            # (id, title, url) for render/tokens
+    blurb_items = [(r[0], r[1], r[3]) for r in selected]     # (id, title, summary) for the crux
+    blurbs = _blurbs(foundry_endpoint, model, blurb_items)
     tokens = _mint_tokens(feedback_account, rows) if feedback_url else {}
     plain, body_html = _render(rows, blurbs, feedback_url, tokens)
 
