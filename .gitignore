@@ -10,9 +10,10 @@ __pycache__/
 # FreshRSS persistent data (system of record)
 data/freshrss/
 
-# Owned knowledge base (P3) and generated digests (P2/P4)
+# Owned knowledge base (P3) and generated outputs (P2/P4/P5)
 data/kb/
 digests/
+drafts/*.md
 
 # OS / editor noise
 .DS_Store
