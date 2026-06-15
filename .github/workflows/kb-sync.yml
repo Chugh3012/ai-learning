@@ -40,4 +40,6 @@ jobs:
         env:
           STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
           BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
-        run: python tools/kb_sync.py --days 7
+          FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+          FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
+        run: python tools/kb_sync.py --days 7 --rank

@@ -70,7 +70,9 @@ def load_env() -> dict[str, str]:
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 env[k.strip()] = v.strip()
-    env.update({k: v for k, v in os.environ.items() if k in ("STORAGE_ACCOUNT", "BLOB_CONTAINER")})
+    env.update({k: v for k, v in os.environ.items()
+                if k in ("STORAGE_ACCOUNT", "BLOB_CONTAINER",
+                         "FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME")})
     return env
 
 
@@ -146,27 +148,33 @@ def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
     out = DIGEST_DIR / f"{today}.md"
 
     rows = con.execute(
-        "SELECT i.title,i.url,s.title,i.published,t.topic "
+        "SELECT i.title, i.url, s.title, i.published, t.topic, "
+        "       (SELECT value FROM signal sg WHERE sg.item_id=i.id AND sg.kind='relevance' "
+        "        ORDER BY sg.ts DESC LIMIT 1) AS score "
         "FROM item i JOIN tag t ON t.item_id=i.id JOIN source s ON s.id=i.source_id "
-        "WHERE i.published>=? ORDER BY i.published DESC",
+        "WHERE i.published>=? "
+        "ORDER BY score IS NULL, score DESC, i.published DESC",
         (cutoff,),
     ).fetchall()
 
     buckets: dict[str, list] = {}
     kept = set()
-    for title, url, feed, ts, topic in rows:
-        buckets.setdefault(topic, []).append((title, url, feed))
+    for title, url, feed, ts, topic, score in rows:
+        buckets.setdefault(topic, []).append((title, url, feed, score))
         kept.add(url)
 
+    ranked = any(s is not None for b in buckets.values() for *_, s in b)
+    note = "ranked by relevance" if ranked else "by recency"
     lines = [f"# ai-scout digest — {today}", "",
-             f"_{len(kept)} items from the last {days} days, grouped by topic._", ""]
+             f"_{len(kept)} items from the last {days} days, grouped by topic, {note}._", ""]
     for topic in order:
         if topic not in buckets:
             continue
         lines.append(f"## {topic}  ({len(buckets[topic])})")
-        for title, url, feed in buckets[topic]:
+        for title, url, feed, score in buckets[topic]:
+            badge = f"**[{int(score)}]** " if score is not None else ""
             src = f" — _{feed}_" if feed else ""
-            lines.append(f"- [{title}]({url}){src}")
+            lines.append(f"- {badge}[{title}]({url}){src}")
         lines.append("")
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
@@ -203,6 +211,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--no-upload", action="store_true", help="skip Blob download/upload (local only)")
+    ap.add_argument("--rank", action="store_true", help="score new items for relevance (Azure OpenAI)")
+    ap.add_argument("--rank-max", type=int, default=400, help="max items to score per run (cost cap)")
     args = ap.parse_args()
 
     env = load_env()
@@ -216,6 +226,10 @@ def main() -> int:
 
     con = connect()
     new_items, total = sync(con, rules)
+    if args.rank:
+        from rank import score_unscored
+        score_unscored(con, env.get("FOUNDRY_PROJECT_ENDPOINT", ""),
+                       env.get("FOUNDRY_MODEL_NAME", "nano"), args.days, args.rank_max)
     digest = render_digest(con, rules, args.days)
     con.close()
     print(f"sync: +{new_items} new, {total} total items; wrote {digest.name}")

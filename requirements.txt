@@ -4,3 +4,6 @@
 feedparser>=6.0.11
 azure-identity>=1.19.0
 azure-storage-blob>=12.24.0
+# Microsoft Foundry SDK (P4 relevance ranking). v2.x = Foundry projects (new) API;
+# bundles openai + azure-identity. We call project.get_openai_client() — passwordless.
+azure-ai-projects>=2.0.0
