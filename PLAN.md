@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -111,6 +111,16 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   recomputes a bounded per-source/per-topic `affinity` (additive, config/feedback.json), blended
   into email + digest ordering. Idempotent (votes changeable). Verified end-to-end in cloud:
   real clicks → 200 → +20/−20 affinity → reorder. GH vars FEEDBACK_URL/FEEDBACK_STORAGE.
+- P8 DONE (2026-06-16): ranking + digest QUALITY. (1) rank.py rubric rewritten — calibrated
+  bands + AI-topicality gate + applied-over-academic bias, scored on title+summary not title
+  only → scores now spread 0-100 (was all ~90). (2) tools/curate.py: dedup() collapses near-
+  duplicate headlines (Jaccard over title tokens) + diversify() caps per-source/per-topic (MMR-
+  style); config/curate.json knobs. Applied to email top-N (pool×6 then curate) and digest. (3)
+  notify.py: best-effort trafilatura full-text fetch deepens the email crux (falls back to feed
+  summary). (4) foundry.log_usage() prints per-call tokens for cost visibility. Verified: score
+  distribution healthy, diversity cap works. KNOWN RESIDUAL: nano over-scores some title-only HN
+  front-page items (Typst, a game) despite the gate — that source (HN frontpage) is general-tech
+  noise; tightening/replacing it is the real lever (follow-up).
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

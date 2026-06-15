@@ -38,9 +38,26 @@ def _clean(text: str, limit: int = 900) -> str:
     return text[:limit]
 
 
+def _fulltext(url: str, limit: int = 2500) -> str:
+    """Best-effort fetch of the article body for a deeper crux. Returns '' on any failure
+    (paywall, JS page, timeout, dep missing) so the caller falls back to the feed summary."""
+    if not url:
+        return ""
+    try:
+        import trafilatura
+        downloaded = trafilatura.fetch_url(url)
+        if not downloaded:
+            return ""
+        text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+        return _clean(text or "", limit)
+    except Exception:  # noqa: BLE001 — enrichment is optional, never break the email
+        return ""
+
+
 def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str]:
     """A short multi-sentence crux per item (the gist of the article + why it matters),
-    grounded in the article summary, in a single batched Foundry call."""
+    grounded in the best available text (fetched article body, else feed summary), in a
+    single batched Foundry call."""
     if not endpoint:
         return {}
     try:
@@ -70,6 +87,8 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
             response_format={"type": "json_object"},
             max_tokens=1300,
         )
+        from foundry import log_usage
+        log_usage("email", resp)
         data = json.loads(resp.choices[0].message.content)
         return {int(b["id"]): str(b["s"]) for b in data.get("blurbs", [])}
     except Exception as e:  # noqa: BLE001
@@ -161,21 +180,31 @@ def send_email(con: sqlite3.Connection, acs_endpoint: str, sender: str, to: str,
     """
     if not (acs_endpoint and sender and to):
         return 0
-    selected = con.execute(
-        "SELECT i.id, i.title, i.url, i.summary FROM item i "
+    # Pull a larger candidate pool, then curate down: drop near-duplicates and cap how many
+    # items any one source/topic contributes, so the top-N feels varied not monotone.
+    candidates = con.execute(
+        "SELECT i.id, i.title, i.url, i.summary, i.source_id, "
+        "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic "
+        "FROM item i "
         "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
         "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind='emailed') "
         "ORDER BY (s.value + COALESCE("
         "  (SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind='affinity'), 0)) DESC, "
         "i.published DESC LIMIT ?",
-        (top,),
+        (max(top * 6, 30),),
     ).fetchall()
-    if not selected:
+    if not candidates:
         print("email: nothing new to send")
         return 0
 
-    rows = [(r[0], r[1], r[2]) for r in selected]            # (id, title, url) for render/tokens
-    blurb_items = [(r[0], r[1], r[3]) for r in selected]     # (id, title, summary) for the crux
+    from curate import dedup, diversify
+    pool = [{"id": r[0], "title": r[1], "url": r[2], "summary": r[3],
+             "source_id": r[4], "topic": r[5]} for r in candidates]
+    selected = diversify(dedup(pool), top)
+
+    rows = [(d["id"], d["title"], d["url"]) for d in selected]            # render/tokens
+    # Enrich the crux with the fetched article body when possible; fall back to feed summary.
+    blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
     blurbs = _blurbs(foundry_endpoint, model, blurb_items)
     tokens = _mint_tokens(feedback_account, rows) if feedback_url else {}
     plain, body_html = _render(rows, blurbs, feedback_url, tokens)

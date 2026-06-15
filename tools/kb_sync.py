@@ -171,6 +171,13 @@ def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
         buckets.setdefault(topic, []).append((title, url, feed, score))
         kept.add(url)
 
+    # Drop near-duplicate headlines within each topic (keep the highest-ranked).
+    from curate import dedup
+    for topic, lst in buckets.items():
+        survivors = dedup([{"title": t, "url": u, "feed": f, "score": sc} for t, u, f, sc in lst])
+        buckets[topic] = [(d["title"], d["url"], d["feed"], d["score"]) for d in survivors]
+    kept = {u for lst in buckets.values() for _, u, _, _ in lst}
+
     ranked = any(s is not None for b in buckets.values() for *_, s in b)
     note = "ranked by relevance" if ranked else "by recency"
     lines = [f"# ai-scout digest — {today}", "",

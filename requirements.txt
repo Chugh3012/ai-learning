@@ -11,3 +11,6 @@ azure-ai-projects>=2.0.0
 azure-communication-email>=1.0.0
 # Azure Tables (P7 feedback): mint email feedback tokens + drain feedback events, passwordless.
 azure-data-tables>=12.5.0
+# trafilatura (P8): best-effort article full-text extraction to deepen email summaries.
+# Optional at runtime — notify.py falls back to the feed summary if it's missing or fails.
+trafilatura>=2.0.0

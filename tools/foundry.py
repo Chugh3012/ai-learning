@@ -13,3 +13,15 @@ def openai_client(endpoint: str):
 
     project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
     return project.get_openai_client()
+
+
+def log_usage(stage: str, resp) -> None:
+    """Print token usage for one Foundry call so per-run cost is observable in logs.
+    Best-effort: silently does nothing if the response carries no usage."""
+    try:
+        u = resp.usage
+        print(f"{stage}: tokens prompt={u.prompt_tokens} completion={u.completion_tokens} "
+              f"total={u.total_tokens}")
+    except Exception:  # noqa: BLE001
+        pass
+

@@ -1,0 +1,6 @@
+{
+  "_comment": "Curation knobs (P8). dedup_jaccard: title-token overlap above which two stories are 'the same'. max_per_source / max_per_topic: diversity caps applied when picking the email top-N.",
+  "dedup_jaccard": 0.6,
+  "max_per_source": 2,
+  "max_per_topic": 2
+}
