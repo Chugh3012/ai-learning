@@ -216,6 +216,9 @@ def render_review(con: sqlite3.Connection) -> Path | None:
         lines.append("")
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
+
+
+def blob_client(account: str):
     from azure.identity import DefaultAzureCredential
     from azure.storage.blob import BlobServiceClient
 
