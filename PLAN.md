@@ -59,6 +59,8 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   backup**, Entra RBAC only (no keys). Postgres DEFERRED to P4/P5 — adopt only when concurrent
   access or vector search actually needs it (sync layer is decoupled, so it's a swap not a rewrite).
 - Scheduling: container-native / cron; no bespoke scheduler.
+- **Infra-as-Code**: `infra/*.bicep` is the source of truth for all Azure resources. Change
+  infra there, not in the Portal/CLI. `az deployment group what-if` verifies fidelity.
 - X/Twitter: via RSSHub, no paid API.
 - No LLM summarization in P1–P2; reserved for P4.
 - Cost discipline: no always-on cloud compute until a phase truly needs it. Prefer
@@ -100,3 +102,6 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   Feedback (next, opt-in): 👍/👎, save, click → KB signal table; leaning tiny passwordless
   Azure Function (consumption ~$0). Email will carry feedback links when endpoint exists.
   Delivery channel-agnostic (WhatsApp deferred = Meta Business + templates + tokens, non-Entra).
+- IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
+  passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
+  core resources match live exactly. Source of truth going forward — new resources land here.
