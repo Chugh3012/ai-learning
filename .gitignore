@@ -1,0 +1,13 @@
+# Secrets & local state — never commit
+.env
+
+# FreshRSS persistent data (system of record)
+data/freshrss/
+
+# Owned knowledge base (P3) and generated digests (P2/P4)
+data/kb/
+digests/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db

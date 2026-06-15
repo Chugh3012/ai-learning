@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ai-scout curated sources — import into FreshRSS (or Folo).
+  Two kinds of feed:
+    1) Native RSS/Atom — work standalone.
+    2) RSSHub routes (xmlUrl starts with http://localhost:1200) — require the rsshub
+       container running (docker compose up). Swap host if RSSHub runs elsewhere.
+  GROWTH RULE: add a source = add ONE <outline> line here (see PLAN.md). Keep deduped.
+-->
+<opml version="2.0">
+  <head>
+    <title>ai-scout sources</title>
+  </head>
+  <body>
+    <outline text="Labs &amp; Builders" title="Labs &amp; Builders">
+      <outline type="rss" text="OpenAI News" title="OpenAI News" xmlUrl="https://openai.com/news/rss.xml" htmlUrl="https://openai.com/news/"/>
+      <outline type="rss" text="Hugging Face Blog" title="Hugging Face Blog" xmlUrl="https://huggingface.co/blog/feed.xml" htmlUrl="https://huggingface.co/blog"/>
+      <outline type="rss" text="Google DeepMind Blog" title="Google DeepMind Blog" xmlUrl="https://deepmind.google/blog/rss.xml" htmlUrl="https://deepmind.google/discover/blog/"/>
+      <outline type="rss" text="BAIR Blog (Berkeley)" title="BAIR Blog (Berkeley)" xmlUrl="https://bair.berkeley.edu/blog/feed.xml" htmlUrl="https://bair.berkeley.edu/blog/"/>
+    </outline>
+    <outline text="Practitioners &amp; Newsletters" title="Practitioners &amp; Newsletters">
+      <outline type="rss" text="Simon Willison" title="Simon Willison" xmlUrl="https://simonwillison.net/atom/everything/" htmlUrl="https://simonwillison.net/"/>
+      <outline type="rss" text="Import AI (Jack Clark)" title="Import AI (Jack Clark)" xmlUrl="https://importai.substack.com/feed" htmlUrl="https://importai.substack.com/"/>
+      <outline type="rss" text="Ahead of AI (Sebastian Raschka)" title="Ahead of AI (Sebastian Raschka)" xmlUrl="https://magazine.sebastianraschka.com/feed" htmlUrl="https://magazine.sebastianraschka.com/"/>
+      <outline type="rss" text="One Useful Thing (Ethan Mollick)" title="One Useful Thing (Ethan Mollick)" xmlUrl="https://www.oneusefulthing.org/feed" htmlUrl="https://www.oneusefulthing.org/"/>
+    </outline>
+    <outline text="Research (arXiv)" title="Research (arXiv)">
+      <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
+      <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="http://export.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
+      <outline type="rss" text="arXiv cs.LG (ML)" title="arXiv cs.LG (ML)" xmlUrl="http://export.arxiv.org/rss/cs.LG" htmlUrl="https://arxiv.org/list/cs.LG/recent"/>
+    </outline>
+    <outline text="Communities" title="Communities">
+      <outline type="rss" text="Hacker News (front page)" title="Hacker News (front page)" xmlUrl="https://hnrss.org/frontpage" htmlUrl="https://news.ycombinator.com/"/>
+      <outline type="rss" text="HN: AI/LLM search" title="HN: AI/LLM search" xmlUrl="https://hnrss.org/newest?q=LLM+OR+%22AI+agent%22&amp;points=50" htmlUrl="https://news.ycombinator.com/"/>
+    </outline>
+    <outline text="Tools &amp; Launches" title="Tools &amp; Launches">
+      <outline type="rss" text="Product Hunt" title="Product Hunt" xmlUrl="https://www.producthunt.com/feed" htmlUrl="https://www.producthunt.com/"/>
+      <outline type="rss" text="GitHub Releases: ollama" title="GitHub Releases: ollama" xmlUrl="https://github.com/ollama/ollama/releases.atom" htmlUrl="https://github.com/ollama/ollama/releases"/>
+      <outline type="rss" text="GitHub Releases: vLLM" title="GitHub Releases: vLLM" xmlUrl="https://github.com/vllm-project/vllm/releases.atom" htmlUrl="https://github.com/vllm-project/vllm/releases"/>
+      <outline type="rss" text="GitHub Releases: LangChain" title="GitHub Releases: LangChain" xmlUrl="https://github.com/langchain-ai/langchain/releases.atom" htmlUrl="https://github.com/langchain-ai/langchain/releases"/>
+      <outline type="rss" text="GitHub Releases: Transformers" title="GitHub Releases: Transformers" xmlUrl="https://github.com/huggingface/transformers/releases.atom" htmlUrl="https://github.com/huggingface/transformers/releases"/>
+      <outline type="rss" text="GitHub Releases: llama.cpp" title="GitHub Releases: llama.cpp" xmlUrl="https://github.com/ggml-org/llama.cpp/releases.atom" htmlUrl="https://github.com/ggml-org/llama.cpp/releases"/>
+    </outline>
+  </body>
+</opml>

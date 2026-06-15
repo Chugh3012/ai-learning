@@ -1,0 +1,89 @@
+# AI-Scout — Plan & North Star
+
+> Single source of truth for this project. Revise this file; never append duplicate sections.
+> If work drifts, re-read this first.
+
+## Mission
+Own durable infrastructure that continuously scans for **new ways to use AI/LLMs**, helps me
+learn from it, and later feeds an **Instagram content funnel**. Build slow, long-term, sleek.
+
+## Principles (non-negotiable)
+1. **Reuse, don't reinvent.** Build on battle-tested OSS (RSSHub, FreshRSS). Custom code only
+   at seams we own.
+2. **Own the data.** Curated knowledge lives in our own DB, independent of any tool.
+3. **Growth = data, not code.** New source/topic = one config line, never a new module.
+4. **Revise, don't append.** One source of truth per concern. Prune; no bloat.
+5. **Decoupled stages.** Each layer can evolve or be swapped without breaking others.
+6. **Human-gated automation.** Self-discovery proposes; human approves; system stays curated.
+7. **Entra-first, passwordless.** Use Microsoft Entra ID everywhere possible — managed
+   identity for Azure-to-Azure auth, Entra auth for Postgres, RBAC for Blob, and GitHub
+   Actions via OIDC federated credentials. No app keys / connection strings / stored secrets.
+
+## Architecture (5 layers)
+| Layer | Role | Tool / Owned |
+|-------|------|--------------|
+| A. Ingest | source → RSS adapters (X, Reddit, GitHub, YouTube, arXiv, HN, Product Hunt, blogs) | RSSHub (docker) |
+| B. System of record | WebSub push (pubsub) · dedupe · store | FreshRSS (docker) |
+| C. Curation | tags · saved queries · later LLM relevance scoring | FreshRSS + config |
+| D. Owned knowledge base | durable archive + feedback signals (the long-term asset) | our Postgres/SQLite + object store |
+| E. Content funnel (future) | KB item → LLM draft (caption/carousel) → review → schedule | decoupled service |
+
+Flow: A → B → C → D → E. Two feedback loops into D/C: **discovery** (grows sources) and
+**feedback** (grows ranking). Both human-gated.
+
+## Config-as-code (the only places things grow)
+- `sources.opml` + `sources.yml` — the curated source list.
+- `proposals.yml` — system-suggested sources/topics awaiting human approval (then merged, deduped).
+- `docker-compose.yml` — infra. `.env` — secrets. Owned DB — knowledge. All in git.
+- Registry pattern reserved for any future connector/sink: drop one self-registering file, edit no core.
+
+## Phased roadmap
+- **P1 Foundation** — repo skeleton + `docker-compose.yml` (RSSHub+FreshRSS) + curated
+  `sources.opml` + `.env.example` + README. Done when: feeds flow, dedupe works, stored locally.
+- **P2 Curation** — tag rules + saved queries → stable curated feed + markdown/email digest.
+- **P3 Owned KB** — sync FreshRSS API → local SQLite KB (generic schema item·source·tag·signal)
+  + push a copy to Azure Blob (Entra RBAC). Done when: data is ours, durably backed up, cheap.
+- **P4 Learning loop** — weekly digest + optional LLM ranking/summary of novel AI usage.
+- **P5 Instagram funnel** — decoupled service: KB item → draft → review → schedule.
+
+Each phase is independently valuable and verifiable. Don't build ahead of what's proven.
+
+## Self-growth ("Jarvis") seams reserved in P1
+- Generic KB schema: `item · source · tag · signal` (new signal types need no schema change).
+- `proposals.yml` convention for the discovery loop.
+- Registry pattern for connectors/sinks.
+
+## Decisions locked
+- Storage: SQLite is the owned KB system of record (P3). **Azure Blob = durable offsite
+  backup**, Entra RBAC only (no keys). Postgres DEFERRED to P4/P5 — adopt only when concurrent
+  access or vector search actually needs it (sync layer is decoupled, so it's a swap not a rewrite).
+- Scheduling: container-native / cron; no bespoke scheduler.
+- X/Twitter: via RSSHub, no paid API.
+- No LLM summarization in P1–P2; reserved for P4.
+- Cost discipline: no always-on cloud compute until a phase truly needs it. Prefer
+  pay-per-use / near-zero-idle services. Tear-down friendly (nothing to "nuke").
+
+## Hosting & cloud (adopt per phase, never before a phase needs it)
+- **GitHub** (from P1): repo = source of truth; **Actions cron** runs digest + discovery
+  jobs (no server); GHCR for custom images; Dependabot keeps deps fresh.
+- **Local Docker** (P1–P2): prove RSSHub + FreshRSS on my machine first.
+- **Azure** (from P3, when always-on/ownership matters): Container Apps or VM + Azure Files
+  for RSSHub/FreshRSS; **owned KB = SQLite backed up to Azure Blob** (Entra RBAC, no keys).
+  Postgres only if/when P4–P5 need it.
+- **Azure OpenAI / Microsoft Foundry** (P4–P5): ranking, summaries, content drafts.
+- Note: FreshRSS WebSub push needs an always-on host (Actions is cron-only) → that piece
+  is local in P1–P2, Azure from P3.
+
+## Open questions (resolve when reached)
+- Always-on host at P3: Azure Container Apps vs small VM/VPS vs home server.
+- LLM provider for P4: Azure OpenAI / Foundry vs OpenAI vs local.
+- Instagram publishing method for P5 (manual export vs Graph API).
+
+## Status
+- [x] P1  - [x] P2  - [ ] P3  - [ ] P4  - [ ] P5
+- P1 DONE (2026-06-15): RSSHub+FreshRSS up; 19 native feeds, 2829 articles; dedupe proven.
+- P2 DONE (2026-06-15): config/tags.json (keyword→topic) + tools/digest.py (stdlib, reads
+  FreshRSS Greader API) → grouped markdown in digests/. Verified: 400 items → 10 topics.
+  Email delivery left as config-gated extension (SMTP), not built until needed.
+- Observed for P4: arXiv cs.LG volume floods topics → needs LLM relevance ranking (P4).
+- Next: P3 — sync FreshRSS API → owned DB (Azure Postgres + Blob) for durable knowledge.

@@ -1,0 +1,40 @@
+# ai-scout — source registry (human-friendly companion to sources.opml).
+#
+# sources.opml is what FreshRSS/Folo imports. This file is the readable index +
+# metadata for governance. GROWTH RULE (PLAN.md): add a source = one entry here AND
+# one <outline> in sources.opml. Keep both deduped. Revise, never bloat.
+#
+# kind: native | rsshub   (rsshub routes need the rsshub container running)
+# topics: free tags used later by Layer C curation / scoring.
+
+categories:
+  labs_builders:
+    - { name: OpenAI News,            kind: native, topics: [models, releases] }
+    - { name: Hugging Face Blog,      kind: native, topics: [oss, models, howto] }
+    - { name: Google DeepMind Blog,   kind: native, topics: [research, models] }
+    - { name: BAIR Blog,              kind: native, topics: [research] }
+  practitioners:
+    - { name: Simon Willison,         kind: native, topics: [howto, tools, llm] }
+    - { name: Import AI,              kind: native, topics: [newsletter, trends] }
+    - { name: Ahead of AI,            kind: native, topics: [newsletter, deepdive] }
+    - { name: One Useful Thing,       kind: native, topics: [usage, productivity] }
+  research:
+    - { name: arXiv cs.AI,            kind: native, topics: [paper] }
+    - { name: arXiv cs.CL,            kind: native, topics: [paper, nlp, llm] }
+    - { name: arXiv cs.LG,            kind: native, topics: [paper, ml] }
+  communities:
+    - { name: Hacker News front page, kind: native, topics: [community] }
+    - { name: HN AI/LLM search,       kind: native, topics: [community, llm] }
+  tools_launches:
+    - { name: Product Hunt,                 kind: native, topics: [launch, product] }
+    - { name: GitHub Releases ollama,       kind: native, topics: [tools, oss, local-llm] }
+    - { name: GitHub Releases vLLM,         kind: native, topics: [tools, oss, serving] }
+    - { name: GitHub Releases LangChain,    kind: native, topics: [tools, oss, agents] }
+    - { name: GitHub Releases Transformers, kind: native, topics: [tools, oss, models] }
+    - { name: GitHub Releases llama.cpp,    kind: native, topics: [tools, oss, local-llm] }
+
+# Deferred (revisit later; not in sources.opml):
+#   Reddit (r/LocalLLaMA, r/MachineLearning) — Reddit blocks feed access (native 403,
+#     RSSHub IP-blocked). Re-add via RSSHub with auth cookie or a proxy in a later phase.
+#   GitHub Trending — needs a GitHub token via RSSHub; native releases.atom above are
+#     higher-signal and tokenless, so preferred. Enable trending later if wanted.

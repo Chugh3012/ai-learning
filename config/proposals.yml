@@ -1,0 +1,17 @@
+# ai-scout — discovery inbox (the "Jarvis" self-growth seam, PLAN.md).
+#
+# The system writes PROPOSED sources/topics here (domains it keeps seeing, rising tags,
+# RSSHub-radar finds). Nothing here is live. You review, then approved entries are MERGED
+# into sources.opml + sources.yml and REMOVED from here (revise, don't append).
+#
+# Populated automatically from P3+. Empty by design in P1.
+#
+# entry shape:
+#   - name: <label>
+#     candidate_url: <feed or site>
+#     kind: native | rsshub
+#     seen_count: <how often the system encountered it>
+#     reason: <why proposed>
+#     status: proposed   # proposed -> approved -> merged (then delete) | rejected
+
+proposals: []
