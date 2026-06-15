@@ -44,7 +44,8 @@ Flow: A → B → C → D → E. Two feedback loops into D/C: **discovery** (gro
 - **P3 Owned KB** — sync FreshRSS API → local SQLite KB (generic schema item·source·tag·signal)
   + push a copy to Azure Blob (Entra RBAC). Done when: data is ours, durably backed up, cheap.
 - **P4 Learning loop** — weekly digest + optional LLM ranking/summary of novel AI usage.
-- **P5 Instagram funnel** — decoupled service: KB item → draft → review → schedule.
+- **P5 Content drafts** — config-driven profiles (`config/content.yml`) turn top-ranked KB
+  items into human-review drafts. Output target = config, not code. Publishing = manual/opt-in.
 
 Each phase is independently valuable and verifiable. Don't build ahead of what's proven.
 
@@ -80,12 +81,15 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [ ] P5
-- P1–P3 DONE (2026-06-15): ingest (RSSHub+FreshRSS), tag+digest, owned SQLite KB → Azure
-  Blob via passwordless GitHub Actions (OIDC + user-assigned managed identity).
-- P4 DONE (2026-06-15): relevance ranking via **Microsoft Foundry project** (resource
-  aiscoutageony / project 'scout' / 'nano' = gpt-4.1-nano). Code uses Foundry SDK
-  azure-ai-projects 2.x `AIProjectClient.get_openai_client()` (NOT the classic AzureOpenAI
-  client). Passwordless (Entra), incremental, cost-capped. Scores in KB `signal` table
-  re-order the digest. Verified green in cloud with --rank.
-- Next: P5 — Instagram content funnel (KB item → LLM draft → human review → schedule).
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5
+- P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
+  Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
+- P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
+  (default 'social', platform-agnostic) generate human-review drafts into KB `draft` table
+  → drafts/YYYY-MM-DD-review.md. Foundry SDK, passwordless, incremental, cost-capped
+  (--draft-min/--draft-max). Output target = config, not code (add a profile to extend).
+  Verified locally (3 drafts). PUBLISHING is intentionally NOT built (manual/opt-in).
+- Publishing (future, opt-in): Instagram needs Meta pro account + Page + PPA + app review +
+  OAuth + public JPEG hosting (non-Entra, hard to reverse). Add only with a real account.
+- Pipeline complete end-to-end. Ongoing work = data/config (sources, tags, profiles) +
+  prompt tuning for rank/draft quality; not new infrastructure.

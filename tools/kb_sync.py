@@ -43,6 +43,7 @@ TAGS = ROOT / "config" / "tags.json"
 KB_DIR = ROOT / "data" / "kb"
 KB_PATH = KB_DIR / "kb.sqlite"
 DIGEST_DIR = ROOT / "digests"
+DRAFTS_DIR = ROOT / "drafts"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS source(
@@ -58,6 +59,9 @@ CREATE TABLE IF NOT EXISTS tag(
 CREATE TABLE IF NOT EXISTS signal(
   id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES item(id),
   kind TEXT, value REAL, ts INTEGER);
+CREATE TABLE IF NOT EXISTS draft(
+  id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES item(id) UNIQUE,
+  status TEXT, body TEXT, created_at INTEGER);
 CREATE INDEX IF NOT EXISTS idx_item_published ON item(published);
 """
 
@@ -180,7 +184,37 @@ def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
     return out
 
 
-def blob_client(account: str):
+def render_review(con: sqlite3.Connection) -> Path | None:
+    """Write pending content drafts to a human-review markdown file. Generic over the
+    JSON shape: prints whatever keys each draft profile produced."""
+    rows = con.execute(
+        "SELECT d.id, i.title, i.url, d.body FROM draft d JOIN item i ON i.id=d.item_id "
+        "WHERE d.status='pending' ORDER BY d.created_at DESC"
+    ).fetchall()
+    if not rows:
+        return None
+    DRAFTS_DIR.mkdir(exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = DRAFTS_DIR / f"{today}-review.md"
+    lines = [f"# Content drafts for review — {today}", "",
+             f"_{len(rows)} pending. Edit/approve before any publishing (publishing is manual)._", ""]
+    for draft_id, title, url, body_json in rows:
+        body = json.loads(body_json)
+        profile = body.pop("_profile", "")
+        lines.append(f"## #{draft_id} — {title}")
+        lines.append(f"_source: {url}{(' · profile: ' + profile) if profile else ''}_")
+        lines.append("")
+        for key, val in body.items():
+            if isinstance(val, list):
+                lines.append(f"**{key}:**")
+                lines.extend(f"- {v}" for v in val)
+            else:
+                lines.append(f"**{key}:** {val}")
+            lines.append("")
+        lines.append("---")
+        lines.append("")
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
     from azure.identity import DefaultAzureCredential
     from azure.storage.blob import BlobServiceClient
 
@@ -198,13 +232,18 @@ def blob_download(account: str, container: str) -> None:
         print("downloaded existing kb.sqlite from Blob")
 
 
-def blob_upload(account: str, container: str, digest: Path) -> None:
+def blob_upload(account: str, container: str, digest: Path, review: Path | None) -> None:
     svc = blob_client(account)
     with open(KB_PATH, "rb") as f:
         svc.get_blob_client(container, "kb.sqlite").upload_blob(f, overwrite=True)
     with open(digest, "rb") as f:
         svc.get_blob_client(container, f"digests/{digest.name}").upload_blob(f, overwrite=True)
-    print(f"uploaded kb.sqlite + digests/{digest.name} to Blob")
+    msg = f"uploaded kb.sqlite + digests/{digest.name}"
+    if review:
+        with open(review, "rb") as f:
+            svc.get_blob_client(container, f"drafts/{review.name}").upload_blob(f, overwrite=True)
+        msg += f" + drafts/{review.name}"
+    print(msg + " to Blob")
 
 
 def main() -> int:
@@ -213,6 +252,10 @@ def main() -> int:
     ap.add_argument("--no-upload", action="store_true", help="skip Blob download/upload (local only)")
     ap.add_argument("--rank", action="store_true", help="score new items for relevance (Azure OpenAI)")
     ap.add_argument("--rank-max", type=int, default=400, help="max items to score per run (cost cap)")
+    ap.add_argument("--draft", action="store_true", help="generate human-review content drafts (Foundry)")
+    ap.add_argument("--draft-profile", default="social", help="content profile from config/content.yml")
+    ap.add_argument("--draft-min", type=int, default=70, help="min relevance score to draft")
+    ap.add_argument("--draft-max", type=int, default=5, help="max drafts per run (cost cap)")
     args = ap.parse_args()
 
     env = load_env()
@@ -226,16 +269,21 @@ def main() -> int:
 
     con = connect()
     new_items, total = sync(con, rules)
+    endpoint = env.get("FOUNDRY_PROJECT_ENDPOINT", "")
+    model = env.get("FOUNDRY_MODEL_NAME", "nano")
     if args.rank:
         from rank import score_unscored
-        score_unscored(con, env.get("FOUNDRY_PROJECT_ENDPOINT", ""),
-                       env.get("FOUNDRY_MODEL_NAME", "nano"), args.days, args.rank_max)
+        score_unscored(con, endpoint, model, args.days, args.rank_max)
+    if args.draft:
+        from draft import generate_drafts
+        generate_drafts(con, endpoint, model, args.draft_profile, args.draft_min, args.draft_max)
     digest = render_digest(con, rules, args.days)
+    review = render_review(con)
     con.close()
     print(f"sync: +{new_items} new, {total} total items; wrote {digest.name}")
 
     if use_blob:
-        blob_upload(account, container, digest)
+        blob_upload(account, container, digest, review)
     elif not args.no_upload:
         print("note: STORAGE_ACCOUNT not set — skipped Blob (set it in .env or repo Variables)")
     return 0

@@ -42,6 +42,7 @@ this laptop is on. FreshRSS stays as an optional **local reader**.
 ```sh
 python tools/kb_sync.py --days 7      # feeds → data/kb/kb.sqlite → digest → Azure Blob
 python tools/kb_sync.py --days 7 --rank     # also score relevance (Microsoft Foundry)
+python tools/kb_sync.py --rank --draft      # also draft top items for review
 python tools/kb_sync.py --no-upload         # local only, skip Blob
 ```
 
@@ -50,6 +51,10 @@ python tools/kb_sync.py --no-upload         # local only, skip Blob
   each new item 0–100 for "new ways to USE AI"; scores live in the KB `signal` table and
   re-order the digest. Uses the Foundry SDK `AIProjectClient.get_openai_client()` —
   passwordless (Entra). Incremental + capped (`--rank-max`) so cost stays sub-cent/run.
+- **Content drafts (P5):** `--draft` turns the top-scored items into human-review drafts
+  (KB `draft` table → `drafts/YYYY-MM-DD-review.md`). The content target is a **profile in
+  `config/content.yml`** (default `social`) — add LinkedIn/blog/etc. = add a profile, no
+  code. Nothing is published; publishing to any platform is a manual, opt-in future step.
 - Auth is **passwordless** (Entra): `az login` locally, GitHub OIDC in CI. No keys/secrets.
 - Cloud cron: `.github/workflows/kb-sync.yml` (daily, `--rank`). Azure: resource group
   `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, Foundry resource
@@ -65,4 +70,6 @@ Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
 - `digests/` holds generated digests (also pushed to Blob).
 
 ## What's next
-P5 Instagram funnel (KB → draft → review → schedule). Tracked in [PLAN.md](PLAN.md).
+Content-output targets grow by adding profiles in `config/content.yml`. Actual publishing
+(Instagram/LinkedIn/etc.) is a manual, opt-in step — added only when an account + auth
+exist. Tracked in [PLAN.md](PLAN.md).

@@ -1,0 +1,28 @@
+# ai-scout content profiles (Layer E). Growth = ADD a profile here, no code.
+# Each profile is a content target (a platform, format, or audience). The draft
+# generator picks one with --profile (default: social). The model returns JSON;
+# the review file renders whatever keys it produces — so a new profile can change
+# the output shape without touching code.
+#
+# Output is HUMAN-REVIEWED only. Actual publishing to any platform is a separate,
+# opt-in step (not built) — see PLAN.md "publishing".
+
+profiles:
+  social:
+    # Generic, platform-neutral short social post for a dev/AI audience.
+    temperature: 0.6
+    instruction: >
+      You are a social media writer for a developer/AI audience. Given one article
+      (title + summary), write a short post that teaches a NEW or PRACTICAL way to
+      USE AI/LLMs. Be concrete and non-hyped. Return ONLY JSON with keys:
+      "hook" (<=12 words, scroll-stopping),
+      "body" (<=600 chars, 1-2 short paragraphs, minimal emoji),
+      "key_points" (array of 3-5 short strings, each <=120 chars),
+      "tags" (array of 5-8 lowercase topic tags without the # symbol).
+
+  # Example of how to extend later (kept commented = no dead config, just a guide):
+  # linkedin:
+  #   temperature: 0.5
+  #   instruction: >
+  #     Write a professional LinkedIn post ... Return ONLY JSON with keys
+  #     "hook", "body" (<=1300 chars), "takeaways" (array), "tags" (array).
