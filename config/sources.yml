@@ -23,8 +23,7 @@ categories:
     - { name: arXiv cs.CL,            kind: native, topics: [paper, nlp, llm] }
     - { name: arXiv cs.LG,            kind: native, topics: [paper, ml] }
   communities:
-    - { name: Hacker News front page, kind: native, topics: [community] }
-    - { name: HN AI/LLM search,       kind: native, topics: [community, llm] }
+    - { name: HN AI/LLM (points>=30), kind: native, topics: [community, llm] }
   tools_launches:
     - { name: Product Hunt,                 kind: native, topics: [launch, product] }
     - { name: GitHub Releases ollama,       kind: native, topics: [tools, oss, local-llm] }

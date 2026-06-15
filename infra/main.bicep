@@ -151,6 +151,28 @@ resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-
   }
 }
 
+// Production ranking/drafting model (chosen via labeled golden-set eval — best quality/cost).
+// Serialized after 'nano' because an account allows one deployment operation at a time.
+resource miniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  name: 'mini'
+  parent: cognitiveServices
+  dependsOn: [
+    modelDeployment
+  ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 50
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4.1-mini'
+      version: '2025-04-14'
+    }
+    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+  }
+}
+
 // Foundry Project
 resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2026-05-01' = {
   name: projectName

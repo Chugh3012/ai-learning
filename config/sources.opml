@@ -30,8 +30,7 @@
       <outline type="rss" text="arXiv cs.LG (ML)" title="arXiv cs.LG (ML)" xmlUrl="http://export.arxiv.org/rss/cs.LG" htmlUrl="https://arxiv.org/list/cs.LG/recent"/>
     </outline>
     <outline text="Communities" title="Communities">
-      <outline type="rss" text="Hacker News (front page)" title="Hacker News (front page)" xmlUrl="https://hnrss.org/frontpage" htmlUrl="https://news.ycombinator.com/"/>
-      <outline type="rss" text="HN: AI/LLM search" title="HN: AI/LLM search" xmlUrl="https://hnrss.org/newest?q=LLM+OR+%22AI+agent%22&amp;points=50" htmlUrl="https://news.ycombinator.com/"/>
+      <outline type="rss" text="HN: AI/LLM (points&#8805;30)" title="HN: AI/LLM (points&#8805;30)" xmlUrl="https://hnrss.org/newest?q=AI+OR+LLM+OR+%22AI+agent%22+OR+GPT+OR+%22language+model%22&amp;points=30" htmlUrl="https://news.ycombinator.com/"/>
     </outline>
     <outline text="Tools &amp; Launches" title="Tools &amp; Launches">
       <outline type="rss" text="Product Hunt" title="Product Hunt" xmlUrl="https://www.producthunt.com/feed" htmlUrl="https://www.producthunt.com/"/>

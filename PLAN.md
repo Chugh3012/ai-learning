@@ -121,6 +121,16 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   distribution healthy, diversity cap works. KNOWN RESIDUAL: nano over-scores some title-only HN
   front-page items (Typst, a game) despite the gate — that source (HN frontpage) is general-tech
   noise; tightening/replacing it is the real lever (follow-up).
+- P9 DONE (2026-06-16): model selection by labeled eval + source fix. (a) Replaced noisy HN
+  frontpage feed with an AI-filtered HN query (points>=30) in sources.opml/yml. (b) Ran a
+  Foundry-style graded comparison on a hand-labeled golden set (.foundry/datasets/golden_rank_v1
+  .jsonl, 33 items, tiers + non-AI traps) with real ranking metrics (Spearman, nDCG@5, prec@5,
+  non-AI leak) + token cost. Results (.foundry/results/model_compare_v1.json): nano spearman .51
+  / leak 85 (scored a 'C++ ray tracer WITHOUT AI' an 85!); gpt-4.1-mini .78 / prec@5 1.0 / leak 5;
+  gpt-5-mini .77 but 4× cost + 8× slower (reasoning). DECISION: switched ranking/drafting model to
+  gpt-4.1-mini (deployment 'mini', cap50) — ~$0.39/mo vs nano's ~$0.10 (negligible). GH var + .env
+  FOUNDRY_MODEL_NAME=mini; added to Bicep. nano kept deployed (cheap, fallback). Eval deployments
+  torn down. Golden set retained for future regression.
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

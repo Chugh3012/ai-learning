@@ -1,0 +1,32 @@
+{
+  "nano (4.1-nano)": {
+    "spearman": 0.508,
+    "ndcg5": 0.56,
+    "prec5": 0.8,
+    "nonai_leak": 85,
+    "tokens": 2867,
+    "secs": 8.5,
+    "daily_cost": 0.0032,
+    "monthly_cost": 0.097
+  },
+  "4.1-mini": {
+    "spearman": 0.78,
+    "ndcg5": 0.79,
+    "prec5": 1.0,
+    "nonai_leak": 5,
+    "tokens": 2867,
+    "secs": 3.5,
+    "daily_cost": 0.0129,
+    "monthly_cost": 0.386
+  },
+  "5-mini": {
+    "spearman": 0.77,
+    "ndcg5": 0.771,
+    "prec5": 0.8,
+    "nonai_leak": 8,
+    "tokens": 5379,
+    "secs": 28.8,
+    "daily_cost": 0.0533,
+    "monthly_cost": 1.6
+  }
+}
