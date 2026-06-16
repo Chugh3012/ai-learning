@@ -14,9 +14,9 @@ Reused, battle-tested OSS as the backbone; we own only config.
 - **FreshRSS** (Layer B) — aggregates, dedupes, stores; WebSub gives real push pubsub.
 - `config/sources.opml` — curated AI/LLM sources to import (native-first; see `sources.yml`).
 - `config/sources.yml` — readable source registry + topics + deferred notes.
-- `config/tags.json` — keyword→topic rules used by the digest (Layer C).
+- `config/tags.json` — keyword→topic rules used for KB tagging (Layer C).
 - `config/proposals.yml` — discovery inbox for future self-growth (empty by design now).
-- `tools/digest.py` — generates a grouped markdown digest from FreshRSS (stdlib only).
+- `tools/kb_sync.py` — builds the owned SQLite KB from the feeds (the orchestrator).
 
 ## Quickstart
 Prereq: Docker Desktop.
@@ -34,36 +34,38 @@ docker compose up -d          # starts rsshub (:1200) and freshrss (:8080)
 RSSHub-based feeds need the `rsshub` container running; they point at `http://localhost:1200`.
 Native feeds work regardless. Reddit and GitHub-trending are deferred (see `config/sources.yml`).
 
-## Digest & owned knowledge base (Layers C/D)
+## Owned knowledge base & delivery (Layers C/D/F)
 The **owned system of record is a SQLite KB** built directly from the feeds, backed up to
 Azure Blob. It runs in the cloud on a schedule (GitHub Actions) so it works whether or not
 this laptop is on. FreshRSS stays as an optional **local reader**.
 
 ```sh
-python tools/kb_sync.py --days 7      # feeds → data/kb/kb.sqlite → digest → Azure Blob
-python tools/kb_sync.py --days 7 --rank     # also score relevance (Microsoft Foundry)
-python tools/kb_sync.py --rank --draft      # also draft top items for reviewpython tools/kb_sync.py --rank --email      # also email top-5 ranked items (ACS)python tools/kb_sync.py --no-upload         # local only, skip Blob
+python tools/kb_sync.py --days 7                # feeds → data/kb/kb.sqlite → Azure Blob
+python tools/kb_sync.py --days 7 --rank         # also score relevance (Microsoft Foundry)
+python tools/kb_sync.py --rank --draft          # also draft top items for review
+python tools/kb_sync.py --rank --deliver        # also deliver each user's top-N (users.json)
+python tools/kb_sync.py --no-upload             # local only, skip Blob
 ```
 
 - Tagging grows via `config/tags.json` (keyword→topic). No code change.
-- **Relevance ranking (P4):** a cheap nano model in a **Microsoft Foundry project** scores
+- **Relevance ranking (P4):** a Foundry model (`gpt-4.1-mini`, deployment `mini`) scores
   each new item 0–100 for "new ways to USE AI"; scores live in the KB `signal` table and
-  re-order the digest. Uses the Foundry SDK `AIProjectClient.get_openai_client()` —
+  order delivery. Uses the Foundry SDK `AIProjectClient.get_openai_client()` —
   passwordless (Entra). Incremental + capped (`--rank-max`) so cost stays sub-cent/run.
 - **Content drafts (P5):** `--draft` turns the top-scored items into human-review drafts
   (KB `draft` table → `drafts/YYYY-MM-DD-review.md`). The content target is a **profile in
   `config/content.yml`** (default `social`) — add LinkedIn/blog/etc. = add a profile, no
   code. Nothing is published; publishing to any platform is a manual, opt-in future step.
-- **Email delivery (P6):** `--email` sends the top-N not-yet-emailed ranked items (one-line
-  "why it matters" + title + source link) via **Azure Communication Services Email**,
-  passwordless. Each item is emailed once (KB `signal` kind='emailed'). Feedback buttons
-  (👍/👎, save) drop into the email when their capture endpoint is added — not shipped as
-  dead buttons.
+- **Delivery (P6/P11):** `--deliver` sends each user in `config/users.json` their top-N
+  not-yet-seen ranked items (a short crux + title + source link) via their channel —
+  `email` (**Azure Communication Services**, passwordless) or `digest` (a dated markdown
+  file under `digests/`). Each item is sent once per user (KB `signal` kind=`sent:<user>`).
+  Feedback links (👍/👎/save) work on every channel via the capture Function.
 - Auth is **passwordless** (Entra): `az login` locally, GitHub OIDC in CI. No keys/secrets.
-- Cloud cron: `.github/workflows/kb-sync.yml` (daily, `--rank`). Azure: resource group
-  `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, Foundry resource
-  `aiscoutageony` + project `scout` + `nano` deployment, user-assigned managed identity
-  `id-ai-scout-gh` federated to this repo's `main`.
+- Cloud cron: `.github/workflows/kb-sync.yml` (daily, `--rank --feedback --deliver`). Azure:
+  resource group `rg-ai-scout`, Storage (shared-key disabled), container `knowledge`, Foundry
+  resource `aiscoutageony` + project `scout` + `mini` deployment, user-assigned managed
+  identity `id-ai-scout-gh` federated to this repo's `main`.
 
 ## Grow it (the only way sources grow)
 Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
@@ -71,7 +73,8 @@ Add a source = **one** `<outline>` in `config/sources.opml` **and** one entry in
 
 ## Data & privacy
 - `.env`, `.venv/`, and `data/` are git-ignored. Owned KB persists in Azure Blob + `data/kb/`.
-- `digests/` holds generated digests (also pushed to Blob).
+- `digests/` holds per-user `digest`-channel deliveries (the agent's channel). Owned KB
+  persists in Azure Blob + `data/kb/`.
 
 ## What's next
 Content-output targets grow by adding profiles in `config/content.yml`. Actual publishing

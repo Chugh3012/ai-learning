@@ -6,8 +6,7 @@ Pipeline (runs locally or in GitHub Actions cron):
   2. read feed list from config/sources.opml
   3. fetch + parse feeds (feedparser), dedupe into SQLite (generic schema)
   4. tag items via config/tags.json
-  5. render a grouped markdown digest
-  6. (cloud) upload kb.sqlite + digest back to Blob (Entra/RBAC, no keys)
+  5. (cloud) upload kb.sqlite (+ any review drafts) back to Blob (Entra/RBAC, no keys)
 
 Schema is generic so new signal types never need migrations:
   source(id,title,url,kind,category)
@@ -42,7 +41,6 @@ OPML = ROOT / "config" / "sources.opml"
 TAGS = ROOT / "config" / "tags.json"
 KB_DIR = ROOT / "data" / "kb"
 KB_PATH = KB_DIR / "kb.sqlite"
-DIGEST_DIR = ROOT / "digests"
 DRAFTS_DIR = ROOT / "drafts"
 
 SCHEMA = """
@@ -167,55 +165,6 @@ def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
     return new_items, total
 
 
-def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
-    cutoff = int(time.time()) - days * 86400
-    order = list(rules.keys()) + ["other"]
-    DIGEST_DIR.mkdir(exist_ok=True)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    out = DIGEST_DIR / f"{today}.md"
-
-    # Shared, non-personalized overview (also backed up to Blob): pure relevance + recency.
-    # Per-user affinity lives in 'affinity:<id>' and is applied in notify.deliver_all, not here.
-    rows = con.execute(
-        "SELECT i.title, i.url, s.title, i.published, t.topic, "
-        "       (SELECT value FROM signal sg WHERE sg.item_id=i.id AND sg.kind='relevance' "
-        "        ORDER BY sg.ts DESC LIMIT 1) AS score "
-        "FROM item i JOIN tag t ON t.item_id=i.id JOIN source s ON s.id=i.source_id "
-        "WHERE i.published>=? "
-        "ORDER BY score IS NULL, COALESCE(score,0) DESC, i.published DESC",
-        (cutoff,),
-    ).fetchall()
-
-    buckets: dict[str, list] = {}
-    kept = set()
-    for title, url, feed, ts, topic, score in rows:
-        buckets.setdefault(topic, []).append((title, url, feed, score))
-        kept.add(url)
-
-    # Drop near-duplicate headlines within each topic (keep the highest-ranked).
-    from curate import dedup
-    for topic, lst in buckets.items():
-        survivors = dedup([{"title": t, "url": u, "feed": f, "score": sc} for t, u, f, sc in lst])
-        buckets[topic] = [(d["title"], d["url"], d["feed"], d["score"]) for d in survivors]
-    kept = {u for lst in buckets.values() for _, u, _, _ in lst}
-
-    ranked = any(s is not None for b in buckets.values() for *_, s in b)
-    note = "ranked by relevance" if ranked else "by recency"
-    lines = [f"# ai-scout digest — {today}", "",
-             f"_{len(kept)} items from the last {days} days, grouped by topic, {note}._", ""]
-    for topic in order:
-        if topic not in buckets:
-            continue
-        lines.append(f"## {topic}  ({len(buckets[topic])})")
-        for title, url, feed, score in buckets[topic]:
-            badge = f"**[{int(score)}]** " if score is not None else ""
-            src = f" — _{feed}_" if feed else ""
-            lines.append(f"- {badge}[{title}]({url}){src}")
-        lines.append("")
-    out.write_text("\n".join(lines), encoding="utf-8")
-    return out
-
-
 def render_review(con: sqlite3.Connection) -> Path | None:
     """Write pending content drafts to a human-review markdown file. Generic over the
     JSON shape: prints whatever keys each draft profile produced."""
@@ -267,13 +216,11 @@ def blob_download(account: str, container: str) -> None:
         print("downloaded existing kb.sqlite from Blob")
 
 
-def blob_upload(account: str, container: str, digest: Path, review: Path | None) -> None:
+def blob_upload(account: str, container: str, review: Path | None) -> None:
     svc = blob_client(account)
     with open(KB_PATH, "rb") as f:
         svc.get_blob_client(container, "kb.sqlite").upload_blob(f, overwrite=True)
-    with open(digest, "rb") as f:
-        svc.get_blob_client(container, f"digests/{digest.name}").upload_blob(f, overwrite=True)
-    msg = f"uploaded kb.sqlite + digests/{digest.name}"
+    msg = "uploaded kb.sqlite"
     if review:
         with open(review, "rb") as f:
             svc.get_blob_client(container, f"drafts/{review.name}").upload_blob(f, overwrite=True)
@@ -323,13 +270,12 @@ def main() -> int:
         from notify import deliver_all
         users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
         deliver_all(con, users, env, endpoint, model)
-    digest = render_digest(con, rules, args.days)
     review = render_review(con)
     con.close()
-    print(f"sync: +{new_items} new, {total} total items; wrote {digest.name}")
+    print(f"sync: +{new_items} new, {total} total items")
 
     if use_blob:
-        blob_upload(account, container, digest, review)
+        blob_upload(account, container, review)
     elif not args.no_upload:
         print("note: STORAGE_ACCOUNT not set — skipped Blob (set it in .env or repo Variables)")
     return 0
