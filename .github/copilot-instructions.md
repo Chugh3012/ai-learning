@@ -26,7 +26,7 @@ maintainer), acting on items the pipeline surfaced as relevant to building/opera
   owned SQLite KB `data/kb/kb.sqlite` (schema: `source · item · tag · signal`), backed up to
   Azure Blob via OIDC. The generic `signal(item_id, kind, value, ts)` table holds everything —
   new signal types need NO migration (kinds are namespaced strings, e.g. `relevance`,
-  `affinity:<user>`, `sent:<user>`, `fb_vote:<user>`).
+  `affinity:<user>`, `sent:<user>`, `fb_vote:<user>`, `fb_skip:<user>`).
 - **Ranking:** `tools/rank.py` scores items 0–100 via a Foundry model (`gpt-4.1-mini`,
   deployment `mini`) through `tools/foundry.py` (`openai_client`, passwordless). Calibrated
   rubric + AI-topicality gate. Chosen by a labeled eval (`.foundry/`), not vibes.
@@ -38,7 +38,10 @@ maintainer), acting on items the pipeline surfaced as relevant to building/opera
   `digest` (a markdown file). Feedback links (👍/👎/save) work on every channel.
 - **Feedback:** `function/function_app.py` (Azure Functions, passwordless MI → Tables) records a
   click as an event; `tools/feedback_ingest.py` drains events → per-user `affinity`. Tokens are
-  per-(user,item,action).
+  per-(user,item,action). It also ages out **implicit negatives**: an item delivered
+  (`sent:<user>`) but not acted on within `skip_days` (`config/feedback.json`) becomes a mild
+  `fb_skip:<user>` — "shown, reviewed, not needed" — so a no-op (e.g. the builder agent opens no
+  PR) still teaches the loop. Recomputed each run, so a later vote/save/click removes the skip.
 - **Fine-tune seam:** `tools/feedback_export.py` exports KB feedback to DPO/SFT JSONL on demand
   (don't fine-tune until ≥200 examples — `MIN_PAIRS`).
 - **CI:** `pr-gate.yml` (compile + ranking eval — the quality gate on every PR), `kb-sync.yml`

@@ -4,8 +4,7 @@
 # default and may ONLY open a DRAFT pull request (safe-output). It never merges; a human marks
 # ready/merges — which is also the strongest feedback signal. Compile with: gh aw compile.
 on:
-  schedule:
-    - cron: "0 6 * * *"   # daily 06:00 UTC
+  schedule: daily   # gh-aw fuzzy daily — scattered run time to avoid load spikes
   workflow_dispatch: {}
 
 # A deterministic pre-step builds the builder digest (the shared ranking, reordered by the
