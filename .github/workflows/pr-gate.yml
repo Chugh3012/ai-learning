@@ -1,17 +1,14 @@
-name: eval-gate
+name: pr-gate
 
-# Ranking-quality regression gate (P10). Runs the production rank prompt over the labeled
-# golden set and fails the PR if quality drops below config/eval.json thresholds.
-# Passwordless: OIDC federation → Entra → Foundry. No secrets.
+# P13 — the MERGE AUTHORITY for autonomous self-improvement. Runs on EVERY PR. When green,
+# branch protection lets the PR auto-merge with no human. Two gates:
+#   1. compile — every tool + the Function must import/compile.
+#   2. eval    — ranking quality must clear config/eval.json on the labeled golden set.
+# main cannot be broken by the self-improve loop because a red gate blocks the merge.
+# Passwordless: OIDC → Entra → Foundry. No secrets.
 
 on:
-  pull_request:
-    paths:
-      - "tools/rank.py"
-      - "tools/eval_rank.py"
-      - "tools/foundry.py"
-      - "config/eval.json"
-      - ".foundry/datasets/**"
+  pull_request: {}
   workflow_dispatch: {}
 
 permissions:
@@ -19,11 +16,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: eval-gate-${{ github.ref }}
+  group: pr-gate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  eval:
+  gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -34,6 +31,9 @@ jobs:
           cache: pip
 
       - run: pip install -r requirements.txt
+
+      - name: Compile check (all tools + function)
+        run: python -m py_compile tools/*.py function/function_app.py
 
       - name: Azure login (OIDC, passwordless)
         uses: azure/login@v2

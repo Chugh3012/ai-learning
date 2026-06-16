@@ -1,0 +1,68 @@
+name: pr-feedback
+
+# P13 — OUTCOME IS THE FEEDBACK. When a self-improvement PR closes, turn the result into the
+# builder's vote with zero clicks: merged => 👍 the radar items it acted on; closed unmerged
+# => 👎. Writes to the same feedbackevents table a human click would; the daily feedback_ingest
+# turns it into affinity:builder. This is how the agent learns which sources are worth acting on.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write     # OIDC -> Azure (write the feedback event passwordless)
+
+jobs:
+  record:
+    if: >
+      github.event.pull_request.user.login == 'Copilot' ||
+      github.event.pull_request.user.login == 'copilot-swe-agent[bot]' ||
+      startsWith(github.event.pull_request.head.ref, 'copilot/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Find linked radar issue + its item ids
+        id: items
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          ISSUE="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+            --jq '.closingIssuesReferences[0].number' 2>/dev/null || true)"
+          if [ -z "${ISSUE:-}" ] || [ "$ISSUE" = "null" ]; then
+            echo "no linked issue — nothing to record"; echo "ids=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          BODY="$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq '.body')"
+          IDS="$(printf '%s' "$BODY" | grep -oE '<!-- items: [0-9,]+ -->' | grep -oE '[0-9,]+' || true)"
+          echo "ids=$IDS" >> "$GITHUB_OUTPUT"
+          echo "linked issue #$ISSUE items: $IDS"
+
+      - uses: actions/setup-python@v6
+        if: steps.items.outputs.ids != ''
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install azure-data-tables azure-identity
+        if: steps.items.outputs.ids != ''
+
+      - name: Azure login (OIDC, passwordless)
+        if: steps.items.outputs.ids != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Record outcome as builder feedback
+        if: steps.items.outputs.ids != ''
+        env:
+          FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
+        run: |
+          VOTE=$([ "${{ github.event.pull_request.merged }}" = "true" ] && echo up || echo down)
+          python tools/outcome_feedback.py --vote "$VOTE" --items "${{ steps.items.outputs.ids }}"

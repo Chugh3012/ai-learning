@@ -236,9 +236,11 @@ def _deliver_email(acs_endpoint: str, sender: str, to: str, count: int,
         return False
 
 
-def _deliver_digest(user_id: str, count: int, plain: str) -> bool:
+def _deliver_digest(user_id: str, count: int, plain: str, item_ids: list[int] | None = None) -> bool:
     """The agent's channel: write the picks to a dated digest file the next coding session
-    reads. No long-term memory — the file IS the rolling window; old ones can be deleted."""
+    reads. No long-term memory — the file IS the rolling window; old ones can be deleted.
+    Embeds a machine-readable item-id footer so the outcome-as-feedback loop (P13) can map a
+    merged/closed PR back to the radar items and record 👍/👎 automatically."""
     from pathlib import Path
     from datetime import datetime, timezone
     out_dir = Path(__file__).resolve().parent.parent / "digests"
@@ -248,7 +250,8 @@ def _deliver_digest(user_id: str, count: int, plain: str) -> bool:
     header = (f"# ai-scout \u2014 {user_id} digest \u2014 {today}\n\n"
               f"_{count} items from the shared ranking, reordered by {user_id}'s feedback. "
               f"Read, act if useful (the commit is the record), then ignore next cycle._\n\n")
-    out.write_text(header + plain, encoding="utf-8")
+    footer = f"\n\n<!-- items: {','.join(str(i) for i in (item_ids or []))} -->\n"
+    out.write_text(header + plain + footer, encoding="utf-8")
     print(f"deliver: wrote {out.relative_to(out_dir.parent)}")
     return True
 
@@ -287,7 +290,7 @@ def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
             to = env.get(user.get("email_var", "EMAIL_TO"), "")
             ok = _deliver_email(acs_endpoint, sender, to, len(rows), plain, body_html)
         else:
-            ok = _deliver_digest(uid, len(rows), plain)
+            ok = _deliver_digest(uid, len(rows), plain, [r[0] for r in rows])
 
         if ok:
             _mark_sent(con, uid, [r[0] for r in rows])
