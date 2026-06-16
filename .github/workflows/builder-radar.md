@@ -11,9 +11,9 @@ on:
     types: [completed]
   workflow_dispatch: {}
 
-# A deterministic pre-step builds the builder digest (the shared ranking, reordered by the
-# builder's own feedback, gated by min_score). No LLM in selection — the pipeline decides what
-# is worth surfacing; the agent only decides what is worth ACTING on. Quiet day -> empty digest.
+# The builder is a USER: it just READS its digest that kb-sync already produced and published
+# to Blob (exactly like the human reads their top-5 email). It does NOT re-run the engine —
+# no fetch/rank/embed/deliver here. kb-sync (which this triggers off) did all that once.
 steps:
   - name: Set up Python
     uses: actions/setup-python@v6
@@ -25,16 +25,13 @@ steps:
       client-id: ${{ vars.AZURE_CLIENT_ID }}
       tenant-id: ${{ vars.AZURE_TENANT_ID }}
       subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  - name: Generate builder radar digest (passwordless Azure via OIDC)
+  - name: Read builder digest from Blob (read-only — user reads its delivery)
     env:
       STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
       BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
-      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
-      FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
-      FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
     run: |
       pip install -r requirements.txt
-      python tools/kb_sync.py --days 7 --rank --feedback --deliver
+      python tools/kb_sync.py --get-digest builder
       echo "--- builder digest ---"
       cat digests/builder-*.md 2>/dev/null | tail -n +1 || echo "(no builder digest today)"
 
