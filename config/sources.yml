@@ -26,6 +26,16 @@ categories:
   research:
     - { name: arXiv cs.AI,            kind: native, topics: [paper, ai] }
     - { name: arXiv cs.CL,            kind: native, topics: [paper, nlp, llm] }
+  # AI news & aggregators — curated high-cadence sources (from awesome-AI-feeds / readless 2026).
+  ai_news:
+    - { name: aifeed.dev,             kind: native, topics: [aggregator, news] }
+    - { name: MarkTechPost,          kind: native, topics: [news, papers, releases] }
+    - { name: MIT Technology Review (AI), kind: native, topics: [editorial, policy, analysis] }
+    - { name: The Gradient,          kind: native, topics: [longform, research, alignment] }
+    - { name: Last Week in AI,       kind: native, topics: [news, roundup, weekly] }
+    - { name: The Verge (AI),        kind: native, topics: [news, consumer, product] }
+    - { name: AWS Machine Learning Blog, kind: native, topics: [cloud, applied, tooling] }
+    - { name: AI Weirdness,          kind: native, topics: [research, fun, ml] }
   communities:
     - { name: HN AI/LLM (points>=30), kind: native, topics: [community, llm] }
     - { name: HN AI agents & devtools (points>=40), kind: native, topics: [community, agents, devtools] }
@@ -67,6 +77,8 @@ categories:
     - { name: YouTube Chase H (AI),      kind: native, topics: [agents, coding, tools] }
     - { name: YouTube AI Revolution,     kind: native, topics: [news, frontier] }
     - { name: YouTube The AI Andy,       kind: native, topics: [tools, build, applied] }
+    - { name: YouTube Allen Institute AI, kind: native, topics: [research, lab] }
+    - { name: YouTube MIT CSAIL,         kind: native, topics: [research, lab] }
 
 # Deferred (revisit later; not in sources.opml):
 #   Reddit (r/LocalLLaMA, r/MachineLearning) — Reddit blocks feed access (native 403,

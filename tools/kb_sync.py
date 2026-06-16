@@ -234,6 +234,13 @@ def blob_upload(account: str, container: str, review: Path | None) -> None:
 
 
 def main() -> int:
+    # Source titles / log lines contain non-ASCII (≥, em-dash); force UTF-8 so a Windows
+    # cp1252 console can't crash the run on a print. No-op where stdout is already UTF-8 (CI).
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:  # noqa: BLE001 — older/non-reconfigurable streams: best-effort
+            pass
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--no-upload", action="store_true", help="skip Blob download/upload (local only)")

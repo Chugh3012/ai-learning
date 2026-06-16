@@ -33,6 +33,16 @@
       <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
       <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="http://export.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
     </outline>
+    <outline text="AI News &amp; Aggregators" title="AI News &amp; Aggregators">
+      <outline type="rss" text="aifeed.dev" title="aifeed.dev" xmlUrl="https://aifeed.dev/feed.xml" htmlUrl="https://aifeed.dev/"/>
+      <outline type="rss" text="MarkTechPost" title="MarkTechPost" xmlUrl="https://www.marktechpost.com/feed/" htmlUrl="https://www.marktechpost.com/"/>
+      <outline type="rss" text="MIT Technology Review (AI)" title="MIT Technology Review (AI)" xmlUrl="https://www.technologyreview.com/topic/artificial-intelligence/feed/" htmlUrl="https://www.technologyreview.com/topic/artificial-intelligence/"/>
+      <outline type="rss" text="The Gradient" title="The Gradient" xmlUrl="https://thegradient.pub/rss/" htmlUrl="https://thegradient.pub/"/>
+      <outline type="rss" text="Last Week in AI" title="Last Week in AI" xmlUrl="https://lastweekin.ai/feed" htmlUrl="https://lastweekin.ai/"/>
+      <outline type="rss" text="The Verge (AI)" title="The Verge (AI)" xmlUrl="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml" htmlUrl="https://www.theverge.com/ai-artificial-intelligence"/>
+      <outline type="rss" text="AWS Machine Learning Blog" title="AWS Machine Learning Blog" xmlUrl="https://aws.amazon.com/blogs/machine-learning/feed/" htmlUrl="https://aws.amazon.com/blogs/machine-learning/"/>
+      <outline type="rss" text="AI Weirdness (Janelle Shane)" title="AI Weirdness (Janelle Shane)" xmlUrl="http://aiweirdness.com/rss" htmlUrl="https://www.aiweirdness.com/"/>
+    </outline>
     <outline text="Communities" title="Communities">
       <outline type="rss" text="HN: AI/LLM (points&#8805;30)" title="HN: AI/LLM (points&#8805;30)" xmlUrl="https://hnrss.org/newest?q=AI+OR+LLM+OR+%22AI+agent%22+OR+GPT+OR+%22language+model%22&amp;points=30" htmlUrl="https://news.ycombinator.com/"/>
       <outline type="rss" text="HN: AI agents &amp; devtools (points&#8805;40)" title="HN: AI agents &amp; devtools (points&#8805;40)" xmlUrl="https://hnrss.org/newest?q=%22AI+agent%22+OR+%22coding+agent%22+OR+%22LLM+tool%22+OR+MCP&amp;points=40" htmlUrl="https://news.ycombinator.com/"/>
@@ -72,6 +82,8 @@
       <outline type="rss" text="YouTube: Chase H (AI)" title="YouTube: Chase H (AI)" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCoy6cTJ7Tg0dqS-DI-_REsA" htmlUrl="https://www.youtube.com/@Chase-H-AI"/>
       <outline type="rss" text="YouTube: AI Revolution" title="YouTube: AI Revolution" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UC5l7RouTQ60oUjLjt1Nh-UQ" htmlUrl="https://www.youtube.com/@airevolutionx"/>
       <outline type="rss" text="YouTube: The AI Andy" title="YouTube: The AI Andy" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCn2RJFAA1ndipnVJsYAwWOw" htmlUrl="https://www.youtube.com/@TheAIAndy"/>
+      <outline type="rss" text="YouTube: Allen Institute for AI (AI2)" title="YouTube: Allen Institute for AI (AI2)" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCEqgmyWChwvt6MFGGlmUQCQ" htmlUrl="https://www.youtube.com/@allenai"/>
+      <outline type="rss" text="YouTube: MIT CSAIL" title="YouTube: MIT CSAIL" xmlUrl="https://www.youtube.com/feeds/videos.xml?user=MITCSAIL" htmlUrl="https://www.youtube.com/user/MITCSAIL"/>
     </outline>
   </body>
 </opml>
