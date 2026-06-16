@@ -21,6 +21,7 @@ categories:
     - { name: Latent Space,           kind: native, topics: [applied, engineering, llm] }
     - { name: Interconnects,          kind: native, topics: [post-training, rl, analysis] }
   research:
+    - { name: arXiv cs.AI,            kind: native, topics: [paper, ai] }
     - { name: arXiv cs.CL,            kind: native, topics: [paper, nlp, llm] }
   communities:
     - { name: HN AI/LLM (points>=30), kind: native, topics: [community, llm] }

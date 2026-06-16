@@ -27,6 +27,7 @@
       <outline type="rss" text="Interconnects (Nathan Lambert)" title="Interconnects (Nathan Lambert)" xmlUrl="https://www.interconnects.ai/feed" htmlUrl="https://www.interconnects.ai/"/>
     </outline>
     <outline text="Research (arXiv)" title="Research (arXiv)">
+      <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
       <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="http://export.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
     </outline>
     <outline text="Communities" title="Communities">
