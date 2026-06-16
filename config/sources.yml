@@ -61,6 +61,12 @@ categories:
     - { name: YouTube Andrej Karpathy,   kind: native, topics: [applied, howto, llm] }
     - { name: YouTube sentdex,           kind: native, topics: [applied, coding, tutorial] }
     - { name: YouTube DeepLearningAI,    kind: native, topics: [education, applied] }
+    - { name: YouTube The AI Search,     kind: native, topics: [news, tools, applied] }
+    - { name: YouTube Matt Wolfe,        kind: native, topics: [news, tools, applied] }
+    - { name: YouTube Inside AI,         kind: native, topics: [news, tools] }
+    - { name: YouTube Chase H (AI),      kind: native, topics: [agents, coding, tools] }
+    - { name: YouTube AI Revolution,     kind: native, topics: [news, frontier] }
+    - { name: YouTube The AI Andy,       kind: native, topics: [tools, build, applied] }
 
 # Deferred (revisit later; not in sources.opml):
 #   Reddit (r/LocalLLaMA, r/MachineLearning) — Reddit blocks feed access (native 403,

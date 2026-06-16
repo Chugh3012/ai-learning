@@ -251,6 +251,8 @@ def main() -> int:
                     help="ingest per-user feedback events into the KB and recompute affinity")
     ap.add_argument("--discover", action="store_true",
                     help="propose new feeds into config/proposals.yml from recurring item links")
+    ap.add_argument("--self-review", action="store_true", dest="self_review",
+                    help="LLM votes keep/skip on each self_review user's delivered items (feedback)")
     args = ap.parse_args()
 
     env = load_env()
@@ -283,6 +285,10 @@ def main() -> int:
         from notify import deliver_all
         users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
         deliver_all(con, users, env, endpoint, model)
+    if args.self_review:
+        from self_review import self_review as run_self_review
+        users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
+        run_self_review(con, users, env, endpoint, model)
     if args.discover:
         from discover import discover_sources
         discover_sources(con)
