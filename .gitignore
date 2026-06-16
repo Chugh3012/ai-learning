@@ -15,6 +15,10 @@ data/kb/
 digests/
 drafts/*.md
 
+# Regenerable eval/training exports (golden set is kept; these are derived on demand)
+.foundry/datasets/feedback_*.jsonl
+.foundry/results/gate_latest.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

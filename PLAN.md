@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -131,6 +131,16 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   gpt-4.1-mini (deployment 'mini', cap50) — ~$0.39/mo vs nano's ~$0.10 (negligible). GH var + .env
   FOUNDRY_MODEL_NAME=mini; added to Bicep. nano kept deployed (cheap, fallback). Eval deployments
   torn down. Golden set retained for future regression.
+- P10 DONE (2026-06-16): sources + CI gate + fine-tune seam. (a) Sources: verified candidate
+  feeds live via feedparser, cut arXiv 3→1 (kept cs.CL; dropped cs.AI/cs.LG floods = ~500 fewer
+  academic items/day to rank), added Latent Space + Interconnects (high-signal applied). (b) CI
+  eval gate: tools/eval_rank.py grades the production prompt over the golden set vs config/eval.json
+  thresholds (spearman>=.65, ndcg5>=.65, prec5>=.8, leak<=30); .github/workflows/eval-gate.yml runs
+  it on PRs touching rank/prompt/eval (OIDC, passwordless). Local pass: spearman .70 / ndcg .80 /
+  prec 1.0 / leak 5. (c) Fine-tune seam: tools/feedback_export.py harvests KB feedback into DPO
+  (👍 chosen vs 👎 rejected) or SFT (item→endorsed score) JSONL on demand. DECISION (explicit): do
+  NOT fine-tune yet — needs ~200+ examples (MIN_PAIRS) and the loop is new; cheap additive-affinity
+  (P7) carries personalization until then. Exporter proven to run (0 rows now, correct guidance).
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

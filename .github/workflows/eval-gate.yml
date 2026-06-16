@@ -1,0 +1,49 @@
+name: eval-gate
+
+# Ranking-quality regression gate (P10). Runs the production rank prompt over the labeled
+# golden set and fails the PR if quality drops below config/eval.json thresholds.
+# Passwordless: OIDC federation → Entra → Foundry. No secrets.
+
+on:
+  pull_request:
+    paths:
+      - "tools/rank.py"
+      - "tools/eval_rank.py"
+      - "tools/foundry.py"
+      - "config/eval.json"
+      - ".foundry/datasets/**"
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: eval-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Azure login (OIDC, passwordless)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ranking quality gate
+        env:
+          FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+          FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
+        run: python tools/eval_rank.py

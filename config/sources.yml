@@ -18,10 +18,10 @@ categories:
     - { name: Import AI,              kind: native, topics: [newsletter, trends] }
     - { name: Ahead of AI,            kind: native, topics: [newsletter, deepdive] }
     - { name: One Useful Thing,       kind: native, topics: [usage, productivity] }
+    - { name: Latent Space,           kind: native, topics: [applied, engineering, llm] }
+    - { name: Interconnects,          kind: native, topics: [post-training, rl, analysis] }
   research:
-    - { name: arXiv cs.AI,            kind: native, topics: [paper] }
     - { name: arXiv cs.CL,            kind: native, topics: [paper, nlp, llm] }
-    - { name: arXiv cs.LG,            kind: native, topics: [paper, ml] }
   communities:
     - { name: HN AI/LLM (points>=30), kind: native, topics: [community, llm] }
   tools_launches:

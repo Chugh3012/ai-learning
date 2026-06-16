@@ -23,11 +23,11 @@
       <outline type="rss" text="Import AI (Jack Clark)" title="Import AI (Jack Clark)" xmlUrl="https://importai.substack.com/feed" htmlUrl="https://importai.substack.com/"/>
       <outline type="rss" text="Ahead of AI (Sebastian Raschka)" title="Ahead of AI (Sebastian Raschka)" xmlUrl="https://magazine.sebastianraschka.com/feed" htmlUrl="https://magazine.sebastianraschka.com/"/>
       <outline type="rss" text="One Useful Thing (Ethan Mollick)" title="One Useful Thing (Ethan Mollick)" xmlUrl="https://www.oneusefulthing.org/feed" htmlUrl="https://www.oneusefulthing.org/"/>
+      <outline type="rss" text="Latent Space (swyx)" title="Latent Space (swyx)" xmlUrl="https://www.latent.space/feed" htmlUrl="https://www.latent.space/"/>
+      <outline type="rss" text="Interconnects (Nathan Lambert)" title="Interconnects (Nathan Lambert)" xmlUrl="https://www.interconnects.ai/feed" htmlUrl="https://www.interconnects.ai/"/>
     </outline>
     <outline text="Research (arXiv)" title="Research (arXiv)">
-      <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
       <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="http://export.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
-      <outline type="rss" text="arXiv cs.LG (ML)" title="arXiv cs.LG (ML)" xmlUrl="http://export.arxiv.org/rss/cs.LG" htmlUrl="https://arxiv.org/list/cs.LG/recent"/>
     </outline>
     <outline text="Communities" title="Communities">
       <outline type="rss" text="HN: AI/LLM (points&#8805;30)" title="HN: AI/LLM (points&#8805;30)" xmlUrl="https://hnrss.org/newest?q=AI+OR+LLM+OR+%22AI+agent%22+OR+GPT+OR+%22language+model%22&amp;points=30" htmlUrl="https://news.ycombinator.com/"/>
