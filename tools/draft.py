@@ -1,21 +1,9 @@
 #!/usr/bin/env python3
-"""ai-scout content drafting (Layer E / P5) — pluggable, called by kb_sync.
-
-Turns the highest-relevance KB items into HUMAN-REVIEW content drafts using the same
-Microsoft Foundry project + nano model. Drafts land in the KB `draft` table with
-status='pending'. Nothing is published.
-
-Platform-agnostic by design: the *content target* is a named profile in config/content.yml
-(default 'social'). Adding a new target (LinkedIn, blog, newsletter, ...) = add a profile
-block there — no code change. The model returns JSON; the review renderer prints whatever
-keys the profile produces, so output shape is config-driven too.
-
-Actual publishing to any platform is a separate, opt-in step (not built): it needs that
-platform's account + auth (and, for Instagram, app review + public media hosting), none of
-which fit the passwordless/owned model. We keep a human in the loop here.
-
-Design (matches rank.py): Foundry SDK get_openai_client(), passwordless, incremental
-(only un-drafted items above a score threshold), cost-capped via --draft-max.
+"""Content drafting, called by kb_sync. Turns the highest-relevance KB items into HUMAN-REVIEW
+drafts (KB `draft` table, status='pending') via a Foundry model. The content target is a named
+profile in config/content.yml (default 'social'); the model returns JSON and the renderer prints
+whatever keys the profile produces, so output shape is config-driven. Nothing is published —
+publishing is a separate opt-in step. Incremental, cost-capped, passwordless.
 """
 from __future__ import annotations
 

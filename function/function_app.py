@@ -1,25 +1,8 @@
-"""ai-scout feedback capture (P7) — tiny passwordless Azure Function.
-
-One HTTP route receives a click from a daily-email feedback link. The link carries an
-opaque, single-purpose token (unguessable, minted per item+action at send time and stored
-in the `feedbacktokens` table). The function validates the token and records the gesture as
-an *event* in the `feedbackevents` table. It never touches the SQLite KB — capture is fully
-decoupled from the pipeline (no concurrent-write risk). A daily kb_sync step drains events
-into the KB and recomputes ranking affinity.
-
-Feedback model (borrowed from NewsBlur's proven "intelligence trainer", kept minimal):
-gestures are *additive affinity*, not a novel algorithm. Up/down share one row so they
-toggle cleanly; save and click are separate positive signals.
-
-  action  -> events row (PartitionKey=item_id)        meaning
-  up      -> RowKey='vote'  value=+1                   👍  (overwrites a prior 👎)
-  down    -> RowKey='vote'  value=-1                   👎  (overwrites a prior 👍)
-  save    -> RowKey='save'  value=+1                   bookmark to learn from
-  click   -> RowKey='click' value=+1                   implicit interest (then 302 to source)
-
-Passwordless: DefaultAzureCredential uses the Function's system-assigned managed identity
-(Storage Table Data Contributor on the function storage account). No keys or connection
-strings. The storage account name comes from the host setting AzureWebJobsStorage__accountName.
+"""Feedback capture — a tiny passwordless Azure Function. One GET route validates an opaque
+per-(user,item,action) token (Azure Table 'feedbacktokens') and records the gesture as an event
+in 'feedbackevents'; 'click' then 302s to the source. Never touches the SQLite KB (capture is
+decoupled — no write races). Up/down share one 'vote' row per user so a later vote overwrites.
+Auth: the Function's managed identity (Storage Table Data Contributor). No keys.
 """
 from __future__ import annotations
 

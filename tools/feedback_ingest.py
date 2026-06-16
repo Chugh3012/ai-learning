@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
-"""ai-scout feedback ingest + affinity (P7) — pluggable module, called by kb_sync.
-
-Closes the loop: the Azure Function records email gestures as events in the `feedbackevents`
-table (decoupled from the KB). Once a day this module drains those events into the owned KB
-and recomputes a small, bounded ranking *affinity* per item — so sources and topics you like
-rise in tomorrow's digest, and ones you dislike sink.
-
-The math is deliberately not novel: it mirrors NewsBlur's proven "intelligence trainer" —
-feedback is *additive affinity*, not ML. Each gesture contributes a weight; we average those
-to a per-source and per-topic affinity in [-1, 1], then add a bounded point budget to the
-relevance score. LLM relevance (0-100) still dominates; feedback only nudges (~±20 max).
-
-Idempotent: feedback signals and affinity are fully reconciled from the events table each run
-(DELETE + re-INSERT), so re-running — or a changed vote (👍→👎) — always converges, never
-double-counts.
-
-Passwordless: DefaultAzureCredential (az login locally, OIDC managed identity in CI). The
-runner has Storage Table Data Contributor on the function storage account. No keys.
+"""Feedback ingest, called by kb_sync. Drains the Function's gesture events (Azure Tables) into
+per-user KB signals and recomputes a small bounded affinity per source/topic (additive,
+NewsBlur-style — weights in config/feedback.json; LLM relevance still dominates). Also ages out
+implicit negatives: items delivered but not acted on within skip_days. Fully reconciled each run
+(idempotent). Passwordless (DefaultAzureCredential).
 """
 from __future__ import annotations
 

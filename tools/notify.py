@@ -1,24 +1,10 @@
 #!/usr/bin/env python3
-"""ai-scout delivery (Layer F / P6+P11) — multi-user, pluggable, called by kb_sync.
-
-Delivers each user's personalized top-N from the ONE shared relevance ranking, via that
-user's channel (config/users.json). A user is just {id, channel, top}: ingest, KB, and the
-single ranking are SHARED; only per-user state differs, namespaced in signal.kind:
-  sent:<id>      — items already delivered to this user (so each is sent once)
-  affinity:<id>  — this user's learned +/- feedback bias (NewsBlur-style additive)
-Adding a user = one entry in users.json. No per-user prompt; personalization is feedback only.
-
-Channels: 'email' (Azure Communication Services, with 👍/👎/save feedback links) and 'digest'
-(a dated markdown file under digests/, used by the agent maintaining this app — user 2).
-
-Each item = a short multi-sentence crux (Foundry, grounded in fetched article text or the
-feed summary) + title + source link. Passwordless throughout (DefaultAzureCredential).
-
-Feedback (P7): when a feedback endpoint + token store are configured (FEEDBACK_URL +
-FEEDBACK_STORAGE), each emailed item carries 👍/👎/save buttons and a click-tracked source link.
-Each gesture is an opaque, single-purpose token minted here and stored in the
-`feedbacktokens` table; the Function validates it and records an event. If feedback infra
-isn't configured the email degrades gracefully to a plain source link (no dead buttons).
+"""Per-user delivery, called by kb_sync. From the one shared ranking, picks each user's top-N
+— shared relevance + their interest match (two-tower) + their feedback affinity, above their
+min_score — curates, and sends via their channel: 'email' (Azure Communication Services) or
+'digest' (a dated markdown file). Per-user state is namespaced in signal.kind (sent:<id>,
+affinity:<id>). Feedback links work on every channel and degrade gracefully when feedback infra
+is unconfigured. Passwordless throughout.
 """
 from __future__ import annotations
 

@@ -1,193 +1,70 @@
-# AI-Scout — Plan & North Star
+# AI-Scout — North Star
 
-> Single source of truth for this project. Revise this file; never append duplicate sections.
-> If work drifts, re-read this first.
+> Why this project exists and the rules it must obey. This file holds only what is **durable**.
+> For *what changed when*, read `git log` — never a changelog here.
 
 ## Mission
-Own durable infrastructure that continuously scans for **new ways to use AI/LLMs**, helps me
-learn from it, and later feeds an **Instagram content funnel**. Build slow, long-term, sleek.
+Own durable, cheap infrastructure that continuously scans for **new ways to use AI/LLMs**,
+learns from feedback, and surfaces a personalized daily top-N per user. The agent maintaining
+this repo is itself user 2 — it reads its own digest and improves the app.
 
-## Principles (non-negotiable)
-1. **Reuse, don't reinvent.** Build on battle-tested OSS (RSSHub, FreshRSS). Custom code only
-   at seams we own.
-2. **Own the data.** Curated knowledge lives in our own DB, independent of any tool.
-3. **Growth = data, not code.** New source/topic = one config line, never a new module.
-4. **Revise, don't append.** One source of truth per concern. Prune; no bloat.
-5. **Decoupled stages.** Each layer can evolve or be swapped without breaking others.
-6. **Human-gated automation.** Self-discovery proposes; human approves; system stays curated.
-7. **Entra-first, passwordless.** Use Microsoft Entra ID everywhere possible — managed
-   identity for Azure-to-Azure auth, Entra auth for Postgres, RBAC for Blob, and GitHub
-   Actions via OIDC federated credentials. No app keys / connection strings / stored secrets.
+## Principles (non-negotiable — a change that breaks one is wrong)
+1. **Reuse, don't reinvent.** Build on battle-tested OSS and platform services. Custom code only
+   at the seams we own.
+2. **Own the data.** Curated knowledge lives in our own SQLite KB, independent of any tool.
+3. **Growth = config, not code.** A new source/user/tag/profile is one config line, never a module.
+4. **Revise, don't append.** One source of truth per concern. Prune; no bloat. No doc that merely
+   restates code, `--help`, or `git log` — that only rots.
+5. **Decoupled + graceful.** Each stage (rank, embed, draft, deliver, feedback) is optional and
+   no-ops when its backing service is unconfigured; one stage never breaks the pipeline.
+6. **Human-gated automation.** The self-improve loop opens draft PRs; a human reviews and merges.
+   No auto-merge to `main`.
+7. **Entra-first, passwordless.** `DefaultAzureCredential` everywhere — `az login` locally, GitHub
+   OIDC in CI. No keys, connection strings, or stored secrets, in code or config.
 
-## Architecture (5 layers)
-| Layer | Role | Tool / Owned |
-|-------|------|--------------|
-| A. Ingest | source → RSS adapters (X, Reddit, GitHub, YouTube, arXiv, HN, Product Hunt, blogs) | RSSHub (docker) |
-| B. System of record | WebSub push (pubsub) · dedupe · store | FreshRSS (docker) |
-| C. Curation | tags · saved queries · later LLM relevance scoring | FreshRSS + config |
-| D. Owned knowledge base | durable archive + feedback signals (the long-term asset) | our Postgres/SQLite + object store |
-| E. Content funnel (future) | KB item → LLM draft (caption/carousel) → review → schedule | decoupled service |
+## Architecture
+Generic, swappable stages over one owned store. Flow:
 
-Flow: A → B → C → D → E. Two feedback loops into D/C: **discovery** (grows sources) and
-**feedback** (grows ranking). Both human-gated.
+`sources → ingest → KB → rank + embed → curate → deliver (per user) → feedback → KB`
 
-## Config-as-code (the only places things grow)
-- `sources.opml` + `sources.yml` — the curated source list.
-- `proposals.yml` — system-suggested sources/topics awaiting human approval (then merged, deduped).
-- `docker-compose.yml` — infra. `.env` — secrets. Owned DB — knowledge. All in git.
-- Registry pattern reserved for any future connector/sink: drop one self-registering file, edit no core.
+- **Ingest** — `tools/kb_sync.py` reads `config/sources.opml` (feedparser), dedupes into the owned
+  SQLite KB, backs it up to Azure Blob (OIDC). Optional local reader backbone: RSSHub + FreshRSS
+  (`docker-compose.yml`).
+- **Owned KB** — SQLite, schema `source · item · tag · signal · draft · embedding`. The generic
+  `signal(item_id, kind, value, ts)` table holds everything; `kind` is a namespaced string
+  (`relevance`, `affinity:<user>`, `sent:<user>`, `fb_*:<user>`) so new signal types need **no
+  migration**.
+- **Rank + embed** — a Foundry model scores each item 0–100 for AI-usefulness (shared quality
+  gate); `text-embedding-3-large` embeds each item once. Both passwordless, incremental, capped.
+- **Personalize (two-tower)** — each user is one config entry with an optional `interest`
+  sentence; per-user score = shared relevance + interest match (cosine, a dot product) + that
+  user's feedback affinity. Cost is `O(items + users)`, not `items × users`.
+- **Deliver** — per user, top-N above their `min_score`, via their channel: `email` (Azure
+  Communication Services) or `digest` (a markdown file). Feedback links work on every channel.
+- **Feedback** — a passwordless Function records clicks to Azure Tables; a daily step drains them
+  into per-user affinity and ages out implicit negatives (shown-but-not-acted).
+- **Self-improve** — GitHub Agentic Workflows builds the builder's digest, a coding agent opens a
+  draft PR, `pr-gate` (compile + unit tests + ranking eval) guards it, a human merges.
 
-## Phased roadmap
-- **P1 Foundation** — repo skeleton + `docker-compose.yml` (RSSHub+FreshRSS) + curated
-  `sources.opml` + `.env.example` + README. Done when: feeds flow, dedupe works, stored locally.
-- **P2 Curation** — tag rules + saved queries → stable curated feed + markdown/email digest.
-- **P3 Owned KB** — sync FreshRSS API → local SQLite KB (generic schema item·source·tag·signal)
-  + push a copy to Azure Blob (Entra RBAC). Done when: data is ours, durably backed up, cheap.
-- **P4 Learning loop** — weekly digest + optional LLM ranking/summary of novel AI usage.
-- **P5 Content drafts** — config-driven profiles (`config/content.yml`) turn top-ranked KB
-  items into human-review drafts. Output target = config, not code. Publishing = manual/opt-in.
+## Where things grow (the only places)
+| To add… | Edit | Not |
+|---|---|---|
+| a source | `config/sources.opml` (+ `sources.yml`) | code |
+| a user | `config/users.json` (id, channel, top, min_score, interest) | code |
+| a tag/topic | `config/tags.json` | code |
+| a content profile | `config/content.yml` | code |
+| an Azure resource | `infra/main.bicep` | the Portal/CLI |
 
-Each phase is independently valuable and verifiable. Don't build ahead of what's proven.
-
-## Self-growth ("Jarvis") seams reserved in P1
-- Generic KB schema: `item · source · tag · signal` (new signal types need no schema change).
-- `proposals.yml` convention for the discovery loop.
-- Registry pattern for connectors/sinks.
-
-## Decisions locked
-- Storage: SQLite is the owned KB system of record (P3). **Azure Blob = durable offsite
-  backup**, Entra RBAC only (no keys). Postgres DEFERRED to P4/P5 — adopt only when concurrent
-  access or vector search actually needs it (sync layer is decoupled, so it's a swap not a rewrite).
-- Scheduling: container-native / cron; no bespoke scheduler.
-- **Infra-as-Code**: `infra/*.bicep` is the source of truth for all Azure resources. Change
-  infra there, not in the Portal/CLI. `az deployment group what-if` verifies fidelity.
-- X/Twitter: via RSSHub, no paid API.
-- No LLM summarization in P1–P2; reserved for P4.
-- Cost discipline: no always-on cloud compute until a phase truly needs it. Prefer
-  pay-per-use / near-zero-idle services. Tear-down friendly (nothing to "nuke").
-
-## Hosting & cloud (adopt per phase, never before a phase needs it)
-- **GitHub** (from P1): repo = source of truth; **Actions cron** runs digest + discovery
-  jobs (no server); GHCR for custom images; Dependabot keeps deps fresh.
-- **Local Docker** (P1–P2): prove RSSHub + FreshRSS on my machine first.
-- **Azure** (from P3, when always-on/ownership matters): Container Apps or VM + Azure Files
-  for RSSHub/FreshRSS; **owned KB = SQLite backed up to Azure Blob** (Entra RBAC, no keys).
-  Postgres only if/when P4–P5 need it.
-- **Azure OpenAI / Microsoft Foundry** (P4–P5): ranking, summaries, content drafts.
-- Note: FreshRSS WebSub push needs an always-on host (Actions is cron-only) → that piece
-  is local in P1–P2, Azure from P3.
+## Locked decisions
+- **SQLite is the owned system of record.** Azure Blob = offsite backup (Entra RBAC, no keys).
+  Postgres/vector-DB only if scale ever demands it — the sync layer is decoupled, so it's a swap.
+- **Infra-as-Code:** `infra/*.bicep` is the source of truth; `az deployment group what-if` verifies.
+- **Quality is gated, not asserted.** `pr-gate` runs compile + offline unit tests (`tests/`) + a
+  labeled ranking eval (`tools/eval_rank.py`) on every PR. Correctness lives in gates, not prose.
+- **Don't fine-tune yet.** `tools/feedback_export.py` is the seam; wait for ≥200 feedback examples.
+- **Cost discipline:** pay-per-use, near-zero idle, tear-down friendly.
 
 ## Open questions (resolve when reached)
-- Always-on host at P3: Azure Container Apps vs small VM/VPS vs home server.
-- LLM provider for P4: Azure OpenAI / Foundry vs OpenAI vs local.
-- Instagram publishing method for P5 (manual export vs Graph API).
-
-## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)  - [x] P12 (quality-gated delivery)  - [x] P13 (gh-aw self-improve loop)  - [x] P14 (implicit-negative feedback + bug sweep)
-- P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
-  Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
-- P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
-  (default 'social', platform-agnostic) generate human-review drafts into KB `draft` table
-  → drafts/YYYY-MM-DD-review.md. Foundry SDK, passwordless, incremental, cost-capped
-  (--draft-min/--draft-max). Output target = config, not code (add a profile to extend).
-  Verified locally (3 drafts). PUBLISHING is intentionally NOT built (manual/opt-in).
-- Publishing (future, opt-in): Instagram needs Meta pro account + Page + PPA + app review +
-  OAuth + public JPEG hosting (non-Entra, hard to reverse). Add only with a real account.
-- P6 DONE (2026-06-15): daily email of top-5 ranked items (one-line "why it matters" +
-  source link) via Azure Communication Services Email, passwordless (managed identity).
-  tools/notify.py + shared tools/foundry.py helper. Each item emailed once (KB signal
-  kind='emailed'). Azure: email-ai-scout (Email svc) + AzureManaged domain + acs-ai-scout
-  (Communication), role "Communication and Email Service Owner" on me+UAMI. GH vars
-  ACS_ENDPOINT/EMAIL_SENDER/EMAIL_TO; workflow runs --rank --email. Verified: real email sent.
-  Feedback (next, opt-in): 👍/👎, save, click → KB signal table; leaning tiny passwordless
-  Azure Function (consumption ~$0). Email will carry feedback links when endpoint exists.
-  Delivery channel-agnostic (WhatsApp deferred = Meta Business + templates + tokens, non-Entra).
-- P7 DONE (2026-06-16): feedback loop, NewsBlur-style (researched first — no drop-in OSS fits
-  passwordless-Azure + owned-SQLite). Email carries 👍/👎/⭐save links + click-tracked source,
-  each an opaque per-(item,action) token in Azure Table `feedbacktokens`. A passwordless Flex-
-  Consumption Function (function/function_app.py, system MI → Tables) validates the token and
-  records an event in `feedbackevents` — never touches the SQLite KB (decoupled, no write races).
-  Daily `kb_sync --feedback` (tools/feedback_ingest.py) drains events → KB fb_* signals →
-  recomputes a bounded per-source/per-topic `affinity` (additive, config/feedback.json), blended
-  into email + digest ordering. Idempotent (votes changeable). Verified end-to-end in cloud:
-  real clicks → 200 → +20/−20 affinity → reorder. GH vars FEEDBACK_URL/FEEDBACK_STORAGE.
-- P8 DONE (2026-06-16): ranking + digest QUALITY. (1) rank.py rubric rewritten — calibrated
-  bands + AI-topicality gate + applied-over-academic bias, scored on title+summary not title
-  only → scores now spread 0-100 (was all ~90). (2) tools/curate.py: dedup() collapses near-
-  duplicate headlines (Jaccard over title tokens) + diversify() caps per-source/per-topic (MMR-
-  style); config/curate.json knobs. Applied to email top-N (pool×6 then curate) and digest. (3)
-  notify.py: best-effort trafilatura full-text fetch deepens the email crux (falls back to feed
-  summary). (4) foundry.log_usage() prints per-call tokens for cost visibility. Verified: score
-  distribution healthy, diversity cap works. KNOWN RESIDUAL: nano over-scores some title-only HN
-  front-page items (Typst, a game) despite the gate — that source (HN frontpage) is general-tech
-  noise; tightening/replacing it is the real lever (follow-up).
-- P9 DONE (2026-06-16): model selection by labeled eval + source fix. (a) Replaced noisy HN
-  frontpage feed with an AI-filtered HN query (points>=30) in sources.opml/yml. (b) Ran a
-  Foundry-style graded comparison on a hand-labeled golden set (.foundry/datasets/golden_rank_v1
-  .jsonl, 33 items, tiers + non-AI traps) with real ranking metrics (Spearman, nDCG@5, prec@5,
-  non-AI leak) + token cost. Results (.foundry/results/model_compare_v1.json): nano spearman .51
-  / leak 85 (scored a 'C++ ray tracer WITHOUT AI' an 85!); gpt-4.1-mini .78 / prec@5 1.0 / leak 5;
-  gpt-5-mini .77 but 4× cost + 8× slower (reasoning). DECISION: switched ranking/drafting model to
-  gpt-4.1-mini (deployment 'mini', cap50) — ~$0.39/mo vs nano's ~$0.10 (negligible). GH var + .env
-  FOUNDRY_MODEL_NAME=mini; added to Bicep. nano kept deployed (cheap, fallback). Eval deployments
-  torn down. Golden set retained for future regression.
-- P10 DONE (2026-06-16): sources + CI gate + fine-tune seam. (a) Sources: verified candidate
-  feeds live via feedparser, cut arXiv 3→1 (kept cs.CL; dropped cs.AI/cs.LG floods = ~500 fewer
-  academic items/day to rank), added Latent Space + Interconnects (high-signal applied). (b) CI
-  eval gate: tools/eval_rank.py grades the production prompt over the golden set vs config/eval.json
-  thresholds (spearman>=.65, ndcg5>=.65, prec5>=.8, leak<=30); it runs in .github/workflows/pr-gate.yml
-  on every PR (OIDC, passwordless; eval-gate.yml was later folded into pr-gate.yml). Local pass:
-  spearman .70 / ndcg .80 /
-  prec 1.0 / leak 5. (c) Fine-tune seam: tools/feedback_export.py harvests KB feedback into DPO
-  (👍 chosen vs 👎 rejected) or SFT (item→endorsed score) JSONL on demand. DECISION (explicit): do
-  NOT fine-tune yet — needs ~200+ examples (MIN_PAIRS) and the loop is new; cheap additive-affinity
-  (P7) carries personalization until then. Exporter proven to run (0 rows now, correct guidance).
-- P11 DONE (2026-06-16): MULTI-USER (the app's tenancy test). A user = config/users.json entry
-  {id, channel, top}; everyone shares the ONE relevance ranking; personalization = each user's own
-  +/- feedback only (NO per-user prompt — rejected that approach). Per-user state namespaced in
-  signal.kind: sent:<id>, affinity:<id>, fb_vote/save/click:<id> (no schema change — generic kind).
-  notify.deliver_all loops users → _select_for_user (shared rank + that user's affinity, minus their
-  sent) → curate → channel: 'email' (ACS + feedback links) or 'digest' (digests/<id>-DATE.md, the
-  agent's channel). feedback_ingest now per-user; Function tokens+events carry user (RowKey=<user>:<row>),
-  redeployed. kb_sync._migrate_legacy_signals one-time renames old global emailed/affinity/fb_* →
-  :primary (idempotent) so the original user isn't re-sent or de-personalized. --email kept as alias
-  for --deliver. Two users live: primary(email,5) + builder(digest,8). Verified: independent selection
-  + sent-isolation (marking builder sent didn't touch primary). Added Builder Radar sources (Azure SDK,
-  openai-python, LangGraph, Agent Framework, Pydantic AI, MCP spec releases) for the builder.
-  KNOWN TRADEOFF (accepted): shared 'how to USE AI' prompt down-rates SDK/library releases (~0-10), so
-  builder content diverges only as feedback accumulates (cold-start). Escape hatch if too weak = optional
-  per-user SOURCE filter (not a prompt). No long-term builder memory by design: read digest, act (commit
-  = record), ignore next cycle.
-- P12 DONE (2026-06-16): self-improve loop, generalized (NOT special-cased). Concept that serves
-  EVERY user: QUALITY-GATED DELIVERY — config/users.json adds min_score; _select_for_user only emits
-  items whose (relevance + that user's affinity) clears the bar, so a user is contacted only when
-  there's something worth it ("make sure there's something to improve on"). All users DAILY (reverted
-  a wrong 'weekly' special cadence). Feedback links UNIFIED across channels (email + digest both carry
-  👍/👎/save per-user tokens via the same Function) so the agent personalizes exactly like a human —
-  no special feedback path. users.json: primary(email,top5,min55) + builder(digest,top8,min70).
-- P13 DONE (2026-06-16): self-improve loop via GitHub Agentic Workflows (gh-aw) — superseded the
-  hand-rolled issue-assignment (deleted open_builder_issue.sh / auto-merge.yml / eval-gate.yml /
-  self-improve.yml = no bloat). .github/workflows/builder-radar.md: a deterministic pre-step runs
-  kb_sync --rank --feedback --deliver (passwordless OIDC → Azure) to build the builder digest, then
-  a coding agent (engine=claude-sonnet) reads it read-only and may ONLY open a single DRAFT PR
-  (safe-output). Compile with `gh aw compile`; needs COPILOT_GITHUB_TOKEN. pr-gate.yml (compile +
-  ranking eval) guards every PR; a HUMAN reviews/merges — NO auto-merge (Free+private can't anyway,
-  and human review IS the safety+throughput gate by design). pr-feedback.yml records acted items as
-  👍 affinity:builder on merge. Schedule = gh-aw fuzzy `daily` (scattered, avoids load spikes).
-  First live run verified: OIDC worked, digest built, agent correctly no-op'd.
-- P14 DONE (2026-06-16): closed the no-op feedback gap + bug sweep. (a) IMPLICIT NEGATIVE: an item
-  delivered (sent:<user>) but not acted on within skip_days (config/feedback.json, default 2)
-  becomes a mild fb_skip:<user> (weight -0.3) in feedback_ingest — "shown, reviewed, not needed" —
-  recomputed each run so a later vote/save/click removes it. Generalizes to every user. (b) BUG SWEEP
-  from a fresh review: the P11 per-user namespacing had left two consumers querying old un-namespaced
-  kinds — render_digest blended kind='affinity' (now affinity:<id>, dead → removed; the shared
-  overview is pure relevance+recency, per-user affinity applies only in deliver_all) and
-  feedback_export queried kind='fb_vote' (now fb_vote:<id> → LIKE 'fb_vote:%'). Simplified
-  pr-feedback to acted→👍 only (fb_skip owns the negative; dropped the dead closing-issue lookup).
-  Fixed stale auto-merge framing in pr-gate.yml + outcome_feedback docstring.
-  OPEN (next): the builder ranking lens — SDK/release sources score ~10-32 on the shared 'how to USE
-  AI' rubric so they never clear builder's min_score 70; the builder digest is structurally academic
-  arXiv. Feedback can only reorder within what clears the bar, so this is permanent, not cold-start.
-- IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
-  passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
-  core resources match live exactly. Source of truth going forward — new resources land here.
+- Always-on host for FreshRSS WebSub push if/when real-time ingest matters (Actions is cron-only).
+- Publishing path for content drafts (Instagram/LinkedIn) — manual export vs Graph API; only with a
+  real account (non-Entra auth, hard to reverse).

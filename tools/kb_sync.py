@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
-"""ai-scout knowledge-base sync (Layer D / P3) — the owned system of record.
-
-Pipeline (runs locally or in GitHub Actions cron):
-  1. (cloud) download existing kb.sqlite from Azure Blob  -> incremental
-  2. read feed list from config/sources.opml
-  3. fetch + parse feeds (feedparser), dedupe into SQLite (generic schema)
-  4. tag items via config/tags.json
-  5. (cloud) upload kb.sqlite (+ any review drafts) back to Blob (Entra/RBAC, no keys)
-
-Schema is generic so new signal types never need migrations:
-  source(id,title,url,kind,category)
-  item(id,source_id,title,url,summary,published,fetched_at,hash UNIQUE)
-  tag(item_id,topic)            -- many-to-many topics
-  signal(id,item_id,kind,value,ts)  -- reserved for P4 feedback/relevance
-
-Auth: passwordless. DefaultAzureCredential uses `az login` locally and the
-GitHub OIDC federated token in Actions. No secrets, no connection strings.
-
-Usage:
-  python tools/kb_sync.py                 # sync + digest + Blob backup
-  python tools/kb_sync.py --no-upload     # local only, skip Blob
-  python tools/kb_sync.py --days 7        # digest window
+"""Owned knowledge-base sync — the orchestrator. Reads config/sources.opml (feedparser),
+dedupes into the SQLite KB, optionally ranks/embeds/drafts/delivers per the flags, and backs
+up to Azure Blob. The KB schema is generic (see SCHEMA) so new signal kinds need no migration.
+Passwordless (DefaultAzureCredential). Run `python tools/kb_sync.py --help` for flags.
 """
 from __future__ import annotations
 

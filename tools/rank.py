@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
-"""ai-scout relevance ranking (Layer C/P4) — pluggable module, called by kb_sync.
-
-Scores how strongly each item shows a *new or useful way to USE AI/LLMs* (not generic
-news) on a 0-100 scale, via a cheap nano model deployed in a Microsoft Foundry project.
-Scores are written to the KB `signal` table (kind='relevance') — no schema change (the
-seam was reserved in P3).
-
-Uses the Foundry SDK exactly per the Microsoft quickstart: build an AIProjectClient on the
-project endpoint, then `get_openai_client()` for an authenticated, passwordless OpenAI
-client. No keys, no classic endpoints, no hand-rolled token plumbing.
-
-Design for cost & sleekness:
-- INCREMENTAL: only scores recent items with no existing relevance signal. Never re-scans.
-- Batched: many items per request, tiny JSON out. Sub-cent per run; $0 when idle.
-- Passwordless: DefaultAzureCredential (az login locally, OIDC managed identity in CI).
-- Graceful: if the endpoint is unset or a call fails, returns 0 and the digest falls back
-  to recency ordering. The pipeline never breaks because ranking is optional.
+"""Relevance ranking, called by kb_sync. Scores each new KB item 0–100 for how strongly it
+shows a new/practical way to USE AI — the shared quality gate — via a Foundry model, writing
+signal kind='relevance'. Incremental (only unscored recent items), batched, cost-capped,
+graceful (no-op if unconfigured), passwordless. The calibrated rubric is the SYSTEM prompt below.
 """
 from __future__ import annotations
 
