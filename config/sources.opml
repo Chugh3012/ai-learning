@@ -25,6 +25,8 @@
       <outline type="rss" text="One Useful Thing (Ethan Mollick)" title="One Useful Thing (Ethan Mollick)" xmlUrl="https://www.oneusefulthing.org/feed" htmlUrl="https://www.oneusefulthing.org/"/>
       <outline type="rss" text="Latent Space (swyx)" title="Latent Space (swyx)" xmlUrl="https://www.latent.space/feed" htmlUrl="https://www.latent.space/"/>
       <outline type="rss" text="Interconnects (Nathan Lambert)" title="Interconnects (Nathan Lambert)" xmlUrl="https://www.interconnects.ai/feed" htmlUrl="https://www.interconnects.ai/"/>
+      <outline type="rss" text="Ness Labs (tools for thought)" title="Ness Labs (tools for thought)" xmlUrl="https://nesslabs.com/feed" htmlUrl="https://nesslabs.com/"/>
+      <outline type="rss" text="The Pragmatic Engineer" title="The Pragmatic Engineer" xmlUrl="https://blog.pragmaticengineer.com/rss/" htmlUrl="https://blog.pragmaticengineer.com/"/>
     </outline>
     <outline text="Research (arXiv)" title="Research (arXiv)">
       <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
@@ -32,6 +34,8 @@
     </outline>
     <outline text="Communities" title="Communities">
       <outline type="rss" text="HN: AI/LLM (points&#8805;30)" title="HN: AI/LLM (points&#8805;30)" xmlUrl="https://hnrss.org/newest?q=AI+OR+LLM+OR+%22AI+agent%22+OR+GPT+OR+%22language+model%22&amp;points=30" htmlUrl="https://news.ycombinator.com/"/>
+      <outline type="rss" text="HN: AI agents &amp; devtools (points&#8805;40)" title="HN: AI agents &amp; devtools (points&#8805;40)" xmlUrl="https://hnrss.org/newest?q=%22AI+agent%22+OR+%22coding+agent%22+OR+%22LLM+tool%22+OR+MCP&amp;points=40" htmlUrl="https://news.ycombinator.com/"/>
+      <outline type="rss" text="HN: tools for thought (points&#8805;30)" title="HN: tools for thought (points&#8805;30)" xmlUrl="https://hnrss.org/newest?q=Obsidian+OR+%22second+brain%22+OR+%22tools+for+thought%22+OR+Logseq+OR+%22note-taking%22&amp;points=30" htmlUrl="https://news.ycombinator.com/"/>
     </outline>
     <outline text="Tools &amp; Launches" title="Tools &amp; Launches">
       <outline type="rss" text="Product Hunt" title="Product Hunt" xmlUrl="https://www.producthunt.com/feed" htmlUrl="https://www.producthunt.com/"/>
@@ -50,6 +54,9 @@
       <outline type="rss" text="GitHub Releases: Agent Framework" title="GitHub Releases: Agent Framework" xmlUrl="https://github.com/microsoft/agent-framework/releases.atom" htmlUrl="https://github.com/microsoft/agent-framework/releases"/>
       <outline type="rss" text="GitHub Releases: Pydantic AI" title="GitHub Releases: Pydantic AI" xmlUrl="https://github.com/pydantic/pydantic-ai/releases.atom" htmlUrl="https://github.com/pydantic/pydantic-ai/releases"/>
       <outline type="rss" text="GitHub Releases: MCP spec" title="GitHub Releases: MCP spec" xmlUrl="https://github.com/modelcontextprotocol/modelcontextprotocol/releases.atom" htmlUrl="https://github.com/modelcontextprotocol/modelcontextprotocol/releases"/>
+    </outline>
+    <outline text="Tools for Thought &amp; Indie AI" title="Tools for Thought &amp; Indie AI">
+      <outline type="rss" text="Cursor changelog" title="Cursor changelog" xmlUrl="https://www.cursor.com/changelog/rss.xml" htmlUrl="https://www.cursor.com/changelog"/>
     </outline>
   </body>
 </opml>
