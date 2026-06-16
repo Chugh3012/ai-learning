@@ -53,32 +53,40 @@ def _fulltext(url: str, limit: int = 2500) -> str:
         return ""
 
 
-def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str]:
-    """A short multi-sentence crux per item (the gist of the article + why it matters),
-    grounded in the best available text (fetched article body, else feed summary), in a
-    single batched Foundry call."""
+def _lessons(endpoint: str, deployment: str, items: list[tuple]) -> tuple[str, dict[int, dict]]:
+    """Turn the day's picks into a LEARNING BRIEF in one batched Foundry call. Returns
+    (theme, cards) where `theme` is a one-line throughline over the whole set and each card is
+    {lesson, try, what}: the takeaway, a concrete 30-second experiment to try (or ""), and one
+    line of context. Grounded in the best available text; never invents. Degrades to {} on any
+    failure (caller falls back to titles)."""
     if not endpoint:
-        return {}
+        return "", {}
     try:
         from foundry import openai_client
         client = openai_client(endpoint)
     except Exception as e:  # noqa: BLE001
-        print(f"email: blurb client failed ({e}); sending titles only")
-        return {}
+        print(f"email: lesson client failed ({e}); sending titles only")
+        return "", {}
     listing = "\n\n".join(
         f"[{i}] {t}\n{_clean(s)}" if _clean(s) else f"[{i}] {t}"
         for i, t, s in items
     )
     system = (
-        "You write the daily brief entry for a reader who wants to LEARN new ways to use AI/LLMs "
-        "better. For each item write 2-4 sentences (about 45-75 words) that LEAD WITH THE TAKEAWAY "
-        "— the concrete lesson, technique, or insight the reader can apply or understand (e.g. what "
-        "to do differently, the trick that worked, how the model behaves) — then one line of "
-        "context on what it is. Favor the 'how' and the 'so what' over a plain description. Be "
-        "concrete and non-hyped, ground every claim in the provided text, and never invent "
-        "specifics. If the item is a personal account of how someone used AI, surface the craft "
-        "(the prompt/instruction/workflow choice) as the lesson. Return ONLY JSON: "
-        '{"blurbs":[{"id":<int>,"s":"<entry>"}, ...]} for every id.'
+        "You are the editor of a daily LEARNING brief for a reader who wants to use AI/LLMs "
+        "better. Turn the items into cards that TEACH, not summaries.\n"
+        "First write THEME: one short line (<=14 words) naming the throughline across today's "
+        "items — the pattern a curious reader should notice (no hype, only what the items show).\n"
+        "Then for EACH item write a card with three fields:\n"
+        "  lesson: 1-2 sentences — the concrete takeaway/technique/insight to apply or understand "
+        "(lead with the 'how'/'so what'; for a personal account, surface the craft — the prompt, "
+        "instruction, or workflow choice — as the lesson).\n"
+        "  try: ONE imperative line a reader could actually do in ~30 seconds to feel the idea "
+        "(a prompt to test, a setting to flip, a question to ask the model). Empty string if the "
+        "item genuinely has nothing to try (news/release).\n"
+        "  what: ONE line of plain context — what the thing is.\n"
+        "Be concrete, non-hyped, grounded in the provided text; never invent specifics. Return "
+        "ONLY JSON: {\"theme\":\"<line>\",\"cards\":[{\"id\":<int>,\"lesson\":\"..\",\"try\":\"..\","
+        "\"what\":\"..\"}, ...]} for every id."
     )
     try:
         resp = client.chat.completions.create(
@@ -87,15 +95,63 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
                       {"role": "user", "content": listing}],
             temperature=0.3,
             response_format={"type": "json_object"},
-            max_tokens=1300,
+            max_tokens=1800,
         )
         from foundry import log_usage
         log_usage("email", resp)
         data = json.loads(resp.choices[0].message.content)
-        return {int(b["id"]): str(b["s"]) for b in data.get("blurbs", [])}
+        cards = {int(c["id"]): {"lesson": str(c.get("lesson", "")).strip(),
+                                "try": str(c.get("try", "")).strip(),
+                                "what": str(c.get("what", "")).strip()}
+                 for c in data.get("cards", [])}
+        return str(data.get("theme", "")).strip(), cards
     except Exception as e:  # noqa: BLE001
-        print(f"email: blurb generation failed ({e}); sending titles only")
+        print(f"email: lesson generation failed ({e}); sending titles only")
+        return "", {}
+
+
+def _connections(con: sqlite3.Connection, user_id: str,
+                 selected: list[dict], min_cos: float = 0.55) -> dict[int, tuple[str, str]]:
+    """Connect-the-dots: link each of today's picks to the most similar item this user was
+    ALREADY sent (the owned, embedded history nobody else has). Returns {item_id: (past_title,
+    past_url)} for pairs whose cosine >= min_cos. Pure-stdlib over the embedding table; no model
+    call. Best-effort: returns {} if embeddings/history are unavailable."""
+    try:
+        from embed import unpack, dot
+    except Exception:  # noqa: BLE001
         return {}
+    today_ids = [d["id"] for d in selected]
+    if not today_ids:
+        return {}
+    # Vectors for today's picks.
+    today_vecs: dict[int, list[float]] = {}
+    for iid in today_ids:
+        row = con.execute("SELECT vec FROM embedding WHERE item_id=?", (iid,)).fetchone()
+        if row and row[0]:
+            today_vecs[iid] = unpack(row[0])
+    if not today_vecs:
+        return {}
+    # Past items this user was sent, that have an embedding (exclude today's picks).
+    past = con.execute(
+        "SELECT e.item_id, i.title, i.url, e.vec FROM embedding e "
+        "JOIN item i ON i.id=e.item_id "
+        "JOIN signal s ON s.item_id=e.item_id AND s.kind=? ",
+        (f"sent:{user_id}",),
+    ).fetchall()
+    today_set = set(today_ids)
+    past = [(pid, t, u, v) for pid, t, u, v in past if pid not in today_set and v]
+    if not past:
+        return {}
+    out: dict[int, tuple[str, str]] = {}
+    for iid, tvec in today_vecs.items():
+        best, best_cos = None, min_cos
+        for pid, title, url, pvec in past:
+            c = dot(tvec, unpack(pvec))
+            if c >= best_cos:
+                best, best_cos = (title, url), c
+        if best:
+            out[iid] = best
+    return out
 
 
 def _mint_tokens(account: str, user_id: str, items: list[tuple]) -> dict[int, dict[str, str]]:
@@ -134,48 +190,91 @@ def _mint_tokens(account: str, user_id: str, items: list[tuple]) -> dict[int, di
     return out
 
 
-def _render(items: list[tuple], blurbs: dict[int, str],
-            feedback_url: str = "", tokens: dict[int, dict[str, str]] | None = None) -> tuple[str, str]:
-    """Return (plain_text, html) for the email body. If feedback_url + tokens are present,
-    render 👍/👎/save buttons and a click-tracked source link; else a plain source link."""
+def _render(items: list[tuple], theme: str, cards: dict[int, dict],
+            connections: dict[int, tuple[str, str]] | None = None,
+            feedback_url: str = "", tokens: dict[int, dict[str, str]] | None = None,
+            ) -> tuple[str, str]:
+    """Return (plain_text, html) for a LEARNING BRIEF: a one-line throughline header, then a
+    card per item (💡 lesson · 🔧 try this · 📄 what it is · 🔗 builds on a past pick), with
+    👍/👎/save + source links. Both renderings degrade gracefully when fields are empty."""
     tokens = tokens or {}
+    connections = connections or {}
     fb = bool(feedback_url and tokens)
 
     def link(item_id: int, action: str) -> str:
         return f"{feedback_url}?t={tokens[item_id][action]}"
 
-    text_lines, html_lines = [], [
+    text_lines: list[str] = []
+    html_lines = [
         '<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:640px">',
-        '<h2 style="margin:0 0 4px">ai-scout \u2014 today\u2019s top picks</h2>',
-        '<p style="color:#666;margin:0 0 16px">New ways to use AI, ranked for you.</p>',
+        '<h2 style="margin:0 0 4px">ai-scout \u2014 today\u2019s learning brief</h2>',
     ]
+    if theme:
+        text_lines.append(f"Today's throughline: {theme}\n")
+        html_lines.append(
+            f'<p style="color:#0a66c2;font-size:14px;font-weight:600;margin:0 0 16px">'
+            f'\u2728 {html.escape(theme)}</p>')
+    else:
+        html_lines.append('<p style="color:#666;margin:0 0 16px">New ways to use AI, ranked for you.</p>')
+
     for idx, (item_id, title, url) in enumerate(items, 1):
-        blurb = blurbs.get(item_id, "")
+        card = cards.get(item_id) or {}
+        lesson = card.get("lesson", "")
+        try_it = card.get("try", "")
+        what = card.get("what", "")
+        conn = connections.get(item_id)
         src = link(item_id, "click") if fb else url
-        text_lines.append(f"{idx}. {title}\n   {blurb}\n   {url}\n")
+
+        # ---- plain text (also the digest channel) ----
+        text_lines.append(f"{idx}. {title}")
+        if lesson:
+            text_lines.append(f"   \U0001f4a1 {lesson}")
+        if try_it:
+            text_lines.append(f"   \U0001f527 Try: {try_it}")
+        if what:
+            text_lines.append(f"   \U0001f4c4 {what}")
+        if conn:
+            text_lines.append(f"   \U0001f517 Builds on: {conn[0]}")
+        text_lines.append(f"   {url}")
         if fb:
-            # Plain-text feedback links so the digest channel (-> GitHub issue) is also clickable.
             text_lines.append(
                 f"   feedback: 👍 {link(item_id, 'up')}  |  👎 {link(item_id, 'down')}  "
-                f"|  ⭐ {link(item_id, 'save')}\n"
-            )
+                f"|  ⭐ {link(item_id, 'save')}")
+        text_lines.append("")
+
+        # ---- html card ----
         row = [
-            f'<div style="margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid #eee">',
+            '<div style="margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid #eee">',
             f'<div style="font-weight:600;font-size:15px">{html.escape(title)}</div>',
-            f'<div style="color:#444;font-size:14px;line-height:1.5;margin:6px 0 8px">{html.escape(blurb)}</div>',
-            f'<a href="{html.escape(src)}" style="color:#0a66c2;font-size:13px">Read the source \u2192</a>',
         ]
+        if lesson:
+            row.append('<div style="color:#222;font-size:14px;line-height:1.5;margin:6px 0">'
+                       f'\U0001f4a1 {html.escape(lesson)}</div>')
+        if try_it:
+            row.append('<div style="background:#f4f8ff;border-left:3px solid #0a66c2;'
+                       'padding:6px 10px;margin:6px 0;font-size:13px;color:#0a3d6e">'
+                       f'\U0001f527 <b>Try:</b> {html.escape(try_it)}</div>')
+        if what:
+            row.append('<div style="color:#777;font-size:13px;margin:4px 0">'
+                       f'\U0001f4c4 {html.escape(what)}</div>')
+        if conn:
+            conn_link = html.escape(conn[1] or "#")
+            row.append('<div style="color:#999;font-size:12px;margin:4px 0">'
+                       f'\U0001f517 Builds on: <a href="{conn_link}" '
+                       f'style="color:#999">{html.escape(conn[0])}</a></div>')
+        row.append(f'<a href="{html.escape(src)}" style="color:#0a66c2;font-size:13px">'
+                   'Read the source \u2192</a>')
         if fb:
             row.append(
                 '<div style="margin-top:8px;font-size:13px">'
                 f'<a href="{html.escape(link(item_id, "up"))}" style="text-decoration:none;margin-right:14px">👍 more</a>'
                 f'<a href="{html.escape(link(item_id, "down"))}" style="text-decoration:none;margin-right:14px">👎 less</a>'
                 f'<a href="{html.escape(link(item_id, "save"))}" style="text-decoration:none">⭐ save</a>'
-                '</div>'
-            )
+                '</div>')
         row.append('</div>')
         html_lines.append("".join(row))
-    html_lines.append('<p style="color:#999;font-size:12px">ai-scout \u00b7 daily digest</p></div>')
+
+    html_lines.append('<p style="color:#999;font-size:12px">ai-scout \u00b7 daily learning brief</p></div>')
     return "\n".join(text_lines), "\n".join(html_lines)
 
 
@@ -306,11 +405,12 @@ def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
 
         rows = [(d["id"], d["title"], d["url"]) for d in selected]
         blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
-        blurbs = _blurbs(foundry_endpoint, model, blurb_items)
+        theme, cards = _lessons(foundry_endpoint, model, blurb_items)
+        connections = _connections(con, uid, selected)
         # Feedback links are unified across channels: mint per-user tokens whenever feedback is
         # configured, regardless of email vs digest. The agent clicks them just like a human.
         tokens = _mint_tokens(feedback_account, uid, rows) if feedback_url else {}
-        plain, body_html = _render(rows, blurbs, feedback_url, tokens)
+        plain, body_html = _render(rows, theme, cards, connections, feedback_url, tokens)
 
         if channel == "email":
             to = env.get(user.get("email_var", "EMAIL_TO"), "")
