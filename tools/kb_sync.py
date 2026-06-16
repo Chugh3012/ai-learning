@@ -66,19 +66,26 @@ CREATE INDEX IF NOT EXISTS idx_item_published ON item(published);
 """
 
 
-def load_env() -> dict[str, str]:
-    env: dict[str, str] = {}
-    if ENV.exists():
-        for line in ENV.read_text(encoding="utf-8").splitlines():
+def _parse_env_file(path: Path) -> dict[str, str]:
+    """Parse KEY=VALUE lines (ignoring blanks/comments) from a dotenv-style file."""
+    out: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                env[k.strip()] = v.strip()
-    env.update({k: v for k, v in os.environ.items()
-                if k in ("STORAGE_ACCOUNT", "BLOB_CONTAINER",
-                         "FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL_NAME",
-                         "ACS_ENDPOINT", "EMAIL_SENDER", "EMAIL_TO",
-                         "FEEDBACK_URL", "FEEDBACK_STORAGE")})
+                out[k.strip()] = v.strip()
+    return out
+
+
+def load_env() -> dict[str, str]:
+    """Local .env (if present) overlaid by os.environ, limited to keys declared in
+    .env.example. The manifest IS the allowlist — adding an integration is a config edit
+    there (+ a repo Variable), never a code change here ('growth = config, not code'). The
+    allowlist also keeps unrelated CI runner env (tokens etc.) out of the config dict."""
+    env = _parse_env_file(ENV)
+    keys = set(_parse_env_file(ENV.parent / ".env.example"))
+    env.update({k: v for k, v in os.environ.items() if k in keys})
     return env
 
 
