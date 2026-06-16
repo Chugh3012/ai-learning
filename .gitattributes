@@ -1,2 +1,4 @@
 # Shell scripts must use LF even on Windows checkouts — they run on Linux CI runners.
 *.sh text eol=lf
+
+.github/workflows/*.lock.yml linguist-generated=true merge=ours

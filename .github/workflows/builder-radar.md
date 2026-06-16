@@ -1,0 +1,79 @@
+---
+# Builder Radar — the app's 2nd user (the agent maintaining it) improves the repo.
+# Built on GitHub Agentic Workflows (gh-aw) — NOT hand-rolled. The agent runs read-only by
+# default and may ONLY open a DRAFT pull request (safe-output). It never merges; a human marks
+# ready/merges — which is also the strongest feedback signal. Compile with: gh aw compile.
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily 06:00 UTC
+  workflow_dispatch: {}
+
+# A deterministic pre-step builds the builder digest (the shared ranking, reordered by the
+# builder's own feedback, gated by min_score). No LLM in selection — the pipeline decides what
+# is worth surfacing; the agent only decides what is worth ACTING on. Quiet day -> empty digest.
+steps:
+  - name: Generate builder radar digest (passwordless Azure via OIDC)
+    env:
+      STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
+      BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
+      FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
+    run: |
+      pip install -r requirements.txt
+      python tools/kb_sync.py --days 7 --rank --feedback --deliver
+      echo "--- builder digest ---"
+      cat digests/builder-*.md 2>/dev/null | tail -n +1 || echo "(no builder digest today)"
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+network:
+  allowed:
+    - defaults
+    - python
+
+tools:
+  github:
+  bash: true
+  web-fetch:
+
+safe-outputs:
+  create-pull-request:
+    draft: true
+    title-prefix: "[builder-radar] "
+    labels: [automation, builder-radar]
+    max: 1
+  create-issue:
+    title-prefix: "[builder-radar] "
+    labels: [automation, builder-radar]
+    max: 1
+---
+
+# Builder Radar
+
+You are the maintainer of **ai-scout** (this repo), acting as its 2nd user. First read
+`.github/copilot-instructions.md` for the architecture and the non-negotiable principles.
+
+A deterministic pre-step has generated today's **builder digest** at `digests/builder-*.md` —
+external AI/SDK/agent/eval news ranked for engineering relevance to THIS codebase and reordered
+by past builder feedback. Each item has a numeric id; the file ends with `<!-- items: <ids> -->`.
+
+## Your job — be highly selective
+1. Read the digest. **Decide which items (if any) are genuinely worth acting on** for this repo:
+   a dependency upgrade, a breaking SDK change to adapt to, a concrete agent/eval/RAG technique
+   we should adopt. Most items will NOT warrant action — ignoring them is the right call.
+2. If one or more are worth it, make **ONE focused, minimal change** and open a **single draft
+   pull request** (safe-output). Respect every principle in copilot-instructions.md: passwordless
+   Entra, IaC-first (edit `infra/main.bicep` if infra changes), config-over-code, sleek/no-bloat.
+   The `pr-gate` workflow (compile + ranking eval) must stay green — it runs on your PR.
+3. In the PR body include a line `items: <comma-separated ids you acted on>` (from the digest
+   footer) so the feedback loop can learn which sources were worth it. Your selection IS the
+   feedback — acting on an item is a positive signal; leaving it is negative.
+4. **If nothing is worth acting on, do nothing** (no PR, no issue). A quiet, no-op run is a
+   perfectly good outcome — never open a low-value PR. Quality over quantity; noise erodes trust.
+
+You never merge — a human reviews the draft and decides. Be concise, surgical, and honest about
+trade-offs in the PR description, and disclose that you are an automated assistant (🤖).

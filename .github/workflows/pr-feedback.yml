@@ -20,10 +20,10 @@ permissions:
 
 jobs:
   record:
+    # Builder-radar PRs come from the gh-aw agentic workflow with this title prefix/label.
     if: >
-      github.event.pull_request.user.login == 'Copilot' ||
-      github.event.pull_request.user.login == 'copilot-swe-agent[bot]' ||
-      startsWith(github.event.pull_request.head.ref, 'copilot/')
+      startsWith(github.event.pull_request.title, '[builder-radar]') ||
+      contains(github.event.pull_request.labels.*.name, 'builder-radar')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

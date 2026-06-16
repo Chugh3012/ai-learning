@@ -41,8 +41,11 @@ maintainer), acting on items the pipeline surfaced as relevant to building/opera
   per-(user,item,action).
 - **Fine-tune seam:** `tools/feedback_export.py` exports KB feedback to DPO/SFT JSONL on demand
   (don't fine-tune until ≥200 examples — `MIN_PAIRS`).
-- **CI:** `eval-gate.yml` (quality gate), `kb-sync.yml` (daily cron: ingest→rank→deliver→ this
-  self-improve issue).
+- **CI:** `pr-gate.yml` (compile + ranking eval — the quality gate on every PR), `kb-sync.yml`
+  (daily cron: ingest→rank→deliver). Self-improvement runs via **GitHub Agentic Workflows**
+  (`gh-aw`): `.github/workflows/builder-radar.md` builds the builder digest in a deterministic
+  pre-step, then a coding agent opens a **draft** PR you review. `pr-feedback.yml` records which
+  radar items were acted on as `affinity:builder`. Compile gh-aw with `gh aw compile`.
 
 ## Stack
 Python 3.13; `azure-ai-projects`, `azure-identity`, `azure-storage-blob`,
