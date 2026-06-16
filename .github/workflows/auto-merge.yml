@@ -1,32 +1,38 @@
 name: auto-merge
 
-# P13 — enable auto-merge on self-improvement PRs (those from the Copilot coding agent or the
-# self-improve branch prefix). GitHub merges them ONLY when branch protection's required check
-# (pr-gate) passes — so the eval-gate, not a human, is the merge authority. Squash + delete
-# branch keeps main linear and revertable. A human can still step in any time (close/disable).
+# P13 — gated autonomous merge WITHOUT branch protection (which needs GitHub Pro on private
+# repos). Triggers only AFTER pr-gate finishes; merges the self-improvement PR only if the gate
+# PASSED. So the eval-gate (not a human, not branch protection) is the merge authority, and a
+# failing gate leaves the PR open. Squash + delete branch keeps main linear and revertable.
 
 on:
-  pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
+  workflow_run:
+    workflows: ["pr-gate"]
+    types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  enable:
-    # Only auto-merge bot/self-improvement PRs, never arbitrary human PRs.
+  merge:
+    # Merge only when the gate passed AND the change came from the Copilot self-improve branch.
     if: >
-      github.event.pull_request.user.login == 'Copilot' ||
-      github.event.pull_request.user.login == 'copilot-swe-agent[bot]' ||
-      startsWith(github.event.pull_request.head.ref, 'copilot/')
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'copilot/')
     runs-on: ubuntu-latest
     steps:
-      - name: Enable squash auto-merge
+      - name: Merge the gated PR
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
-          gh pr merge "${{ github.event.pull_request.number }}" \
-            --repo "${{ github.repository }}" --squash --auto --delete-branch \
-            && echo "auto-merge: armed — will merge when pr-gate is green" \
-            || echo "auto-merge: could not arm (likely needs branch protection + required check)"
+          PR="$(gh pr list --repo "$REPO" --head "$BRANCH" --state open \
+            --json number --jq '.[0].number' 2>/dev/null || true)"
+          if [ -z "${PR:-}" ] || [ "$PR" = "null" ]; then
+            echo "auto-merge: no open PR for $BRANCH — nothing to merge."; exit 0
+          fi
+          gh pr merge "$PR" --repo "$REPO" --squash --delete-branch \
+            && echo "auto-merge: merged #$PR (pr-gate passed)" \
+            || echo "auto-merge: merge failed for #$PR"
