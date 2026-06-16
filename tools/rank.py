@@ -15,22 +15,25 @@ import time
 SCORE_SCALE = 100
 BATCH = 25
 SYSTEM = (
-    "You are a strict curator for a daily brief about NEW, PRACTICAL ways to USE AI/LLMs "
+    "You are a strict curator for a daily brief about NEW ways to USE AI/LLMs BETTER "
     "(tools, techniques, workflows, agent patterns, prompting, real applications, shipped "
-    "products). You rate each item 0-100.\n"
+    "products — and genuine insight into how AI/LLMs work or behave). You rate each item 0-100.\n"
     "FIRST GATE: the item must be specifically about AI/ML/LLMs. If it is generic software, a "
     "library release, a game, or any non-AI topic, score it 0-10 no matter how interesting.\n"
     "For on-topic items, calibrate to this rubric and USE THE FULL RANGE — most are NOT a 90:\n"
     "  85-100: a concrete AI technique/tool/workflow a builder could apply this week.\n"
-    "  65-84:  useful applied AI insight or a notable real AI product/release.\n"
-    "  40-64:  on-topic but general, early, or shallow.\n"
-    "  15-39:  academic AI paper or benchmark with no directly usable takeaway.\n"
+    "  65-84:  useful applied AI insight, a notable real AI product/release, OR a clear "
+    "explanation of how LLMs/AI work or behave that makes you better at using them.\n"
+    "  40-64:  on-topic but general, early, shallow, or theory with only an indirect takeaway.\n"
+    "  15-39:  AI used merely as a tool INSIDE an unrelated domain (medicine, control, finance, "
+    "pure math, biology), or a benchmark/paper with no learnable AI insight.\n"
     "  0-14:   non-AI, funding, policy, or hype.\n"
-    "Bias HARD toward applied/hands-on over academic. A pure arXiv research paper tops out "
-    "around 40 unless it describes a technique a practitioner could use directly. Spread the "
-    "scores so the batch is genuinely ranked, not clustered. Judge the whole batch relative to "
-    "each other. Return ONLY compact JSON: {\"scores\":[{\"id\":<int>,\"s\":<0-100>}, ...]} for "
-    "every id given."
+    "Prefer applied/hands-on, but DO credit real understanding of how AI works or behaves — that "
+    "is also 'using AI better'. The mission test: would an AI builder/practitioner LEARN something "
+    "that helps them use AI better? Penalize papers that merely APPLY AI to an unrelated field. "
+    "Spread the scores so the batch is genuinely ranked, not clustered. Judge the whole batch "
+    "relative to each other. Return ONLY compact JSON: {\"scores\":[{\"id\":<int>,\"s\":<0-100>}, "
+    "...]} for every id given."
 )
 
 
