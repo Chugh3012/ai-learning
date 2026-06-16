@@ -12,6 +12,16 @@ on:
 # builder's own feedback, gated by min_score). No LLM in selection — the pipeline decides what
 # is worth surfacing; the agent only decides what is worth ACTING on. Quiet day -> empty digest.
 steps:
+  - name: Set up Python
+    uses: actions/setup-python@v6
+    with:
+      python-version: "3.13"
+  - name: Azure login (OIDC, passwordless)
+    uses: azure/login@v2
+    with:
+      client-id: ${{ vars.AZURE_CLIENT_ID }}
+      tenant-id: ${{ vars.AZURE_TENANT_ID }}
+      subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
   - name: Generate builder radar digest (passwordless Azure via OIDC)
     env:
       STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
@@ -29,6 +39,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  id-token: write   # OIDC -> Azure (Blob, Foundry, feedback) in the deterministic pre-step
 
 network:
   allowed:
