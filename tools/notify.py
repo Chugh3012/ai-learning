@@ -70,12 +70,15 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
         for i, t, s in items
     )
     system = (
-        "You summarize tech/AI articles for a busy reader who wants the core crux up front and "
-        "will click through only if it's worth it. For each item write 2-4 sentences (about 45-75 "
-        "words) capturing what it actually says — the key idea, what's new, and why it matters for "
-        "someone learning new ways to USE AI/LLMs. Be concrete and non-hyped; ground it in the "
-        "provided text and never invent specifics. Return ONLY JSON: "
-        '{"blurbs":[{"id":<int>,"s":"<summary>"}, ...]} for every id.'
+        "You write the daily brief entry for a reader who wants to LEARN new ways to use AI/LLMs "
+        "better. For each item write 2-4 sentences (about 45-75 words) that LEAD WITH THE TAKEAWAY "
+        "— the concrete lesson, technique, or insight the reader can apply or understand (e.g. what "
+        "to do differently, the trick that worked, how the model behaves) — then one line of "
+        "context on what it is. Favor the 'how' and the 'so what' over a plain description. Be "
+        "concrete and non-hyped, ground every claim in the provided text, and never invent "
+        "specifics. If the item is a personal account of how someone used AI, surface the craft "
+        "(the prompt/instruction/workflow choice) as the lesson. Return ONLY JSON: "
+        '{"blurbs":[{"id":<int>,"s":"<entry>"}, ...]} for every id.'
     )
     try:
         resp = client.chat.completions.create(
