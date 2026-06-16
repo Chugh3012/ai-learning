@@ -58,18 +58,21 @@ def dot(a: list[float], b: list[float]) -> float:
 
 
 def embed_unembedded(con: sqlite3.Connection, endpoint: str, deployment: str,
-                     days: int, max_items: int) -> int:
-    """Item tower: embed recent items that have no embedding yet (incremental, capped).
+                     max_items: int) -> int:
+    """Item tower: embed every RANKED item that has no embedding yet (incremental, capped).
+    Keyed on the relevance signal — NOT a time window — so coverage mirrors exactly what
+    delivery's candidate pool draws from; otherwise a scored-but-unembedded item gets no
+    interest bonus and silently sinks below boosted peers. Embedding is cheap, so the cap is
+    generous and the backlog self-heals over a few runs.
     Returns count embedded (0 if embeddings unavailable). Never raises."""
     if not endpoint:
         return 0
-    cutoff = int(time.time()) - days * 86400
     rows = con.execute(
         "SELECT i.id, i.title, i.summary FROM item i "
-        "WHERE i.published >= ? AND NOT EXISTS "
-        "(SELECT 1 FROM embedding e WHERE e.item_id=i.id) "
-        "ORDER BY i.published DESC LIMIT ?",
-        (cutoff, max_items),
+        "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
+        "WHERE NOT EXISTS (SELECT 1 FROM embedding e WHERE e.item_id=i.id) "
+        "GROUP BY i.id ORDER BY i.published DESC LIMIT ?",
+        (max_items,),
     ).fetchall()
     if not rows:
         return 0

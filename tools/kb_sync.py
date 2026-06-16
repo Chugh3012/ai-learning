@@ -218,6 +218,8 @@ def main() -> int:
     ap.add_argument("--no-upload", action="store_true", help="skip Blob download/upload (local only)")
     ap.add_argument("--rank", action="store_true", help="score new items for relevance (Azure OpenAI)")
     ap.add_argument("--rank-max", type=int, default=400, help="max items to score per run (cost cap)")
+    ap.add_argument("--embed-max", type=int, default=2000,
+                    help="max items to embed per run (embedding is cheap; backlog self-heals)")
     ap.add_argument("--draft", action="store_true", help="generate human-review content drafts (Foundry)")
     ap.add_argument("--draft-profile", default="social", help="content profile from config/content.yml")
     ap.add_argument("--draft-min", type=int, default=70, help="min relevance score to draft")
@@ -244,10 +246,10 @@ def main() -> int:
     if args.rank:
         from rank import score_unscored
         score_unscored(con, endpoint, model, args.days, args.rank_max)
-        # Item tower: embed the same recent items once for per-user interest matching (P15).
+        # Item tower: embed every ranked-but-unembedded item (not just this window) so the
+        # interest-match candidate pool has full embedding coverage. Cheap; backlog self-heals.
         from embed import embed_unembedded
-        embed_unembedded(con, endpoint, env.get("FOUNDRY_EMBED_NAME", "embed"),
-                         args.days, args.rank_max)
+        embed_unembedded(con, endpoint, env.get("FOUNDRY_EMBED_NAME", "embed"), args.embed_max)
     if args.feedback:
         from feedback_ingest import ingest_feedback
         ingest_feedback(con, env.get("FEEDBACK_STORAGE", ""))

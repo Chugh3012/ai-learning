@@ -76,6 +76,17 @@ class TestSelectForUser(unittest.TestCase):
         # with a 15-pt z-scored spread, the on-interest item 2 should rank first.
         self.assertEqual(out[0]["id"], 2)
 
+    def test_unembedded_scored_item_still_selectable_under_interest(self):
+        # Regression (the 'Ponytail' bug): a high-relevance, unsent item with NO embedding must
+        # not vanish when interest steering is on — it should still be a candidate.
+        con = _db()
+        _add(con, 1, 10, "embedded on-interest", 60, vec=[1.0, 0.0] + [0.0] * 254)
+        _add(con, 2, 11, "scored but unembedded", 80)  # no vec
+        interest = embed._normalize([1.0] + [0.0] * 255)
+        out = notify._select_for_user(con, "builder", top=5, min_score=0,
+                                      interest_vec=interest, interest_weight=15)
+        self.assertIn(2, [d["id"] for d in out])
+
 
 if __name__ == "__main__":
     unittest.main()
