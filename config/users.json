@@ -1,7 +1,7 @@
 {
-  "_comment": "User registry (P11 — multi-tenant). Adding a user = one entry here: their email + delivery channel + how many items/day. EVERYONE shares the one relevance ranking; personalization is purely each user's own +/- feedback (signal kinds namespaced per user: sent:<id>, affinity:<id>, fb_vote:<id> ...). No per-user prompt. 'email_var' names the env/Actions var holding the address (keeps addresses out of git). The agent maintaining this app is just user 2 with a file channel.",
+  "_comment": "User registry (P11/P12 — multi-tenant). Adding a user = one entry: email + channel + items/day + min_score. EVERYONE shares the one relevance ranking, delivered DAILY; personalization is purely each user's own +/- feedback (signals namespaced per user: sent:<id>, affinity:<id>, fb_*:<id>). No per-user prompt. min_score is the quality gate: only deliver items whose (relevance + that user's affinity) clears the bar, so a user is only contacted when there's something worth it — a quiet day sends nothing. 'email_var' names the env/Actions var holding the address (keeps addresses out of git). The agent maintaining this app is just user 'builder' with a digest channel; its digest, when non-empty, becomes a GitHub issue for the Copilot coding agent. Same machinery as every user — no special path.",
   "users": [
-    { "id": "primary", "channel": "email", "email_var": "EMAIL_TO", "top": 5 },
-    { "id": "builder", "channel": "digest", "top": 8 }
+    { "id": "primary", "channel": "email",  "email_var": "EMAIL_TO", "top": 5, "min_score": 55 },
+    { "id": "builder", "channel": "digest", "top": 8, "min_score": 70 }
   ]
 }

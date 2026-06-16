@@ -11,9 +11,10 @@ on:
 permissions:
   id-token: write    # fetch the OIDC token for Azure login
   contents: read
+  issues: write      # P12: open the builder self-improvement issue when there's something to act on
 
 concurrency:
-  group: kb-sync
+  group: kb-state
   cancel-in-progress: false
 
 jobs:
@@ -48,3 +49,12 @@ jobs:
           FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
         run: python tools/kb_sync.py --days 7 --rank --feedback --deliver
+
+      # P12: the 'builder' user is just another delivery (digest channel). When its digest is
+      # non-empty (something cleared the quality bar = something worth improving), hand it to
+      # the Copilot coding agent as an issue. Quiet days produce no digest -> no issue -> no cost.
+      - name: Self-improve — open builder issue + assign Copilot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: bash .github/scripts/open_builder_issue.sh

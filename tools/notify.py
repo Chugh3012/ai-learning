@@ -153,6 +153,12 @@ def _render(items: list[tuple], blurbs: dict[int, str],
         blurb = blurbs.get(item_id, "")
         src = link(item_id, "click") if fb else url
         text_lines.append(f"{idx}. {title}\n   {blurb}\n   {url}\n")
+        if fb:
+            # Plain-text feedback links so the digest channel (-> GitHub issue) is also clickable.
+            text_lines.append(
+                f"   feedback: 👍 {link(item_id, 'up')}  |  👎 {link(item_id, 'down')}  "
+                f"|  ⭐ {link(item_id, 'save')}\n"
+            )
         row = [
             f'<div style="margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid #eee">',
             f'<div style="font-weight:600;font-size:15px">{html.escape(title)}</div>',
@@ -173,22 +179,26 @@ def _render(items: list[tuple], blurbs: dict[int, str],
     return "\n".join(text_lines), "\n".join(html_lines)
 
 
-def _select_for_user(con: sqlite3.Connection, user_id: str, top: int) -> list[dict]:
+def _select_for_user(con: sqlite3.Connection, user_id: str, top: int,
+                     min_score: float = 0.0) -> list[dict]:
     """Per-user pick: top items from the SHARED relevance ranking that this user hasn't been
-    sent yet, reordered by THIS user's own feedback affinity. Then curate (dedup + diversity).
+    sent yet, reordered by THIS user's own feedback affinity, gated by min_score (quality bar
+    so a user is only contacted when there's something worth it). Then curate (dedup+diversity).
     State is namespaced per user in signal.kind: sent:<id>, affinity:<id>."""
     sent_kind = f"sent:{user_id}"
     aff_kind = f"affinity:{user_id}"
     candidates = con.execute(
         "SELECT i.id, i.title, i.url, i.summary, i.source_id, "
-        "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic "
+        "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic, "
+        "  (s.value + COALESCE((SELECT a.value FROM signal a "
+        "     WHERE a.item_id=i.id AND a.kind=?), 0)) AS rank_score "
         "FROM item i "
         "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
         "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind=?) "
-        "ORDER BY (s.value + COALESCE("
-        "  (SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind=?), 0)) DESC, "
-        "i.published DESC LIMIT ?",
-        (sent_kind, aff_kind, max(top * 6, 30)),
+        "GROUP BY i.id "
+        "HAVING rank_score >= ? "
+        "ORDER BY rank_score DESC, i.published DESC LIMIT ?",
+        (aff_kind, sent_kind, min_score, max(top * 6, 30)),
     ).fetchall()
     from curate import dedup, diversify
     pool = [{"id": r[0], "title": r[1], "url": r[2], "summary": r[3],
@@ -246,8 +256,10 @@ def _deliver_digest(user_id: str, count: int, plain: str) -> bool:
 def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
                 foundry_endpoint: str, model: str) -> int:
     """Deliver each user's personalized top-N from the ONE shared ranking, via their channel.
-    Shared machinery (ingest/KB/ranking) is untouched; only per-user state differs. Returns
-    total items delivered across users."""
+    Shared machinery (ingest/KB/ranking) is untouched; only per-user state differs. Each user
+    is delivered DAILY but only items clearing their min_score quality bar — a quiet day sends
+    nothing. Feedback links (👍/👎/save) work on EVERY channel, so all users (including the agent
+    on the digest channel) personalize through the same Function. Returns total items delivered."""
     acs_endpoint = env.get("ACS_ENDPOINT", "")
     sender = env.get("EMAIL_SENDER", "")
     feedback_url = env.get("FEEDBACK_URL", "")
@@ -257,16 +269,18 @@ def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
         uid = user["id"]
         channel = user.get("channel", "email")
         top = int(user.get("top", 5))
-        selected = _select_for_user(con, uid, top)
+        min_score = float(user.get("min_score", 0))
+        selected = _select_for_user(con, uid, top, min_score)
         if not selected:
-            print(f"deliver: nothing new for {uid}")
+            print(f"deliver: nothing clears {uid}'s bar (min_score={min_score:g}) — quiet day")
             continue
 
         rows = [(d["id"], d["title"], d["url"]) for d in selected]
         blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
         blurbs = _blurbs(foundry_endpoint, model, blurb_items)
-        # Email gets clickable feedback links; the digest channel uses plain text (no clicks).
-        tokens = _mint_tokens(feedback_account, uid, rows) if (channel == "email" and feedback_url) else {}
+        # Feedback links are unified across channels: mint per-user tokens whenever feedback is
+        # configured, regardless of email vs digest. The agent clicks them just like a human.
+        tokens = _mint_tokens(feedback_account, uid, rows) if feedback_url else {}
         plain, body_html = _render(rows, blurbs, feedback_url, tokens)
 
         if channel == "email":

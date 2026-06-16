@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)  - [x] P12 (self-improve loop)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -157,6 +157,18 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   builder content diverges only as feedback accumulates (cold-start). Escape hatch if too weak = optional
   per-user SOURCE filter (not a prompt). No long-term builder memory by design: read digest, act (commit
   = record), ignore next cycle.
+- P12 DONE (2026-06-16): self-improve loop, generalized (NOT special-cased). Concept that serves
+  EVERY user: QUALITY-GATED DELIVERY — config/users.json adds min_score; _select_for_user only emits
+  items whose (relevance + that user's affinity) clears the bar, so a user is contacted only when
+  there's something worth it ("make sure there's something to improve on"). All users DAILY (reverted
+  a wrong 'weekly' special cadence). Feedback links UNIFIED across channels (email + digest both carry
+  👍/👎/save per-user tokens via the same Function) so the agent personalizes exactly like a human —
+  no special feedback path. Daily kb-sync delivers all users; when the builder digest is non-empty it
+  hands the items to the GitHub Copilot coding agent via .github/scripts/open_builder_issue.sh (opens
+  an issue, assigns copilot-swe-agent through suggestedActors→replaceActorsForAssignable GraphQL, falls
+  back to a 'self-improve' label if Copilot isn't enabled). Copilot opens a PR; eval-gate guards; human
+  merges — NO auto-merge to main. One workflow (folded the separate self-improve.yml back in = no bloat).
+  users.json: primary(email,top5,min55) + builder(digest,top8,min70).
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.
