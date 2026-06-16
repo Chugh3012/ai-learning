@@ -1,5 +1,6 @@
 {
-  "_comment": "Ranking-quality gate thresholds (P10). The CI eval runs the production prompt over .foundry/datasets/golden_rank_v1.jsonl and fails if these are not met. Baselines from the gpt-4.1-mini eval (spearman .78, ndcg5 .79, prec5 1.0, leak 5); thresholds set with margin to catch real regressions without flapping on LLM stochasticity.",
+  "_comment": "Ranking-quality gate thresholds (P10). The CI eval runs the production prompt over .foundry/datasets/golden_rank_v1.jsonl and fails if these are not met. Baselines from the gpt-4.1-mini eval (spearman .78, ndcg5 .79, prec5 1.0, leak 5); thresholds set with margin to catch real regressions without flapping on LLM stochasticity. 'samples' = per-item median-of-N scoring runs that remove the residual LLM sampling variance (observed: same code gave spearman .641 then .804 back-to-back on the 33-item set).",
+  "samples": 3,
   "min": { "spearman": 0.65, "ndcg5": 0.65, "prec5": 0.8 },
   "max": { "nonai_leak": 30 }
 }

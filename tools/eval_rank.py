@@ -77,6 +77,12 @@ def _ndcg_at(scored: list[dict], k: int) -> float:
     return dcg / idcg if idcg else 0.0
 
 
+def _median(xs: list[float]) -> float:
+    s = sorted(xs)
+    n = len(s)
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+
+
 def main() -> int:
     endpoint = _env("FOUNDRY_PROJECT_ENDPOINT")
     model = _env("FOUNDRY_MODEL_NAME", "mini")
@@ -89,13 +95,20 @@ def main() -> int:
 
     items = [json.loads(line) for line in DATASET.read_text(encoding="utf-8").splitlines() if line.strip()]
     thresholds = json.loads(THRESHOLDS.read_text(encoding="utf-8")) if THRESHOLDS.exists() else {}
+    # Median-of-N stabilizes the gate: the same prompt scores an item slightly differently across
+    # runs (LLM sampling), which made a 33-item Spearman flap across the pass/fail line. Taking the
+    # per-item median over N samples removes that variance at the source. N from config (>=1).
+    samples = max(1, int(thresholds.get("samples", 3)))
 
     from rank import _client, _score_batch, BATCH
     client = _client(endpoint)
     rows = [(it["id"], it["title"], it["summary"]) for it in items]
-    scores: dict[int, int] = {}
-    for start in range(0, len(rows), BATCH):
-        scores.update(_score_batch(client, model, rows[start:start + BATCH]))
+    samples_by_id: dict[int, list[float]] = {it["id"]: [] for it in items}
+    for _ in range(samples):
+        for start in range(0, len(rows), BATCH):
+            for iid, sc in _score_batch(client, model, rows[start:start + BATCH]).items():
+                samples_by_id[iid].append(sc)
+    scores = {iid: _median(v) if v else 0 for iid, v in samples_by_id.items()}
 
     scored = [dict(it, score=scores.get(it["id"], 0)) for it in items]
     metrics = {
@@ -107,7 +120,8 @@ def main() -> int:
     }
     RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / "gate_latest.json").write_text(
-        json.dumps({"model": model, "ts": int(time.time()), "metrics": metrics}, indent=2),
+        json.dumps({"model": model, "ts": int(time.time()), "samples": samples,
+                    "metrics": metrics}, indent=2),
         encoding="utf-8")
 
     # Gate: min thresholds for higher-is-better, max for leak.
@@ -120,7 +134,7 @@ def main() -> int:
     if metrics["nonai_leak"] > leak_max:
         failures.append(f"nonai_leak={metrics['nonai_leak']} > {leak_max}")
 
-    print(f"eval ({model}): " + "  ".join(f"{k}={v}" for k, v in metrics.items()))
+    print(f"eval ({model}, median-of-{samples}): " + "  ".join(f"{k}={v}" for k, v in metrics.items()))
     if failures:
         print("EVAL GATE FAILED: " + "; ".join(failures))
         return 1
