@@ -31,6 +31,17 @@ categories:
     - { name: GitHub Releases LangChain,    kind: native, topics: [tools, oss, agents] }
     - { name: GitHub Releases Transformers, kind: native, topics: [tools, oss, models] }
     - { name: GitHub Releases llama.cpp,    kind: native, topics: [tools, oss, local-llm] }
+  # Builder Radar — for the app's 2nd user (the agent maintaining it): SDK/library changes,
+  # agent frameworks, eval/MCP/Foundry engineering. Ranked through the 'builder' lens only.
+  builder_radar:
+    - { name: Azure SDK Blog,                    kind: native, topics: [sdk, azure, ops] }
+    - { name: Microsoft DevBlogs,                kind: native, topics: [sdk, azure, ops] }
+    - { name: GitHub Releases azure-sdk-python,  kind: native, topics: [sdk, breaking] }
+    - { name: GitHub Releases openai-python,     kind: native, topics: [sdk, breaking] }
+    - { name: GitHub Releases LangGraph,         kind: native, topics: [agents, framework] }
+    - { name: GitHub Releases Agent Framework,   kind: native, topics: [agents, framework] }
+    - { name: GitHub Releases Pydantic AI,       kind: native, topics: [agents, framework] }
+    - { name: GitHub Releases MCP spec,          kind: native, topics: [mcp, protocol] }
 
 # Deferred (revisit later; not in sources.opml):
 #   Reddit (r/LocalLLaMA, r/MachineLearning) — Reddit blocks feed access (native 403,

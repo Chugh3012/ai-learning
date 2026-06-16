@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""ai-scout email delivery (Layer F / P6) — pluggable, called by kb_sync.
+"""ai-scout delivery (Layer F / P6+P11) — multi-user, pluggable, called by kb_sync.
 
-Sends a daily email of the top relevance-ranked items the user hasn't been emailed yet:
-each = a short multi-sentence crux of the article (Foundry nano, grounded in the feed
-summary) + title + link to read the source if it's worth going deeper. No quiz.
+Delivers each user's personalized top-N from the ONE shared relevance ranking, via that
+user's channel (config/users.json). A user is just {id, channel, top}: ingest, KB, and the
+single ranking are SHARED; only per-user state differs, namespaced in signal.kind:
+  sent:<id>      — items already delivered to this user (so each is sent once)
+  affinity:<id>  — this user's learned +/- feedback bias (NewsBlur-style additive)
+Adding a user = one entry in users.json. No per-user prompt; personalization is feedback only.
 
-Passwordless throughout: Azure Communication Services Email via DefaultAzureCredential
-(az login locally, OIDC managed identity in CI), and Foundry for the blurbs. No keys.
+Channels: 'email' (Azure Communication Services, with 👍/👎/save feedback links) and 'digest'
+(a dated markdown file under digests/, used by the agent maintaining this app — user 2).
 
-Incremental: items already emailed are marked in the KB `signal` table (kind='emailed'),
-so each item is sent once. Cost-capped by --email-top. Graceful: if ACS isn't configured
-the stage is skipped and the pipeline continues.
+Each item = a short multi-sentence crux (Foundry, grounded in fetched article text or the
+feed summary) + title + source link. Passwordless throughout (DefaultAzureCredential).
 
 Feedback (P7): when a feedback endpoint + token store are configured (FEEDBACK_URL +
-FEEDBACK_STORAGE), each item carries 👍/👎/save buttons and a click-tracked source link.
+FEEDBACK_STORAGE), each emailed item carries 👍/👎/save buttons and a click-tracked source link.
 Each gesture is an opaque, single-purpose token minted here and stored in the
 `feedbacktokens` table; the Function validates it and records an event. If feedback infra
 isn't configured the email degrades gracefully to a plain source link (no dead buttons).
@@ -96,9 +98,9 @@ def _blurbs(endpoint: str, deployment: str, items: list[tuple]) -> dict[int, str
         return {}
 
 
-def _mint_tokens(account: str, items: list[tuple]) -> dict[int, dict[str, str]]:
-    """Mint an opaque token per (item, action) and store it in the `feedbacktokens` table.
-    Returns {item_id: {action: token}}. Returns {} (graceful) if the store is unavailable."""
+def _mint_tokens(account: str, user_id: str, items: list[tuple]) -> dict[int, dict[str, str]]:
+    """Mint an opaque token per (user, item, action) and store it in the `feedbacktokens`
+    table. Returns {item_id: {action: token}}. Returns {} (graceful) if the store is down."""
     if not account:
         return {}
     try:
@@ -109,7 +111,7 @@ def _mint_tokens(account: str, items: list[tuple]) -> dict[int, dict[str, str]]:
             credential=DefaultAzureCredential(),
         ).get_table_client("feedbacktokens")
     except Exception as e:  # noqa: BLE001
-        print(f"email: feedback tokens unavailable ({e}); sending plain links")
+        print(f"deliver: feedback tokens unavailable ({e}); sending plain links")
         return {}
 
     out: dict[int, dict[str, str]] = {}
@@ -119,14 +121,15 @@ def _mint_tokens(account: str, items: list[tuple]) -> dict[int, dict[str, str]]:
             for action in _ACTIONS:
                 tok = secrets.token_urlsafe(16)
                 table.upsert_entity(
-                    {"PartitionKey": "tok", "RowKey": tok, "itemId": int(item_id),
-                     "action": action, "url": url, "ts": int(time.time())},
+                    {"PartitionKey": "tok", "RowKey": tok, "user": user_id,
+                     "itemId": int(item_id), "action": action, "url": url,
+                     "ts": int(time.time())},
                     mode=UpdateMode.REPLACE,
                 )
                 per[action] = tok
             out[item_id] = per
     except Exception as e:  # noqa: BLE001
-        print(f"email: token minting failed ({e}); sending plain links")
+        print(f"deliver: token minting failed ({e}); sending plain links")
         return {}
     return out
 
@@ -170,68 +173,110 @@ def _render(items: list[tuple], blurbs: dict[int, str],
     return "\n".join(text_lines), "\n".join(html_lines)
 
 
-def send_email(con: sqlite3.Connection, acs_endpoint: str, sender: str, to: str,
-               foundry_endpoint: str, model: str, top: int,
-               feedback_url: str = "", feedback_account: str = "") -> int:
-    """Email the top-N not-yet-emailed ranked items. Returns count sent (0 if skipped).
-
-    Ordering blends LLM relevance with learned feedback affinity (signal kind='affinity',
-    written by feedback_ingest) so loved sources/topics rise — NewsBlur-style, additive.
-    """
-    if not (acs_endpoint and sender and to):
-        return 0
-    # Pull a larger candidate pool, then curate down: drop near-duplicates and cap how many
-    # items any one source/topic contributes, so the top-N feels varied not monotone.
+def _select_for_user(con: sqlite3.Connection, user_id: str, top: int) -> list[dict]:
+    """Per-user pick: top items from the SHARED relevance ranking that this user hasn't been
+    sent yet, reordered by THIS user's own feedback affinity. Then curate (dedup + diversity).
+    State is namespaced per user in signal.kind: sent:<id>, affinity:<id>."""
+    sent_kind = f"sent:{user_id}"
+    aff_kind = f"affinity:{user_id}"
     candidates = con.execute(
         "SELECT i.id, i.title, i.url, i.summary, i.source_id, "
         "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic "
         "FROM item i "
         "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
-        "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind='emailed') "
+        "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind=?) "
         "ORDER BY (s.value + COALESCE("
-        "  (SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind='affinity'), 0)) DESC, "
+        "  (SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind=?), 0)) DESC, "
         "i.published DESC LIMIT ?",
-        (max(top * 6, 30),),
+        (sent_kind, aff_kind, max(top * 6, 30)),
     ).fetchall()
-    if not candidates:
-        print("email: nothing new to send")
-        return 0
-
     from curate import dedup, diversify
     pool = [{"id": r[0], "title": r[1], "url": r[2], "summary": r[3],
              "source_id": r[4], "topic": r[5]} for r in candidates]
-    selected = diversify(dedup(pool), top)
+    return diversify(dedup(pool), top)
 
-    rows = [(d["id"], d["title"], d["url"]) for d in selected]            # render/tokens
-    # Enrich the crux with the fetched article body when possible; fall back to feed summary.
-    blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
-    blurbs = _blurbs(foundry_endpoint, model, blurb_items)
-    tokens = _mint_tokens(feedback_account, rows) if feedback_url else {}
-    plain, body_html = _render(rows, blurbs, feedback_url, tokens)
 
+def _mark_sent(con: sqlite3.Connection, user_id: str, item_ids: list[int]) -> None:
+    now = int(time.time())
+    con.executemany(
+        "INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)",
+        [(i, f"sent:{user_id}", 1.0, now) for i in item_ids],
+    )
+    con.commit()
+
+
+def _deliver_email(acs_endpoint: str, sender: str, to: str, count: int,
+                   plain: str, body_html: str) -> bool:
+    if not (acs_endpoint and sender and to):
+        print(f"deliver: email channel not configured for recipient; skipped")
+        return False
     try:
         from azure.communication.email import EmailClient
         from azure.identity import DefaultAzureCredential
         client = EmailClient(acs_endpoint, DefaultAzureCredential())
-        message = {
+        client.begin_send({
             "senderAddress": sender,
             "recipients": {"to": [{"address": to}]},
-            "content": {
-                "subject": f"ai-scout \u2014 {len(rows)} new ways to use AI",
-                "plainText": plain,
-                "html": body_html,
-            },
-        }
-        client.begin_send(message).result()
+            "content": {"subject": f"ai-scout \u2014 {count} new ways to use AI",
+                        "plainText": plain, "html": body_html},
+        }).result()
+        return True
     except Exception as e:  # noqa: BLE001 — optional stage, never break the pipeline
-        print(f"email: send failed ({e})")
-        return 0
+        print(f"deliver: email send failed ({e})")
+        return False
 
-    now = int(time.time())
-    con.executemany(
-        "INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)",
-        [(r[0], "emailed", 1.0, now) for r in rows],
-    )
-    con.commit()
-    print(f"email: sent {len(rows)} items to {to}")
-    return len(rows)
+
+def _deliver_digest(user_id: str, count: int, plain: str) -> bool:
+    """The agent's channel: write the picks to a dated digest file the next coding session
+    reads. No long-term memory — the file IS the rolling window; old ones can be deleted."""
+    from pathlib import Path
+    from datetime import datetime, timezone
+    out_dir = Path(__file__).resolve().parent.parent / "digests"
+    out_dir.mkdir(exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = out_dir / f"{user_id}-{today}.md"
+    header = (f"# ai-scout \u2014 {user_id} digest \u2014 {today}\n\n"
+              f"_{count} items from the shared ranking, reordered by {user_id}'s feedback. "
+              f"Read, act if useful (the commit is the record), then ignore next cycle._\n\n")
+    out.write_text(header + plain, encoding="utf-8")
+    print(f"deliver: wrote {out.relative_to(out_dir.parent)}")
+    return True
+
+
+def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
+                foundry_endpoint: str, model: str) -> int:
+    """Deliver each user's personalized top-N from the ONE shared ranking, via their channel.
+    Shared machinery (ingest/KB/ranking) is untouched; only per-user state differs. Returns
+    total items delivered across users."""
+    acs_endpoint = env.get("ACS_ENDPOINT", "")
+    sender = env.get("EMAIL_SENDER", "")
+    feedback_url = env.get("FEEDBACK_URL", "")
+    feedback_account = env.get("FEEDBACK_STORAGE", "")
+    total = 0
+    for user in users:
+        uid = user["id"]
+        channel = user.get("channel", "email")
+        top = int(user.get("top", 5))
+        selected = _select_for_user(con, uid, top)
+        if not selected:
+            print(f"deliver: nothing new for {uid}")
+            continue
+
+        rows = [(d["id"], d["title"], d["url"]) for d in selected]
+        blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
+        blurbs = _blurbs(foundry_endpoint, model, blurb_items)
+        # Email gets clickable feedback links; the digest channel uses plain text (no clicks).
+        tokens = _mint_tokens(feedback_account, uid, rows) if (channel == "email" and feedback_url) else {}
+        plain, body_html = _render(rows, blurbs, feedback_url, tokens)
+
+        if channel == "email":
+            to = env.get(user.get("email_var", "EMAIL_TO"), "")
+            ok = _deliver_email(acs_endpoint, sender, to, len(rows), plain, body_html)
+        else:
+            ok = _deliver_digest(uid, len(rows), plain)
+
+        if ok:
+            _mark_sent(con, uid, [r[0] for r in rows])
+            total += len(rows)
+            print(f"deliver: sent {len(rows)} to {uid} ({channel})")
+    return total

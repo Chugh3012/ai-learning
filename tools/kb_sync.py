@@ -98,7 +98,21 @@ def connect() -> sqlite3.Connection:
     KB_DIR.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(KB_PATH)
     con.executescript(SCHEMA)
+    _migrate_legacy_signals(con)
     return con
+
+
+def _migrate_legacy_signals(con: sqlite3.Connection) -> None:
+    """One-time, idempotent: the single-user pipeline used global signal kinds (emailed,
+    affinity, fb_*). Multi-user namespaces per recipient; attribute the legacy history to
+    'primary' so the original user isn't re-sent items or stripped of learned affinity.
+    No-op once migrated (no rows match)."""
+    con.execute("UPDATE signal SET kind='sent:primary' WHERE kind='emailed'")
+    con.execute("UPDATE signal SET kind='affinity:primary' WHERE kind='affinity'")
+    con.execute("UPDATE signal SET kind=kind||':primary' "
+                "WHERE kind IN ('fb_vote','fb_save','fb_click')")
+    con.commit()
+
 
 
 def upsert_source(con: sqlite3.Connection, s: dict) -> int:
@@ -270,10 +284,10 @@ def main() -> int:
     ap.add_argument("--draft-profile", default="social", help="content profile from config/content.yml")
     ap.add_argument("--draft-min", type=int, default=70, help="min relevance score to draft")
     ap.add_argument("--draft-max", type=int, default=5, help="max drafts per run (cost cap)")
-    ap.add_argument("--email", action="store_true", help="email top ranked items (ACS, passwordless)")
-    ap.add_argument("--email-top", type=int, default=5, help="items per email")
+    ap.add_argument("--deliver", "--email", action="store_true", dest="deliver",
+                    help="deliver each user's personalized top-N (config/users.json) via their channel")
     ap.add_argument("--feedback", action="store_true",
-                    help="ingest email feedback events into the KB and recompute ranking affinity")
+                    help="ingest per-user feedback events into the KB and recompute affinity")
     args = ap.parse_args()
 
     env = load_env()
@@ -298,11 +312,10 @@ def main() -> int:
     if args.draft:
         from draft import generate_drafts
         generate_drafts(con, endpoint, model, args.draft_profile, args.draft_min, args.draft_max)
-    if args.email:
-        from notify import send_email
-        send_email(con, env.get("ACS_ENDPOINT", ""), env.get("EMAIL_SENDER", ""),
-                   env.get("EMAIL_TO", ""), endpoint, model, args.email_top,
-                   env.get("FEEDBACK_URL", ""), env.get("FEEDBACK_STORAGE", ""))
+    if args.deliver:
+        from notify import deliver_all
+        users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
+        deliver_all(con, users, env, endpoint, model)
     digest = render_digest(con, rules, args.days)
     review = render_review(con)
     con.close()

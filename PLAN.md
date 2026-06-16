@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -141,6 +141,22 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   (👍 chosen vs 👎 rejected) or SFT (item→endorsed score) JSONL on demand. DECISION (explicit): do
   NOT fine-tune yet — needs ~200+ examples (MIN_PAIRS) and the loop is new; cheap additive-affinity
   (P7) carries personalization until then. Exporter proven to run (0 rows now, correct guidance).
+- P11 DONE (2026-06-16): MULTI-USER (the app's tenancy test). A user = config/users.json entry
+  {id, channel, top}; everyone shares the ONE relevance ranking; personalization = each user's own
+  +/- feedback only (NO per-user prompt — rejected that approach). Per-user state namespaced in
+  signal.kind: sent:<id>, affinity:<id>, fb_vote/save/click:<id> (no schema change — generic kind).
+  notify.deliver_all loops users → _select_for_user (shared rank + that user's affinity, minus their
+  sent) → curate → channel: 'email' (ACS + feedback links) or 'digest' (digests/<id>-DATE.md, the
+  agent's channel). feedback_ingest now per-user; Function tokens+events carry user (RowKey=<user>:<row>),
+  redeployed. kb_sync._migrate_legacy_signals one-time renames old global emailed/affinity/fb_* →
+  :primary (idempotent) so the original user isn't re-sent or de-personalized. --email kept as alias
+  for --deliver. Two users live: primary(email,5) + builder(digest,8). Verified: independent selection
+  + sent-isolation (marking builder sent didn't touch primary). Added Builder Radar sources (Azure SDK,
+  openai-python, LangGraph, Agent Framework, Pydantic AI, MCP spec releases) for the builder.
+  KNOWN TRADEOFF (accepted): shared 'how to USE AI' prompt down-rates SDK/library releases (~0-10), so
+  builder content diverges only as feedback accumulates (cold-start). Escape hatch if too weak = optional
+  per-user SOURCE filter (not a prompt). No long-term builder memory by design: read digest, act (commit
+  = record), ignore next cycle.
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

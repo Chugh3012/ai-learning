@@ -35,7 +35,8 @@ from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp()
 
-# action -> (events RowKey, value). Up/down collapse to one row so a later vote overwrites.
+# action -> (events RowKey suffix, value). Up/down collapse to one 'vote' row (per user) so a
+# later vote overwrites. The event RowKey is '<user>:<suffix>' so users vote independently.
 _ACTIONS: dict[str, tuple[str, float]] = {
     "up": ("vote", 1.0),
     "down": ("vote", -1.0),
@@ -88,6 +89,7 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     if action not in _ACTIONS:
         return func.HttpResponse("Unknown action.", status_code=400)
     item_id = str(entity.get("itemId", ""))
+    user = str(entity.get("user", "")) or "primary"
     row_key, value = _ACTIONS[action]
 
     try:
@@ -95,7 +97,8 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
         events.upsert_entity(
             {
                 "PartitionKey": item_id,
-                "RowKey": row_key,
+                "RowKey": f"{user}:{row_key}",
+                "user": user,
                 "value": value,
                 "action": action,
                 "ts": int(time.time()),

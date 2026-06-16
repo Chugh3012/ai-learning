@@ -40,5 +40,15 @@
       <outline type="rss" text="GitHub Releases: Transformers" title="GitHub Releases: Transformers" xmlUrl="https://github.com/huggingface/transformers/releases.atom" htmlUrl="https://github.com/huggingface/transformers/releases"/>
       <outline type="rss" text="GitHub Releases: llama.cpp" title="GitHub Releases: llama.cpp" xmlUrl="https://github.com/ggml-org/llama.cpp/releases.atom" htmlUrl="https://github.com/ggml-org/llama.cpp/releases"/>
     </outline>
+    <outline text="Builder Radar" title="Builder Radar">
+      <outline type="rss" text="Azure SDK Blog" title="Azure SDK Blog" xmlUrl="https://devblogs.microsoft.com/azure-sdk/feed/" htmlUrl="https://devblogs.microsoft.com/azure-sdk/"/>
+      <outline type="rss" text="Microsoft DevBlogs" title="Microsoft DevBlogs" xmlUrl="https://devblogs.microsoft.com/feed/" htmlUrl="https://devblogs.microsoft.com/"/>
+      <outline type="rss" text="GitHub Releases: azure-sdk-for-python" title="GitHub Releases: azure-sdk-for-python" xmlUrl="https://github.com/Azure/azure-sdk-for-python/releases.atom" htmlUrl="https://github.com/Azure/azure-sdk-for-python/releases"/>
+      <outline type="rss" text="GitHub Releases: openai-python" title="GitHub Releases: openai-python" xmlUrl="https://github.com/openai/openai-python/releases.atom" htmlUrl="https://github.com/openai/openai-python/releases"/>
+      <outline type="rss" text="GitHub Releases: LangGraph" title="GitHub Releases: LangGraph" xmlUrl="https://github.com/langchain-ai/langgraph/releases.atom" htmlUrl="https://github.com/langchain-ai/langgraph/releases"/>
+      <outline type="rss" text="GitHub Releases: Agent Framework" title="GitHub Releases: Agent Framework" xmlUrl="https://github.com/microsoft/agent-framework/releases.atom" htmlUrl="https://github.com/microsoft/agent-framework/releases"/>
+      <outline type="rss" text="GitHub Releases: Pydantic AI" title="GitHub Releases: Pydantic AI" xmlUrl="https://github.com/pydantic/pydantic-ai/releases.atom" htmlUrl="https://github.com/pydantic/pydantic-ai/releases"/>
+      <outline type="rss" text="GitHub Releases: MCP spec" title="GitHub Releases: MCP spec" xmlUrl="https://github.com/modelcontextprotocol/modelcontextprotocol/releases.atom" htmlUrl="https://github.com/modelcontextprotocol/modelcontextprotocol/releases"/>
+    </outline>
   </body>
 </opml>

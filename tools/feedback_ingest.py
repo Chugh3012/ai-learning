@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 CFG = Path(__file__).resolve().parent.parent / "config" / "feedback.json"
-# events table RowKey -> KB signal kind
+# events table RowKey suffix -> KB signal kind prefix (namespaced per user at write time)
 _ROW_TO_KIND = {"vote": "fb_vote", "save": "fb_save", "click": "fb_click"}
 
 
@@ -39,8 +39,9 @@ def _load_cfg() -> tuple[dict[str, float], dict[str, float]]:
     return cfg.get("weights", {}), cfg.get("influence", {})
 
 
-def _drain_events(account: str) -> list[tuple[int, str, float]]:
-    """Read all feedback events from the table. Returns [(item_id, row_key, value)]."""
+def _drain_events(account: str) -> list[tuple[int, str, str, float]]:
+    """Read all feedback events. Returns [(item_id, user, row, value)]. Events are keyed
+    PartitionKey=item_id, RowKey='<user>:<row>' so each user's vote toggles independently."""
     from azure.data.tables import TableServiceClient
     from azure.identity import DefaultAzureCredential
 
@@ -48,17 +49,21 @@ def _drain_events(account: str) -> list[tuple[int, str, float]]:
         endpoint=f"https://{account}.table.core.windows.net",
         credential=DefaultAzureCredential(),
     ).get_table_client("feedbackevents")
-    out: list[tuple[int, str, float]] = []
+    out: list[tuple[int, str, str, float]] = []
     for e in table.list_entities():
         try:
-            out.append((int(e["PartitionKey"]), str(e["RowKey"]), float(e["value"])))
+            rk = str(e["RowKey"])
+            user = str(e.get("user", "")) or (rk.split(":", 1)[0] if ":" in rk else "primary")
+            row = rk.split(":", 1)[1] if ":" in rk else rk
+            out.append((int(e["PartitionKey"]), user, row, float(e["value"])))
         except (KeyError, ValueError, TypeError):
             continue
     return out
 
 
 def ingest_feedback(con: sqlite3.Connection, account: str) -> int:
-    """Drain events -> KB feedback signals, then recompute per-item affinity.
+    """Drain events -> per-user KB feedback signals, then recompute each user's affinity.
+    Signals are namespaced per user (fb_vote:<id> ...) so users personalize independently.
     Returns the number of feedback events ingested (0 if unavailable). Never raises."""
     if not account:
         return 0
@@ -69,21 +74,26 @@ def ingest_feedback(con: sqlite3.Connection, account: str) -> int:
         return 0
 
     now = int(time.time())
-    # Full reconcile of feedback signals from the events table (idempotent).
-    con.execute("DELETE FROM signal WHERE kind IN ('fb_vote','fb_save','fb_click')")
-    con.executemany(
-        "INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)",
-        [(item_id, _ROW_TO_KIND[rk], val, now)
-         for item_id, rk, val in events if rk in _ROW_TO_KIND],
-    )
-    con.commit()
-    _recompute_affinity(con, now)
-    print(f"feedback: ingested {len(events)} events")
+    users = sorted({user for _, user, _, _ in events})
+    for user in users:
+        # Full reconcile of this user's feedback signals from the events table (idempotent).
+        con.execute(
+            "DELETE FROM signal WHERE kind IN (?,?,?)",
+            (f"fb_vote:{user}", f"fb_save:{user}", f"fb_click:{user}"),
+        )
+        con.executemany(
+            "INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)",
+            [(item_id, f"{_ROW_TO_KIND[row]}:{user}", val, now)
+             for item_id, u, row, val in events if u == user and row in _ROW_TO_KIND],
+        )
+        con.commit()
+        _recompute_affinity(con, user, now)
+    print(f"feedback: ingested {len(events)} events for {len(users)} user(s)")
     return len(events)
 
 
-def _recompute_affinity(con: sqlite3.Connection, now: int) -> None:
-    """Recompute and persist a bounded 'affinity' signal per rank-eligible item."""
+def _recompute_affinity(con: sqlite3.Connection, user: str, now: int) -> None:
+    """Recompute and persist a bounded 'affinity:<user>' signal per rank-eligible item."""
     weights, influence = _load_cfg()
     w_vote = float(weights.get("vote", 1.0))
     w_save = float(weights.get("save", 0.5))
@@ -91,14 +101,16 @@ def _recompute_affinity(con: sqlite3.Connection, now: int) -> None:
     infl_src = float(influence.get("source", 12))
     infl_topic = float(influence.get("topic", 8))
 
-    # Per-item raw feedback score from the reconciled fb_* signals.
+    # Per-item raw feedback score from this user's reconciled fb_*:<user> signals.
     raw: dict[int, float] = {}
     for item_id, vote, save, click in con.execute(
         "SELECT item_id, "
-        "SUM(CASE WHEN kind='fb_vote'  THEN value END), "
-        "SUM(CASE WHEN kind='fb_save'  THEN value END), "
-        "SUM(CASE WHEN kind='fb_click' THEN value END) "
-        "FROM signal WHERE kind LIKE 'fb_%' GROUP BY item_id"
+        "SUM(CASE WHEN kind=?  THEN value END), "
+        "SUM(CASE WHEN kind=?  THEN value END), "
+        "SUM(CASE WHEN kind=? THEN value END) "
+        "FROM signal WHERE kind IN (?,?,?) GROUP BY item_id",
+        (f"fb_vote:{user}", f"fb_save:{user}", f"fb_click:{user}",
+         f"fb_vote:{user}", f"fb_save:{user}", f"fb_click:{user}"),
     ).fetchall():
         raw[item_id] = w_vote * (vote or 0) + w_save * (save or 0) + w_click * (click or 0)
 
@@ -125,7 +137,7 @@ def _recompute_affinity(con: sqlite3.Connection, now: int) -> None:
     topic_aff = {t: _clamp(topic_sum[t] / topic_cnt[t]) for t in topic_sum}
 
     # Persist a bounded affinity per rank-eligible item (those with a relevance score).
-    con.execute("DELETE FROM signal WHERE kind='affinity'")
+    con.execute("DELETE FROM signal WHERE kind=?", (f"affinity:{user}",))
     rows = con.execute(
         "SELECT i.id, i.source_id, GROUP_CONCAT(t.topic) FROM item i "
         "JOIN signal r ON r.item_id=i.id AND r.kind='relevance' "
@@ -139,7 +151,7 @@ def _recompute_affinity(con: sqlite3.Connection, now: int) -> None:
                  if topic_list else 0.0)
         points = infl_src * s_aff + infl_topic * t_aff
         if points:
-            inserts.append((item_id, "affinity", points, now))
+            inserts.append((item_id, f"affinity:{user}", points, now))
     if inserts:
         con.executemany(
             "INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)", inserts

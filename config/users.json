@@ -1,0 +1,7 @@
+{
+  "_comment": "User registry (P11 — multi-tenant). Adding a user = one entry here: their email + delivery channel + how many items/day. EVERYONE shares the one relevance ranking; personalization is purely each user's own +/- feedback (signal kinds namespaced per user: sent:<id>, affinity:<id>, fb_vote:<id> ...). No per-user prompt. 'email_var' names the env/Actions var holding the address (keeps addresses out of git). The agent maintaining this app is just user 2 with a file channel.",
+  "users": [
+    { "id": "primary", "channel": "email", "email_var": "EMAIL_TO", "top": 5 },
+    { "id": "builder", "channel": "digest", "top": 8 }
+  ]
+}
