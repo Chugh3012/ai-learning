@@ -124,9 +124,13 @@ def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
     sources = read_sources()
     now = int(time.time())
     new_items = 0
+    empty: list[str] = []  # sources that returned no entries (often a CI/IP block — visible in logs)
     for s in sources:
         sid = upsert_source(con, s)
         feed = feedparser.parse(s["url"])
+        if not feed.entries:
+            status = getattr(feed, "status", "?")
+            empty.append(f"{s['title']} (HTTP {status})")
         for e in feed.entries:
             title = (e.get("title") or "(untitled)").strip()
             url = e.get("link") or ""
@@ -145,6 +149,10 @@ def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
                 for topic in tag_text(f"{title} {summary}", rules):
                     con.execute("INSERT OR IGNORE INTO tag(item_id,topic) VALUES(?,?)", (item_id, topic))
         con.commit()
+    ok = len(sources) - len(empty)
+    print(f"fetch: {ok}/{len(sources)} sources returned entries")
+    if empty:
+        print("fetch: EMPTY (no entries — possible block/dead feed): " + "; ".join(empty))
     total = con.execute("SELECT COUNT(*) FROM item").fetchone()[0]
     return new_items, total
 
