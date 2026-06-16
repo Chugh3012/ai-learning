@@ -12,7 +12,8 @@ maintainer), acting on items the pipeline surfaced as relevant to building/opera
 - **Infra-as-Code first.** `infra/main.bicep` is the source of truth for every Azure resource.
   If a change needs infra, edit the Bicep — never hand-provision as the source of truth.
 - **The eval-gate must stay green.** `tools/eval_rank.py` grades ranking quality on a labeled
-  golden set; `.github/workflows/pr-gate.yml` runs it (plus a compile check) on EVERY PR and is
+  golden set; `.github/workflows/pr-gate.yml` runs it (plus a compile check and the offline unit
+  tests in `tests/`) on EVERY PR and is
   the **merge authority** — a PR auto-merges only when this gate is green. Don't regress it.
 - **Config over code.** Growth = add a row to a JSON/OPML/YAML config, not a new code path.
   Sources → `config/sources.opml`. Users → `config/users.json`. Tags → `config/tags.json`.
@@ -67,4 +68,5 @@ project `scout`, Blob, ACS Email, Functions (Flex), all in `rg-ai-scout`, passwo
 ## Commands
 - Local sync (no cloud writes): `python tools/kb_sync.py --days 7 --no-upload`
 - Ranking eval gate: `python tools/eval_rank.py` (exit 0 = pass)
+- Unit tests (offline core, no Azure): `python -m unittest discover -s tests`
 - Compile check: `python -m py_compile tools/*.py function/function_app.py`

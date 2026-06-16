@@ -1,8 +1,10 @@
 name: pr-gate
 
-# The QUALITY GATE for autonomous self-improvement. Runs on EVERY PR. Two gates:
-#   1. compile — every tool + the Function must import/compile.
-#   2. eval    — ranking quality must clear config/eval.json on the labeled golden set.
+# The QUALITY GATE for autonomous self-improvement. Runs on EVERY PR. Three gates:
+#   1. compile   — every tool + the Function must import/compile.
+#   2. unit      — offline tests of the deterministic core (curate, feedback math, embed math,
+#                  selection). Fast, no Azure — catches logic regressions deterministically.
+#   3. eval      — ranking quality must clear config/eval.json on the labeled golden set.
 # A red gate signals the reviewer not to merge; a human always reviews/merges the draft PR
 # (no auto-merge — the human review step is the throughput + safety gate, by design).
 # Passwordless: OIDC → Entra → Foundry. No secrets.
@@ -34,6 +36,9 @@ jobs:
 
       - name: Compile check (all tools + function)
         run: python -m py_compile tools/*.py function/function_app.py
+
+      - name: Unit tests (offline core — no Azure)
+        run: python -m unittest discover -s tests -v
 
       - name: Azure login (OIDC, passwordless)
         uses: azure/login@v2
