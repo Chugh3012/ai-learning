@@ -21,7 +21,7 @@
     </outline>
     <outline text="Practitioners &amp; Newsletters" title="Practitioners &amp; Newsletters">
       <outline type="rss" text="Simon Willison" title="Simon Willison" xmlUrl="https://simonwillison.net/atom/everything/" htmlUrl="https://simonwillison.net/"/>
-      <outline type="rss" text="Import AI (Jack Clark)" title="Import AI (Jack Clark)" xmlUrl="https://importai.substack.com/feed" htmlUrl="https://importai.substack.com/"/>
+      <outline type="rss" text="Import AI (Jack Clark)" title="Import AI (Jack Clark)" xmlUrl="https://importai.substack.com/feed" fallbackUrl="https://jack-clark.net/feed" htmlUrl="https://importai.substack.com/"/>
       <outline type="rss" text="Ahead of AI (Sebastian Raschka)" title="Ahead of AI (Sebastian Raschka)" xmlUrl="https://magazine.sebastianraschka.com/feed" htmlUrl="https://magazine.sebastianraschka.com/"/>
       <outline type="rss" text="One Useful Thing (Ethan Mollick)" title="One Useful Thing (Ethan Mollick)" xmlUrl="https://www.oneusefulthing.org/feed" htmlUrl="https://www.oneusefulthing.org/"/>
       <outline type="rss" text="Latent Space (swyx)" title="Latent Space (swyx)" xmlUrl="https://www.latent.space/feed" htmlUrl="https://www.latent.space/"/>
