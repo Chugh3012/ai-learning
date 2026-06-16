@@ -194,7 +194,13 @@ def render_review(con: sqlite3.Connection) -> Path | None:
         for key, val in body.items():
             if isinstance(val, list):
                 lines.append(f"**{key}:**")
-                lines.extend(f"- {v}" for v in val)
+                for i, v in enumerate(val, 1):
+                    if isinstance(v, dict):
+                        # storyboard-style beat: render each field on its own line
+                        parts = " · ".join(f"{k}: {vv}" for k, vv in v.items())
+                        lines.append(f"{i}. {parts}")
+                    else:
+                        lines.append(f"- {v}")
             else:
                 lines.append(f"**{key}:** {val}")
             lines.append("")
