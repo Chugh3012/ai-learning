@@ -16,6 +16,7 @@
       <outline type="rss" text="OpenAI News" title="OpenAI News" xmlUrl="https://openai.com/news/rss.xml" htmlUrl="https://openai.com/news/"/>
       <outline type="rss" text="Hugging Face Blog" title="Hugging Face Blog" xmlUrl="https://huggingface.co/blog/feed.xml" htmlUrl="https://huggingface.co/blog"/>
       <outline type="rss" text="Google DeepMind Blog" title="Google DeepMind Blog" xmlUrl="https://deepmind.google/blog/rss.xml" htmlUrl="https://deepmind.google/discover/blog/"/>
+      <outline type="rss" text="GitHub Blog" title="GitHub Blog" xmlUrl="https://github.blog/feed/" htmlUrl="https://github.blog/"/>
       <outline type="rss" text="BAIR Blog (Berkeley)" title="BAIR Blog (Berkeley)" xmlUrl="https://bair.berkeley.edu/blog/feed.xml" htmlUrl="https://bair.berkeley.edu/blog/"/>
     </outline>
     <outline text="Practitioners &amp; Newsletters" title="Practitioners &amp; Newsletters">

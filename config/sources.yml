@@ -12,6 +12,7 @@ categories:
     - { name: OpenAI News,            kind: native, topics: [models, releases] }
     - { name: Hugging Face Blog,      kind: native, topics: [oss, models, howto] }
     - { name: Google DeepMind Blog,   kind: native, topics: [research, models] }
+    - { name: GitHub Blog,            kind: native, topics: [devtools, copilot, engineering] }
     - { name: BAIR Blog,              kind: native, topics: [research] }
   practitioners:
     - { name: Simon Willison,         kind: native, topics: [howto, tools, llm] }

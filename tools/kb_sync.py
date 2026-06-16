@@ -228,6 +228,8 @@ def main() -> int:
                     help="deliver each user's personalized top-N (config/users.json) via their channel")
     ap.add_argument("--feedback", action="store_true",
                     help="ingest per-user feedback events into the KB and recompute affinity")
+    ap.add_argument("--discover", action="store_true",
+                    help="propose new feeds into config/proposals.yml from recurring item links")
     args = ap.parse_args()
 
     env = load_env()
@@ -260,6 +262,9 @@ def main() -> int:
         from notify import deliver_all
         users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
         deliver_all(con, users, env, endpoint, model)
+    if args.discover:
+        from discover import discover_sources
+        discover_sources(con)
     review = render_review(con)
     con.close()
     print(f"sync: +{new_items} new, {total} total items")

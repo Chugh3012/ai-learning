@@ -1,10 +1,9 @@
 # ai-scout — discovery inbox (the "Jarvis" self-growth seam, PLAN.md).
 #
-# The system writes PROPOSED sources/topics here (domains it keeps seeing, rising tags,
-# RSSHub-radar finds). Nothing here is live. You review, then approved entries are MERGED
-# into sources.opml + sources.yml and REMOVED from here (revise, don't append).
-#
-# Populated automatically from P3+. Empty by design in P1.
+# tools/discover.py (kb_sync --discover) WRITES proposed sources here: external domains that
+# KB item links keep pointing to but we don't yet ingest, with an auto-discovered RSS/Atom feed.
+# Nothing here is live. You review, then approved entries are MERGED into sources.opml +
+# sources.yml and REMOVED from here (revise, don't append).
 #
 # entry shape:
 #   - name: <label>
@@ -14,4 +13,10 @@
 #     reason: <why proposed>
 #     status: proposed   # proposed -> approved -> merged (then delete) | rejected
 
-proposals: []
+proposals:
+  - name: theregister.com
+    candidate_url: https://theregister.com/feed
+    kind: native
+    seen_count: 3
+    reason: linked by 3 KB items; feed auto-discovered
+    status: proposed
