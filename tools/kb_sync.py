@@ -79,7 +79,8 @@ def read_sources() -> list[dict]:
         for child in cat.findall("outline"):
             url = child.get("xmlUrl")
             if url:
-                out.append({"title": child.get("text", url), "url": url, "category": cat_name})
+                out.append({"title": child.get("text", url), "url": url,
+                            "category": cat_name, "fallback": child.get("fallbackUrl", "")})
     return out
 
 
@@ -121,13 +122,25 @@ def tag_text(text: str, rules: dict[str, list[str]]) -> list[str]:
 def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
     import feedparser  # local import so --help works without the dep
 
+    # Browser-like UA: some hosts (Substack) 403 the default feedparser/bot UA, especially from
+    # datacenter IPs. A real UA fixes most such blocks at zero cost.
+    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+          "Chrome/124.0 Safari/537.36")
+
+    def _fetch(url: str):
+        return feedparser.parse(url, agent=ua)
+
     sources = read_sources()
     now = int(time.time())
     new_items = 0
     empty: list[str] = []  # sources that returned no entries (often a CI/IP block — visible in logs)
     for s in sources:
         sid = upsert_source(con, s)
-        feed = feedparser.parse(s["url"])
+        feed = _fetch(s["url"])
+        # Config-driven escape hatch: if the primary feed is empty and a fallbackUrl is set
+        # (e.g. an RSSHub route or mirror), try it before giving up.
+        if not feed.entries and s.get("fallback"):
+            feed = _fetch(s["fallback"])
         if not feed.entries:
             status = getattr(feed, "status", "?")
             empty.append(f"{s['title']} (HTTP {status})")
