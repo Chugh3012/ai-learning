@@ -19,6 +19,9 @@ drafts/*.md
 .foundry/datasets/feedback_*.jsonl
 .foundry/results/gate_latest.json
 
+# gh-aw local audit logs (downloaded on demand via `gh aw audit`)
+.github/aw/logs/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db
