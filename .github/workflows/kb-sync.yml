@@ -19,11 +19,6 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    # Keep JS-based actions (azure/login@v2 etc.) on Node 24 — Node 20 is deprecated on the
-    # runner. From PR #2 (builder-radar agent's own fix, applied directly since its branch was
-    # auto-deleted on close).
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v5
 
