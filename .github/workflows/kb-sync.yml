@@ -57,4 +57,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          # Optional: a user PAT (repo + issues scope) enables AUTO-assigning the Copilot
+          # coding agent. Without it the issue is opened + labeled and you assign Copilot with
+          # one click — the Actions token alone cannot assign agents (by GitHub design).
+          COPILOT_ASSIGN_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
         run: bash .github/scripts/open_builder_issue.sh

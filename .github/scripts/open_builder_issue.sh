@@ -17,6 +17,14 @@ if [ "$(grep -c '^- \|^### \|^| ' "$DIGEST" || true)" = "0" ] && [ "$(wc -l < "$
   exit 0
 fi
 
+# Dedup: don't open a new builder issue while a previous one is still open (avoid spam +
+# don't pile work on the Copilot agent). A run only proceeds once the prior issue is closed.
+OPEN_BUILDER="$(gh issue list --repo "$REPO" --state open --search 'in:title 🤖 Builder radar' --json number --jq 'length' 2>/dev/null || echo 0)"
+if [ "${OPEN_BUILDER:-0}" != "0" ]; then
+  echo "self-improve: a builder radar issue is still open — skipping until it's closed."
+  exit 0
+fi
+
 TODAY="$(date -u +%Y-%m-%d)"
 TITLE="🤖 Builder radar — ${TODAY}"
 
@@ -52,9 +60,28 @@ echo "self-improve: opened $ISSUE_URL"
 ISSUE_NUM="${ISSUE_URL##*/}"
 
 # --- Assign the Copilot coding agent via GraphQL (suggestedActors -> replaceActorsForAssignable) ---
+# --- Assign the Copilot coding agent (best-effort). IMPORTANT: assignment requires a USER
+# token (PAT/OAuth). The default Actions GITHUB_TOKEN is a GitHub App installation token and
+# CANNOT assign agents (FORBIDDEN). So: if COPILOT_ASSIGN_TOKEN (a user PAT secret) is set we
+# use it to auto-assign; otherwise we label the issue and leave a one-click instruction for a
+# human. Either way the issue is created — the loop never fails the workflow. ---
 OWNER="${REPO%/*}"; NAME="${REPO#*/}"
+ASSIGN_TOKEN="${COPILOT_ASSIGN_TOKEN:-}"
 
-COPILOT_ID="$(gh api graphql -f owner="$OWNER" -f name="$NAME" -f query='
+label_for_human() {
+  echo "self-improve: leaving #$ISSUE_NUM for a human to start Copilot (assign @Copilot or comment '@copilot start')."
+  gh label create "self-improve" --repo "$REPO" --color FBCA04 --description "Agent self-improvement task" 2>/dev/null || true
+  gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label "self-improve" 2>/dev/null || true
+  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "Assign **Copilot** to this issue (or comment \`@copilot start\`) to begin. Auto-assign needs a user token; the Actions token can't assign agents." 2>/dev/null || true
+}
+
+if [ -z "$ASSIGN_TOKEN" ]; then
+  echo "self-improve: no COPILOT_ASSIGN_TOKEN (user PAT) — can't auto-assign with the Actions token."
+  label_for_human
+  exit 0
+fi
+
+COPILOT_ID="$(GH_TOKEN="$ASSIGN_TOKEN" gh api graphql -f owner="$OWNER" -f name="$NAME" -f query='
   query($owner:String!, $name:String!) {
     repository(owner:$owner, name:$name) {
       suggestedActors(capabilities:[CAN_BE_ASSIGNED], first:100) {
@@ -64,10 +91,8 @@ COPILOT_ID="$(gh api graphql -f owner="$OWNER" -f name="$NAME" -f query='
   }' --jq '.data.repository.suggestedActors.nodes[] | select(.login=="copilot-swe-agent") | .id' 2>/dev/null || true)"
 
 if [ -z "${COPILOT_ID:-}" ]; then
-  echo "self-improve: Copilot coding agent not assignable on this repo — labeling for human pickup."
-  gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label "self-improve" 2>/dev/null || \
-    { gh label create "self-improve" --repo "$REPO" --color FBCA04 --description "Agent self-improvement task" 2>/dev/null && \
-      gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label "self-improve"; }
+  echo "self-improve: Copilot coding agent not assignable on this repo."
+  label_for_human
   exit 0
 fi
 
@@ -76,9 +101,14 @@ ISSUE_ID="$(gh api graphql -f owner="$OWNER" -f name="$NAME" -F num="$ISSUE_NUM"
     repository(owner:$owner, name:$name) { issue(number:$num) { id } }
   }' --jq '.data.repository.issue.id')"
 
-gh api graphql -f assignableId="$ISSUE_ID" -f actorId="$COPILOT_ID" -f query='
+if GH_TOKEN="$ASSIGN_TOKEN" gh api graphql -f assignableId="$ISSUE_ID" -f actorId="$COPILOT_ID" -f query='
   mutation($assignableId:ID!, $actorId:ID!) {
     replaceActorsForAssignable(input:{assignableId:$assignableId, actorIds:[$actorId]}) {
       assignable { ... on Issue { number assignees(first:5){nodes{login}} } }
     }
-  }' && echo "self-improve: assigned Copilot coding agent to #$ISSUE_NUM"
+  }'; then
+  echo "self-improve: assigned Copilot coding agent to #$ISSUE_NUM"
+else
+  echo "self-improve: auto-assign failed — falling back to human pickup."
+  label_for_human
+fi
