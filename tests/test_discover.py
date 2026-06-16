@@ -12,6 +12,7 @@ import discover  # noqa: E402
 class TestCandidateDomains(unittest.TestCase):
     def _db(self, urls):
         con = sqlite3.connect(":memory:")
+        self.addCleanup(con.close)
         con.execute("CREATE TABLE item(id INTEGER PRIMARY KEY, url TEXT)")
         con.executemany("INSERT INTO item(url) VALUES(?)", [(u,) for u in urls])
         con.commit()

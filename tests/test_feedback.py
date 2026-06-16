@@ -24,6 +24,7 @@ def _db():
 class TestAgeOutSkips(unittest.TestCase):
     def setUp(self):
         self.con = _db()
+        self.addCleanup(self.con.close)
         self.now = int(time.time())
         self.old = self.now - 5 * 86400      # older than skip_days (default 2)
         self.recent = self.now - 3600        # within skip_days
@@ -76,6 +77,7 @@ class TestAgeOutSkips(unittest.TestCase):
 class TestRecomputeAffinity(unittest.TestCase):
     def setUp(self):
         self.con = _db()
+        self.addCleanup(self.con.close)
         self.now = int(time.time())
         # two sources, two items each w/ a topic + relevance (rank-eligible)
         self.con.executemany("INSERT INTO item(id,source_id) VALUES(?,?)",

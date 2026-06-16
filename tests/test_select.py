@@ -39,6 +39,7 @@ def _add(con, iid, source_id, title, relevance, vec=None):
 class TestSelectForUser(unittest.TestCase):
     def test_no_interest_is_relevance_pick_gated_by_min_score(self):
         con = _db()
+        self.addCleanup(con.close)
         _add(con, 1, 10, "high relevance item", 90)
         _add(con, 2, 11, "low relevance item", 40)
         out = notify._select_for_user(con, "builder", top=5, min_score=60,
@@ -49,6 +50,7 @@ class TestSelectForUser(unittest.TestCase):
 
     def test_already_sent_items_excluded(self):
         con = _db()
+        self.addCleanup(con.close)
         _add(con, 1, 10, "seen item", 90)
         con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'sent:builder',1,0)")
         con.commit()
@@ -58,6 +60,7 @@ class TestSelectForUser(unittest.TestCase):
 
     def test_affinity_adds_to_score(self):
         con = _db()
+        self.addCleanup(con.close)
         _add(con, 1, 10, "item", 50)
         con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'affinity:builder',12,0)")
         con.commit()
@@ -67,6 +70,7 @@ class TestSelectForUser(unittest.TestCase):
 
     def test_interest_can_lift_a_match_over_a_higher_relevance_nonmatch(self):
         con = _db()
+        self.addCleanup(con.close)
         # item 1: higher relevance, off-interest vector. item 2: lower relevance, on-interest.
         _add(con, 1, 10, "off interest", 70, vec=[0.0, 1.0] + [0.0] * 254)
         _add(con, 2, 11, "on interest", 64, vec=[1.0, 0.0] + [0.0] * 254)
@@ -80,6 +84,7 @@ class TestSelectForUser(unittest.TestCase):
         # Regression (the 'Ponytail' bug): a high-relevance, unsent item with NO embedding must
         # not vanish when interest steering is on — it should still be a candidate.
         con = _db()
+        self.addCleanup(con.close)
         _add(con, 1, 10, "embedded on-interest", 60, vec=[1.0, 0.0] + [0.0] * 254)
         _add(con, 2, 11, "scored but unembedded", 80)  # no vec
         interest = embed._normalize([1.0] + [0.0] * 255)
