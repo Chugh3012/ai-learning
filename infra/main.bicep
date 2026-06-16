@@ -173,6 +173,31 @@ resource miniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-1
   }
 }
 
+// Embedding model for personalization (two-tower retrieval): embeds each item + each user's
+// interest sentence once; per-user match = a cheap dot product (O(items+users), not items×users).
+// text-embedding-3-large is Azure's latest/most-capable embedding model (no successor exists as
+// of 2026-05); reduced to 256 dims via the `dimensions` param keeps storage tiny while still
+// beating ada-002. Serialized after 'mini' (one deploy op per account at a time).
+resource embedDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  name: 'embed'
+  parent: cognitiveServices
+  dependsOn: [
+    miniDeployment
+  ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 50
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'text-embedding-3-large'
+      version: '1'
+    }
+    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+  }
+}
+
 // Foundry Project
 resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2026-05-01' = {
   name: projectName

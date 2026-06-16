@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS signal(
 CREATE TABLE IF NOT EXISTS draft(
   id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES item(id) UNIQUE,
   status TEXT, body TEXT, created_at INTEGER);
+CREATE TABLE IF NOT EXISTS embedding(
+  item_id INTEGER PRIMARY KEY REFERENCES item(id), vec BLOB, ts INTEGER);
 CREATE INDEX IF NOT EXISTS idx_item_published ON item(published);
 """
 
@@ -260,6 +262,10 @@ def main() -> int:
     if args.rank:
         from rank import score_unscored
         score_unscored(con, endpoint, model, args.days, args.rank_max)
+        # Item tower: embed the same recent items once for per-user interest matching (P15).
+        from embed import embed_unembedded
+        embed_unembedded(con, endpoint, env.get("FOUNDRY_EMBED_NAME", "embed"),
+                         args.days, args.rank_max)
     if args.feedback:
         from feedback_ingest import ingest_feedback
         ingest_feedback(con, env.get("FEEDBACK_STORAGE", ""))
