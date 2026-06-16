@@ -11,9 +11,10 @@ on:
     types: [completed]
   workflow_dispatch: {}
 
-# The builder is a USER: it just READS its digest that kb-sync already produced and published
-# to Blob (exactly like the human reads their top-5 email). It does NOT re-run the engine —
-# no fetch/rank/embed/deliver here. kb-sync (which this triggers off) did all that once.
+# The builder is a USER: it READS its digest that kb-sync already produced and published to Blob
+# (agent/inbox.py), then REACTS to it (agent/review.py votes keep/skip — like starring email),
+# exactly like the human reads and triages their top-5. It never runs the engine: no
+# fetch/rank/embed/deliver, no KB access. kb-sync (which this triggers off) did all that once.
 steps:
   - name: Set up Python
     uses: actions/setup-python@v6
@@ -25,13 +26,17 @@ steps:
       client-id: ${{ vars.AZURE_CLIENT_ID }}
       tenant-id: ${{ vars.AZURE_TENANT_ID }}
       subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  - name: Read builder digest from Blob (read-only — user reads its delivery)
+  - name: Read & react to builder digest (consumer only — never the engine)
     env:
       STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
       BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
+      FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
     run: |
       pip install -r requirements.txt
-      python tools/kb_sync.py --get-digest builder
+      python agent/inbox.py builder      # read its delivery from Blob
+      python agent/review.py builder     # react: vote keep/skip on the digest
       echo "--- builder digest ---"
       cat digests/builder-*.md 2>/dev/null | tail -n +1 || echo "(no builder digest today)"
 

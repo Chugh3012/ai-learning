@@ -62,4 +62,4 @@ jobs:
         if: steps.ids.outputs.acted != ''
         env:
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
-        run: python tools/outcome_feedback.py --vote up --items "${{ steps.ids.outputs.acted }}"
+        run: python agent/outcome.py --vote up --items "${{ steps.ids.outputs.acted }}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ai-scout outcome-as-feedback — the builder's POSITIVE feedback loop with ZERO clicks.
+"""ai-scout outcome-as-feedback — the builder's POSITIVE feedback gesture with ZERO clicks.
 
 The agent (user 'builder') never clicks 👍/👎. Instead, the OUTCOME of its self-improvement
 PR is the feedback: when a PR MERGES, the radar items it acted on were worth it (👍). The
@@ -7,13 +7,13 @@ negative side ("shown but not acted on") is owned by feedback_ingest's fb_skip r
 tool records only the positive on merge — generalizing to any channel that can map an outcome
 (merge, open-rate, reply) to a vote.
 
-It writes events into the SAME `feedbackevents` table the Function uses (user='builder',
-RowKey='builder:vote'), so the normal daily `feedback_ingest` turns them into affinity:builder
-with no new code path. Passwordless: DefaultAzureCredential (OIDC in CI). Never raises fatally.
+It writes events into the SAME `feedbackevents` table the Function uses (RowKey '<user>:vote'),
+so the normal daily `feedback_ingest` turns them into affinity:<user> with no new code path.
+Passwordless: DefaultAzureCredential (OIDC in CI). Never raises fatally.
 
 Usage (from the feedback-on-merge workflow):
-  python tools/outcome_feedback.py --vote up   --items 1804,2327,11
-  python tools/outcome_feedback.py --vote down --items 1804,2327,11
+  python agent/outcome.py --vote up   --items 1804,2327,11
+  python agent/outcome.py --vote down --items 1804,2327,11
 """
 from __future__ import annotations
 

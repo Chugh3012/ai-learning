@@ -7,7 +7,8 @@ model, personalizes per user, and delivers a daily top-N — with a feedback loo
 ## Map
 ```
 config/      what grows (sources.opml · users.json · tags.json · content.yml · *.json knobs)
-tools/       the pipeline — kb_sync.py (orchestrator) calls rank · embed · curate · notify · feedback_ingest · draft
+tools/       the ENGINE — kb_sync.py (orchestrator) calls rank · embed · curate · notify · feedback_ingest · draft · discover
+agent/       the builder as a USER — consumes its delivery: inbox (read digest) · review (vote keep/skip) · outcome (PR-merge 👍). Never touches the KB.
 function/    passwordless Azure Function that captures feedback clicks
 infra/       main.bicep — every Azure resource (source of truth)
 tests/       offline unit tests for the deterministic core (run: python -m unittest discover -s tests)

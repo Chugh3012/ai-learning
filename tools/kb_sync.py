@@ -244,29 +244,6 @@ def blob_upload(account: str, container: str, review: Path | None) -> None:
     print(msg + " to Blob")
 
 
-def get_digest(account: str, container: str, user: str) -> Path | None:
-    """Download a user's latest digest from Blob to digests/ (read-only — the 'user reads their
-    delivery' path). Returns the local path, or None if absent. Never raises."""
-    from datetime import datetime, timezone
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    name = f"{user}-{today}.md"
-    try:
-        svc = blob_client(account)
-        blob = svc.get_blob_client(container, f"digests/{name}")
-        if not blob.exists():
-            print(f"get-digest: digests/{name} not found in Blob (quiet day?)")
-            return None
-        DIGESTS_DIR.mkdir(exist_ok=True)
-        out = DIGESTS_DIR / name
-        with open(out, "wb") as f:
-            f.write(blob.download_blob().readall())
-        print(f"get-digest: downloaded digests/{name}")
-        return out
-    except Exception as e:  # noqa: BLE001 — best-effort read, never break the workflow
-        print(f"get-digest: failed ({e})")
-        return None
-
-
 def main() -> int:
     # Source titles / log lines contain non-ASCII (≥, em-dash); force UTF-8 so a Windows
     # cp1252 console can't crash the run on a print. No-op where stdout is already UTF-8 (CI).
@@ -292,21 +269,11 @@ def main() -> int:
                     help="ingest per-user feedback events into the KB and recompute affinity")
     ap.add_argument("--discover", action="store_true",
                     help="propose new feeds into config/proposals.yml from recurring item links")
-    ap.add_argument("--self-review", action="store_true", dest="self_review",
-                    help="LLM votes keep/skip on each self_review user's delivered items (feedback)")
-    ap.add_argument("--get-digest", metavar="USER", default="",
-                    help="read-only: download a user's digest from Blob and exit (no pipeline)")
     args = ap.parse_args()
 
     env = load_env()
     account = env.get("STORAGE_ACCOUNT", "")
     container = env.get("BLOB_CONTAINER", "knowledge")
-
-    # 'User reads their delivery' path: just fetch the digest the engine already produced.
-    # No fetch/rank/embed/deliver — the agent is a USER, not the engine.
-    if args.get_digest:
-        get_digest(account, container, args.get_digest)
-        return 0
 
     rules = json.loads(TAGS.read_text(encoding="utf-8"))["topics"]
 
@@ -335,10 +302,6 @@ def main() -> int:
         from notify import deliver_all
         users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
         deliver_all(con, users, env, endpoint, model)
-    if args.self_review:
-        from self_review import self_review as run_self_review
-        users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]
-        run_self_review(con, users, env, endpoint, model)
     if args.discover:
         from discover import discover_sources
         discover_sources(con)
