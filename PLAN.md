@@ -83,7 +83,7 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
 - Instagram publishing method for P5 (manual export vs Graph API).
 
 ## Status
-- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)  - [x] P12 (self-improve loop)
+- [x] P1  - [x] P2  - [x] P3  - [x] P4  - [x] P5  - [x] P6 (consumption)  - [x] P7 (feedback)  - [x] P8 (quality)  - [x] P9 (model)  - [x] P10 (sources+CI)  - [x] P11 (multi-user)  - [x] P12 (quality-gated delivery)  - [x] P13 (gh-aw self-improve loop)  - [x] P14 (implicit-negative feedback + bug sweep)
 - P1–P4 DONE (2026-06-15): ingest (RSSHub+FreshRSS) → tag+digest → owned SQLite KB → Azure
   Blob (passwordless OIDC) → Foundry-project relevance ranking. All verified in cloud.
 - P5 DONE (2026-06-15): content drafts. tools/draft.py + config/content.yml profiles
@@ -135,8 +135,9 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   feeds live via feedparser, cut arXiv 3→1 (kept cs.CL; dropped cs.AI/cs.LG floods = ~500 fewer
   academic items/day to rank), added Latent Space + Interconnects (high-signal applied). (b) CI
   eval gate: tools/eval_rank.py grades the production prompt over the golden set vs config/eval.json
-  thresholds (spearman>=.65, ndcg5>=.65, prec5>=.8, leak<=30); .github/workflows/eval-gate.yml runs
-  it on PRs touching rank/prompt/eval (OIDC, passwordless). Local pass: spearman .70 / ndcg .80 /
+  thresholds (spearman>=.65, ndcg5>=.65, prec5>=.8, leak<=30); it runs in .github/workflows/pr-gate.yml
+  on every PR (OIDC, passwordless; eval-gate.yml was later folded into pr-gate.yml). Local pass:
+  spearman .70 / ndcg .80 /
   prec 1.0 / leak 5. (c) Fine-tune seam: tools/feedback_export.py harvests KB feedback into DPO
   (👍 chosen vs 👎 rejected) or SFT (item→endorsed score) JSONL on demand. DECISION (explicit): do
   NOT fine-tune yet — needs ~200+ examples (MIN_PAIRS) and the loop is new; cheap additive-affinity
@@ -163,12 +164,30 @@ Each phase is independently valuable and verifiable. Don't build ahead of what's
   there's something worth it ("make sure there's something to improve on"). All users DAILY (reverted
   a wrong 'weekly' special cadence). Feedback links UNIFIED across channels (email + digest both carry
   👍/👎/save per-user tokens via the same Function) so the agent personalizes exactly like a human —
-  no special feedback path. Daily kb-sync delivers all users; when the builder digest is non-empty it
-  hands the items to the GitHub Copilot coding agent via .github/scripts/open_builder_issue.sh (opens
-  an issue, assigns copilot-swe-agent through suggestedActors→replaceActorsForAssignable GraphQL, falls
-  back to a 'self-improve' label if Copilot isn't enabled). Copilot opens a PR; eval-gate guards; human
-  merges — NO auto-merge to main. One workflow (folded the separate self-improve.yml back in = no bloat).
-  users.json: primary(email,top5,min55) + builder(digest,top8,min70).
+  no special feedback path. users.json: primary(email,top5,min55) + builder(digest,top8,min70).
+- P13 DONE (2026-06-16): self-improve loop via GitHub Agentic Workflows (gh-aw) — superseded the
+  hand-rolled issue-assignment (deleted open_builder_issue.sh / auto-merge.yml / eval-gate.yml /
+  self-improve.yml = no bloat). .github/workflows/builder-radar.md: a deterministic pre-step runs
+  kb_sync --rank --feedback --deliver (passwordless OIDC → Azure) to build the builder digest, then
+  a coding agent (engine=claude-sonnet) reads it read-only and may ONLY open a single DRAFT PR
+  (safe-output). Compile with `gh aw compile`; needs COPILOT_GITHUB_TOKEN. pr-gate.yml (compile +
+  ranking eval) guards every PR; a HUMAN reviews/merges — NO auto-merge (Free+private can't anyway,
+  and human review IS the safety+throughput gate by design). pr-feedback.yml records acted items as
+  👍 affinity:builder on merge. Schedule = gh-aw fuzzy `daily` (scattered, avoids load spikes).
+  First live run verified: OIDC worked, digest built, agent correctly no-op'd.
+- P14 DONE (2026-06-16): closed the no-op feedback gap + bug sweep. (a) IMPLICIT NEGATIVE: an item
+  delivered (sent:<user>) but not acted on within skip_days (config/feedback.json, default 2)
+  becomes a mild fb_skip:<user> (weight -0.3) in feedback_ingest — "shown, reviewed, not needed" —
+  recomputed each run so a later vote/save/click removes it. Generalizes to every user. (b) BUG SWEEP
+  from a fresh review: the P11 per-user namespacing had left two consumers querying old un-namespaced
+  kinds — render_digest blended kind='affinity' (now affinity:<id>, dead → removed; the shared
+  overview is pure relevance+recency, per-user affinity applies only in deliver_all) and
+  feedback_export queried kind='fb_vote' (now fb_vote:<id> → LIKE 'fb_vote:%'). Simplified
+  pr-feedback to acted→👍 only (fb_skip owns the negative; dropped the dead closing-issue lookup).
+  Fixed stale auto-merge framing in pr-gate.yml + outcome_feedback docstring.
+  OPEN (next): the builder ranking lens — SDK/release sources score ~10-32 on the shared 'how to USE
+  AI' rubric so they never clear builder's min_score 70; the builder digest is structurally academic
+  arXiv. Feedback can only reorder within what clears the bar, so this is permanent, not cold-start.
 - IaC DONE (2026-06-16): infra/main.bicep + main.bicepparam capture every Azure resource +
   passwordless role assignments (resource-group scoped, parameterized). what-if verified: 11
   core resources match live exactly. Source of truth going forward — new resources land here.

@@ -167,21 +167,21 @@ def render_digest(con: sqlite3.Connection, rules: dict, days: int) -> Path:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out = DIGEST_DIR / f"{today}.md"
 
+    # Shared, non-personalized overview (also backed up to Blob): pure relevance + recency.
+    # Per-user affinity lives in 'affinity:<id>' and is applied in notify.deliver_all, not here.
     rows = con.execute(
         "SELECT i.title, i.url, s.title, i.published, t.topic, "
         "       (SELECT value FROM signal sg WHERE sg.item_id=i.id AND sg.kind='relevance' "
-        "        ORDER BY sg.ts DESC LIMIT 1) AS score, "
-        "       (SELECT value FROM signal af WHERE af.item_id=i.id AND af.kind='affinity' "
-        "        ORDER BY af.ts DESC LIMIT 1) AS aff "
+        "        ORDER BY sg.ts DESC LIMIT 1) AS score "
         "FROM item i JOIN tag t ON t.item_id=i.id JOIN source s ON s.id=i.source_id "
         "WHERE i.published>=? "
-        "ORDER BY score IS NULL, (COALESCE(score,0)+COALESCE(aff,0)) DESC, i.published DESC",
+        "ORDER BY score IS NULL, COALESCE(score,0) DESC, i.published DESC",
         (cutoff,),
     ).fetchall()
 
     buckets: dict[str, list] = {}
     kept = set()
-    for title, url, feed, ts, topic, score, aff in rows:
+    for title, url, feed, ts, topic, score in rows:
         buckets.setdefault(topic, []).append((title, url, feed, score))
         kept.add(url)
 

@@ -1,12 +1,13 @@
 name: pr-feedback
 
-# P13 — the agent's SELECTION is the feedback (efficient: NO PR-per-item). When a self-improve
-# PR closes, map the agent's judgment to builder votes with zero clicks:
-#   - items the PR acted on (its `items: <ids>` line)   -> 👍 worth acting on
-#   - radar items the agent did NOT act on              -> 👎 judged not worth it
-#   - PR closed unmerged                                -> 👎 everything it referenced
+# The agent's SELECTION is the feedback. When a builder-radar PR MERGES, the items it acted on
+# (its `items: <ids>` line) are a strong POSITIVE signal -> 👍 affinity:builder. The negative
+# side ("shown but not acted on") is owned by the daily feedback_ingest fb_skip rule, so this
+# workflow records ONLY the positive on merge — no overlap, no dead closing-issue lookup.
+#   merged   -> 👍 the acted ids (clears any prior fb_skip on them at next ingest)
+#   unmerged -> nothing here; fb_skip ages those out as implicit negatives
 # Written to the same feedbackevents table a human click would; daily feedback_ingest turns it
-# into affinity:builder. Merge just confirms quality via the gate; it is NOT the vote.
+# into affinity:builder.
 
 on:
   pull_request:
@@ -15,67 +16,50 @@ on:
 permissions:
   contents: read
   pull-requests: read
-  issues: read
   id-token: write     # OIDC -> Azure (write feedback passwordless)
 
 jobs:
   record:
-    # Builder-radar PRs come from the gh-aw agentic workflow with this title prefix/label.
+    # Only MERGED builder-radar PRs (the gh-aw agentic workflow's title prefix / label).
     if: >
-      startsWith(github.event.pull_request.title, '[builder-radar]') ||
-      contains(github.event.pull_request.labels.*.name, 'builder-radar')
+      github.event.pull_request.merged == true &&
+      ( startsWith(github.event.pull_request.title, '[builder-radar]') ||
+        contains(github.event.pull_request.labels.*.name, 'builder-radar') )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
-      - name: Resolve acted vs ignored item ids
+      - name: Resolve acted item ids
         id: ids
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
-          MERGED: ${{ github.event.pull_request.merged }}
         run: |
           set -euo pipefail
           PR_BODY="$(gh pr view "$PR" --repo "$REPO" --json body --jq '.body' 2>/dev/null || true)"
           ACTED="$(printf '%s' "$PR_BODY" | grep -oiE 'items:[[:space:]]*[0-9,[:space:]]+' | grep -oE '[0-9]+' | paste -sd, - || true)"
-          ISSUE="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences --jq '.closingIssuesReferences[0].number' 2>/dev/null || true)"
-          ALL=""
-          if [ -n "${ISSUE:-}" ] && [ "$ISSUE" != "null" ]; then
-            IBODY="$(gh issue view "$ISSUE" --repo "$REPO" --json body --jq '.body' 2>/dev/null || true)"
-            ALL="$(printf '%s' "$IBODY" | grep -oE '<!-- items: [0-9,]+ -->' | grep -oE '[0-9,]+' || true)"
-          fi
-          IGN=""
-          if [ -n "$ALL" ]; then
-            for id in ${ALL//,/ }; do
-              case ",$ACTED," in *",$id,"*) ;; *) IGN="${IGN:+$IGN,}$id" ;; esac
-            done
-          fi
-          if [ "$MERGED" != "true" ]; then ACTED=""; IGN="$ALL"; fi
-          echo "acted=$ACTED"  >> "$GITHUB_OUTPUT"
-          echo "ignored=$IGN"  >> "$GITHUB_OUTPUT"
-          echo "acted=[$ACTED] ignored=[$IGN] merged=$MERGED"
+          echo "acted=$ACTED" >> "$GITHUB_OUTPUT"
+          echo "acted=[$ACTED]"
 
       - uses: actions/setup-python@v6
-        if: steps.ids.outputs.acted != '' || steps.ids.outputs.ignored != ''
+        if: steps.ids.outputs.acted != ''
         with:
           python-version: "3.13"
 
       - run: pip install azure-data-tables azure-identity
-        if: steps.ids.outputs.acted != '' || steps.ids.outputs.ignored != ''
+        if: steps.ids.outputs.acted != ''
 
       - name: Azure login (OIDC, passwordless)
-        if: steps.ids.outputs.acted != '' || steps.ids.outputs.ignored != ''
+        if: steps.ids.outputs.acted != ''
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Record selection as builder feedback
-        if: steps.ids.outputs.acted != '' || steps.ids.outputs.ignored != ''
+      - name: Record acted items as builder 👍
+        if: steps.ids.outputs.acted != ''
         env:
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
-        run: |
-          [ -n "${{ steps.ids.outputs.acted }}" ]   && python tools/outcome_feedback.py --vote up   --items "${{ steps.ids.outputs.acted }}"   || true
-          [ -n "${{ steps.ids.outputs.ignored }}" ] && python tools/outcome_feedback.py --vote down --items "${{ steps.ids.outputs.ignored }}" || true
+        run: python tools/outcome_feedback.py --vote up --items "${{ steps.ids.outputs.acted }}"

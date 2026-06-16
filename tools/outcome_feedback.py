@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""ai-scout outcome-as-feedback (P13) — the builder's feedback loop with ZERO clicks.
+"""ai-scout outcome-as-feedback — the builder's POSITIVE feedback loop with ZERO clicks.
 
 The agent (user 'builder') never clicks 👍/👎. Instead, the OUTCOME of its self-improvement
-PR is the feedback: a PR that auto-merges means the radar items it acted on were worth it
-(👍); a PR closed unmerged means they weren't (👎). This closes the builder's learning loop
-using the one signal the system already produces — and it generalizes: any channel can map an
-outcome (merge, open-rate, reply) to a vote.
+PR is the feedback: when a PR MERGES, the radar items it acted on were worth it (👍). The
+negative side ("shown but not acted on") is owned by feedback_ingest's fb_skip rule, so this
+tool records only the positive on merge — generalizing to any channel that can map an outcome
+(merge, open-rate, reply) to a vote.
 
 It writes events into the SAME `feedbackevents` table the Function uses (user='builder',
 RowKey='builder:vote'), so the normal daily `feedback_ingest` turns them into affinity:builder

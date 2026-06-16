@@ -1,10 +1,10 @@
 name: pr-gate
 
-# P13 — the MERGE AUTHORITY for autonomous self-improvement. Runs on EVERY PR. When green,
-# branch protection lets the PR auto-merge with no human. Two gates:
+# The QUALITY GATE for autonomous self-improvement. Runs on EVERY PR. Two gates:
 #   1. compile — every tool + the Function must import/compile.
 #   2. eval    — ranking quality must clear config/eval.json on the labeled golden set.
-# main cannot be broken by the self-improve loop because a red gate blocks the merge.
+# A red gate signals the reviewer not to merge; a human always reviews/merges the draft PR
+# (no auto-merge — the human review step is the throughput + safety gate, by design).
 # Passwordless: OIDC → Entra → Foundry. No secrets.
 
 on:

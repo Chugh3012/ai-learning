@@ -32,11 +32,13 @@ MIN_PAIRS = 200
 
 
 def _voted(con: sqlite3.Connection, want: float) -> list[tuple[int, str, str]]:
-    """Items whose net vote signal matches sign(want): +1 = upvoted, -1 = downvoted."""
+    """Items whose net vote signal matches sign(want): +1 = upvoted, -1 = downvoted.
+    Votes are namespaced per user ('fb_vote:<id>'); a preference is valid for the shared
+    ranker regardless of which user gave it, so aggregate across all users."""
     op = ">" if want > 0 else "<"
     return con.execute(
         f"SELECT i.id, i.title, i.summary FROM item i "
-        f"JOIN (SELECT item_id, SUM(value) v FROM signal WHERE kind='fb_vote' GROUP BY item_id) f "
+        f"JOIN (SELECT item_id, SUM(value) v FROM signal WHERE kind LIKE 'fb_vote:%' GROUP BY item_id) f "
         f"ON f.item_id=i.id WHERE f.v {op} 0",
         (),
     ).fetchall()
@@ -70,9 +72,9 @@ def export_sft(con: sqlite3.Connection) -> Path:
     rows = con.execute(
         "SELECT i.title, i.summary, "
         "  (SELECT value FROM signal r WHERE r.item_id=i.id AND r.kind='relevance') AS rel, "
-        "  (SELECT SUM(value) FROM signal v WHERE v.item_id=i.id AND v.kind='fb_vote') AS vote "
+        "  (SELECT SUM(value) FROM signal v WHERE v.item_id=i.id AND v.kind LIKE 'fb_vote:%') AS vote "
         "FROM item i WHERE EXISTS "
-        "  (SELECT 1 FROM signal s WHERE s.item_id=i.id AND s.kind='fb_vote')"
+        "  (SELECT 1 FROM signal s WHERE s.item_id=i.id AND s.kind LIKE 'fb_vote:%')"
     ).fetchall()
     recs = []
     for title, summary, rel, vote in rows:
