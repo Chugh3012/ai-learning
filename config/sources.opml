@@ -59,5 +59,13 @@
     <outline text="Tools for Thought &amp; Indie AI" title="Tools for Thought &amp; Indie AI">
       <outline type="rss" text="Cursor changelog" title="Cursor changelog" xmlUrl="https://www.cursor.com/changelog/rss.xml" htmlUrl="https://www.cursor.com/changelog"/>
     </outline>
+    <outline text="YouTube (AI)" title="YouTube (AI)">
+      <outline type="rss" text="YouTube: Two Minute Papers" title="YouTube: Two Minute Papers" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg" htmlUrl="https://www.youtube.com/@TwoMinutePapers"/>
+      <outline type="rss" text="YouTube: Yannic Kilcher" title="YouTube: Yannic Kilcher" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCZHmQk67mSJgfCCTn7xBfew" htmlUrl="https://www.youtube.com/@YannicKilcher"/>
+      <outline type="rss" text="YouTube: AI Explained" title="YouTube: AI Explained" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCNJ1Ymd5yFuUPtn21xtRbbw" htmlUrl="https://www.youtube.com/@aiexplained-official"/>
+      <outline type="rss" text="YouTube: Andrej Karpathy" title="YouTube: Andrej Karpathy" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ" htmlUrl="https://www.youtube.com/@AndrejKarpathy"/>
+      <outline type="rss" text="YouTube: sentdex" title="YouTube: sentdex" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCfzlCWGWYyIQ0aLC5w48gBQ" htmlUrl="https://www.youtube.com/@sentdex"/>
+      <outline type="rss" text="YouTube: DeepLearningAI" title="YouTube: DeepLearningAI" xmlUrl="https://www.youtube.com/feeds/videos.xml?channel_id=UCcIXc5mJsHVYTZR1maL5l9w" htmlUrl="https://www.youtube.com/@Deeplearningai"/>
+    </outline>
   </body>
 </opml>

@@ -52,6 +52,15 @@ categories:
   # Covers the gap that pure labs/arXiv/SDK feeds miss; surfaces to users via the interest lens.
   tools_for_thought:
     - { name: Cursor changelog,       kind: native, topics: [coding, agents, tools] }
+  # YouTube (AI) — channels expose a built-in RSS at feeds/videos.xml?channel_id=<UC...>;
+  # a different host than the blocked ones, so it fetches fine from CI. Video titles+desc only.
+  youtube_ai:
+    - { name: YouTube Two Minute Papers, kind: native, topics: [research, explainer] }
+    - { name: YouTube Yannic Kilcher,    kind: native, topics: [research, paper-walkthrough] }
+    - { name: YouTube AI Explained,      kind: native, topics: [analysis, frontier] }
+    - { name: YouTube Andrej Karpathy,   kind: native, topics: [applied, howto, llm] }
+    - { name: YouTube sentdex,           kind: native, topics: [applied, coding, tutorial] }
+    - { name: YouTube DeepLearningAI,    kind: native, topics: [education, applied] }
 
 # Deferred (revisit later; not in sources.opml):
 #   Reddit (r/LocalLLaMA, r/MachineLearning) — Reddit blocks feed access (native 403,
