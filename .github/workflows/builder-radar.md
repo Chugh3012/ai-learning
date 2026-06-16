@@ -4,7 +4,11 @@
 # default and may ONLY open a DRAFT pull request (safe-output). It never merges; a human marks
 # ready/merges — which is also the strongest feedback signal. Compile with: gh aw compile.
 on:
-  schedule: daily   # gh-aw fuzzy daily — scattered run time to avoid load spikes
+  # Trigger right after kb-sync finishes — so the agent runs on EACH fresh digest, not a
+  # separate cron that drifts out of sync with when the KB/digest is actually produced.
+  workflow_run:
+    workflows: ["kb-sync"]
+    types: [completed]
   workflow_dispatch: {}
 
 # A deterministic pre-step builds the builder digest (the shared ranking, reordered by the
