@@ -30,24 +30,26 @@ TITLE="🤖 Builder radar — ${TODAY}"
 
 BODY_FILE="$(mktemp)"
 {
-  cat <<'EOF'
+  cat <<EOF
 **You are the maintainer of this repo (ai-scout), acting as its 2nd user.**
 
-Below is this week's *builder radar*: SDK/library/agent/eval news ranked for engineering
-relevance to THIS codebase, reordered by past builder feedback. Treat it as a worklist.
+Below is the *builder radar*: SDK/library/agent/eval news ranked for engineering relevance to
+THIS codebase, reordered by past builder feedback. Treat it as a worklist — but be selective.
 
-**What to do**
-1. Read each item. For anything genuinely useful to this pipeline (a dependency upgrade, a
-   breaking SDK change to adapt to, an agent/eval/RAG technique we should adopt), make the
-   change in a focused PR.
-2. Ignore consumer/news items and anything not actionable for this repo.
-3. Keep the project's principles: passwordless Entra, IaC-first (update infra/ Bicep if infra
-   changes), sleek/no-bloat, config-over-code, and the CI eval-gate must stay green.
-4. If an item isn't worth acting on, that's fine — no change is a valid outcome. The commit
-   history is the record; nothing here needs to be remembered next week.
+**What to do (be efficient — do NOT make a PR per item):**
+1. Read all items first and DECIDE which (if any) are genuinely worth acting on for this repo
+   (a dependency upgrade, a breaking SDK change to adapt to, an agent/eval/RAG technique).
+2. Make **ONE focused PR** addressing only the worthy items (or a couple of PRs if the changes
+   are truly unrelated). Most items will NOT warrant action — ignoring them is the right call.
+3. In your PR description include a line \`items: <comma-separated item ids you acted on>\`
+   (the ids are in the digest below). End the PR body with \`Closes #${ISSUE_NUM}\`.
+4. Items you act on become a positive signal; items you leave become a negative signal — that
+   is how the radar learns. So your SELECTION is the feedback; you don't need to do anything else.
+5. Keep the principles in .github/copilot-instructions.md: passwordless Entra, IaC-first, sleek,
+   config-over-code, and the pr-gate (compile + eval) must pass — it is the merge authority.
 
-**Guardrails:** open a PR for review — do NOT merge to main. The eval-gate workflow will run
-on PRs that touch ranking. One PR per coherent change is better than one giant PR.
+**Guardrails:** the pr-gate decides merge automatically; if it's green the PR auto-merges. If no
+item is worth acting on, just close this issue with a comment saying so — that's a valid outcome.
 
 ---
 
