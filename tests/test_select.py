@@ -16,6 +16,7 @@ import notify  # noqa: E402
 def _db():
     con = sqlite3.connect(":memory:")
     con.executescript(
+        "CREATE TABLE source(id INTEGER PRIMARY KEY, title TEXT, category TEXT);"
         "CREATE TABLE item(id INTEGER PRIMARY KEY, source_id INTEGER, title TEXT, url TEXT,"
         "  summary TEXT, published INTEGER);"
         "CREATE TABLE tag(item_id INTEGER, topic TEXT);"
@@ -26,6 +27,8 @@ def _db():
 
 
 def _add(con, iid, source_id, title, relevance, vec=None):
+    con.execute("INSERT OR IGNORE INTO source(id,title,category) VALUES(?,?,?)",
+                (source_id, f"src{source_id}", f"cat{source_id}"))
     con.execute("INSERT INTO item(id,source_id,title,url,summary,published) VALUES(?,?,?,?,?,?)",
                 (iid, source_id, title, f"http://x/{iid}", "", 1000 + iid))
     con.execute("INSERT INTO tag(item_id,topic) VALUES(?,?)", (iid, f"t{iid}"))

@@ -195,7 +195,8 @@ def _select_for_user(con: sqlite3.Connection, user_id: str, top: int,
         "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic, "
         "  s.value AS rel, "
         "  COALESCE((SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind=?), 0) AS aff, "
-        "  (SELECT e.vec FROM embedding e WHERE e.item_id=i.id) AS vec "
+        "  (SELECT e.vec FROM embedding e WHERE e.item_id=i.id) AS vec, "
+        "  (SELECT src.category FROM source src WHERE src.id=i.source_id) AS category "
         "FROM item i "
         "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
         "WHERE NOT EXISTS (SELECT 1 FROM signal e WHERE e.item_id=i.id AND e.kind=?) "
@@ -211,11 +212,12 @@ def _select_for_user(con: sqlite3.Connection, user_id: str, top: int,
     bonus = match_bonus(interest_vec, vecs, interest_weight)
 
     pool = []
-    for iid, title, url, summary, source_id, topic, rel, aff, _vec in rows:
+    for iid, title, url, summary, source_id, topic, rel, aff, _vec, category in rows:
         score = rel + aff + bonus.get(iid, 0.0)
         if score >= min_score:
             pool.append({"id": iid, "title": title, "url": url, "summary": summary,
-                         "source_id": source_id, "topic": topic, "score": score})
+                         "source_id": source_id, "topic": topic, "category": category,
+                         "score": score})
     pool.sort(key=lambda d: d["score"], reverse=True)
 
     from curate import dedup, diversify

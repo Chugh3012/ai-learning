@@ -1,6 +1,7 @@
 {
-  "_comment": "Curation knobs (P8). dedup_jaccard: title-token overlap above which two stories are 'the same'. max_per_source / max_per_topic: diversity caps applied when picking the email top-N.",
+  "_comment": "Curation knobs (P8). dedup_jaccard: title-token overlap above which two stories are 'the same'. max_per_source / max_per_topic / max_per_category: diversity caps applied when picking the email top-N. max_per_category groups a multi-feed firehose (arXiv cs.AI+cs.CL+cs.LG share category 'Research (arXiv)') into one bucket so academic papers can't dominate a 'new ways to USE AI' digest (was 50-67% of delivery).",
   "dedup_jaccard": 0.6,
   "max_per_source": 2,
-  "max_per_topic": 2
+  "max_per_topic": 2,
+  "max_per_category": 2
 }

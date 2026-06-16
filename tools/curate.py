@@ -57,28 +57,38 @@ def dedup(items: list[dict]) -> list[dict]:
 
 
 def diversify(items: list[dict], limit: int) -> list[dict]:
-    """Pick up to `limit` items, capping per-source and per-topic contributions so the
-    result is varied. `items` pre-sorted best-first; each dict needs 'source_id' and
-    optionally 'topic'. Falls back to filling remaining slots if caps are too tight."""
+    """Pick up to `limit` items, capping per-source, per-topic and per-category contributions
+    so the result is varied. `items` pre-sorted best-first; each dict needs 'source_id' and
+    optionally 'topic'/'category'. The category cap makes a multi-feed firehose (e.g. arXiv's
+    cs.AI + cs.CL + cs.LG, one 'Research' category) obey a single bucket limit instead of
+    smuggling N× items past the per-source cap. Falls back to filling remaining slots if caps
+    are too tight."""
     cfg = _cfg()
     max_src = int(cfg.get("max_per_source", 2))
     max_topic = int(cfg.get("max_per_topic", 2))
+    max_cat = int(cfg.get("max_per_category", 0)) or None  # 0/absent = no category cap
     chosen: list[dict] = []
     src_count: dict = {}
     topic_count: dict = {}
+    cat_count: dict = {}
     deferred: list[dict] = []
     for it in items:
         if len(chosen) >= limit:
             break
         sid = it.get("source_id")
         topic = it.get("topic")
-        if src_count.get(sid, 0) >= max_src or (topic and topic_count.get(topic, 0) >= max_topic):
+        cat = it.get("category")
+        if (src_count.get(sid, 0) >= max_src
+                or (topic and topic_count.get(topic, 0) >= max_topic)
+                or (max_cat and cat and cat_count.get(cat, 0) >= max_cat)):
             deferred.append(it)
             continue
         chosen.append(it)
         src_count[sid] = src_count.get(sid, 0) + 1
         if topic:
             topic_count[topic] = topic_count.get(topic, 0) + 1
+        if cat:
+            cat_count[cat] = cat_count.get(cat, 0) + 1
     # If caps left us short, backfill from deferred (relevance order preserved).
     for it in deferred:
         if len(chosen) >= limit:

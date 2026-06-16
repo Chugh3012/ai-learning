@@ -55,6 +55,20 @@ class TestDiversify(unittest.TestCase):
         out = curate.diversify(items, limit=3)
         self.assertEqual([d["source_id"] for d in out], [1, 1, 2])
 
+    def test_category_cap_groups_multifeed_firehose(self):
+        # arXiv ships 3 feeds (distinct source_ids) under one 'Research' category; the per-source
+        # cap alone would let 2*3=6 through. max_per_category=2 (config) caps the whole bucket,
+        # so applied content fills the remaining slots instead of an academic flood.
+        research = [{"source_id": 10 + i, "category": "Research (arXiv)", "topic": f"r{i}"}
+                    for i in range(4)]                       # 4 distinct arXiv feeds
+        applied = [{"source_id": 20 + i, "category": None, "topic": f"a{i}"}
+                   for i in range(4)]                        # applied sources, no shared category
+        out = curate.diversify(research + applied, limit=5)  # research listed first (higher rank)
+        n_research = sum(1 for d in out if d.get("category") == "Research (arXiv)")
+        self.assertEqual(len(out), 5)
+        self.assertEqual(n_research, 2)                      # capped at 2 despite 4 available
+        self.assertEqual(5 - n_research, 3)                  # applied took the freed slots
+
 
 if __name__ == "__main__":
     unittest.main()
