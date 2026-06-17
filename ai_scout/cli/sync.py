@@ -68,6 +68,12 @@ def main(argv=None) -> int:
     registry = UserRegistry.load()
     feedback_store = FeedbackStore(s.feedback_storage)
 
+    # Each confirmed newsletter subscriber joins as a distinct user (own lens + feedback).
+    from ai_scout.repositories.subscribers import SubscriberStore
+    subs = SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
+    if subs:
+        print(f"subscribers: +{registry.add_subscribers(subs)} confirmed users")
+
     if args.feedback:
         metrics.add("voted", FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses()))
 

@@ -40,10 +40,6 @@ class Orchestrator:
         total = 0
         for user in self.registry.users:
             for p in user.profiles:
-                if p.public:
-                    # The public newsletter lens is delivered only via the subscriber
-                    # broadcast below (it has no single recipient), so skip it here.
-                    continue
                 if targets is not None:
                     if p.lens not in targets:
                         continue
@@ -70,51 +66,42 @@ class Orchestrator:
                                              lens=p.lens, channel=p.channel)
                     print(f"deliver: {len(items)} -> {p.lens} ({p.channel})")
         if targets is None:
-            total += self._broadcast_subscribers(weight, now)
+            self._cache_welcome_edition(weight)
         return total
 
-    def _broadcast_subscribers(self, weight, now: int) -> int:
-        # Confirmed newsletter subscribers get the public edition: its OWN lens (one
-        # shared edition/day, independent of the owner's private daily). Optional +
-        # graceful: no store / no subscribers / no public profile / not due -> no-op.
+    def _cache_welcome_edition(self, weight) -> None:
+        # Render a generic top-5 edition and stash it where the subscribe Function can read
+        # it, so a brand-new user gets their first email the instant they confirm (no wait
+        # for the next daily run). Stable lens (never marked sent) => always current top 5.
+        # Optional + graceful: no storage / nothing clears -> no-op.
         try:
-            from ai_scout.repositories.subscribers import SubscriberStore
-            from ai_scout.services.delivery.email_sink import send_email
-            account = self.settings.subscriber_storage or self.settings.feedback_storage
-            store = SubscriberStore(account)
-            if not store.enabled:
-                return 0
-            prof = self.registry.public_profile()
-            if prof is None:
-                return 0
-            if not prof.cadence.is_due(self.kb.last_sent_ts(prof.lens), now):
-                print(f"deliver: public edition not due ({prof.lens}) — skip subscribers")
-                return 0
-            owner = (self.settings.email_to or "").strip().lower()
-            subs = [(e, n) for e, n in store.confirmed() if e.strip().lower() != owner]
-            if not subs:
-                return 0
-            interest_vec = self.embedder.embed_interest(prof.interest)
-            items = self.selector.select(prof.lens, prof.top, prof.min_score, interest_vec, weight)
+            account = (getattr(self.settings, "subscriber_storage", "")
+                       or getattr(self.settings, "feedback_storage", ""))
+            if not account:
+                return
+            lens = "edition:welcome"
+            interest_vec = self.embedder.embed_interest("")
+            items = self.selector.select(lens, 5, 55, interest_vec, weight)
             if not items:
-                print(f"deliver: nothing clears {prof.lens} (min_score={prof.min_score:g}) — quiet")
-                return 0
+                print("deliver: no welcome edition cached (nothing clears) — quiet")
+                return
             rows = [(it.id, it.title, it.url) for it in items]
-            brief = self.brief_builder.build(prof.lens, items)
+            brief = self.brief_builder.build(lens, items)
             feedback_url = self.settings.feedback_url
-            tokens = self.feedback_store.mint_tokens(prof.lens, rows) if feedback_url else {}
+            tokens = self.feedback_store.mint_tokens(lens, rows) if feedback_url else {}
             plain, body_html = BriefBuilder.render(items, brief, feedback_url, tokens)
-            subject = f"ai-scout \u2014 {len(rows)} new ways to use AI"
-            sent = sum(1 for email, _name in subs
-                       if send_email(self.settings, email, subject, plain, body_html))
-            if sent:
-                self.kb.mark_sent(prof.lens, [it.id for it in items])
-            if self.metrics is not None:
-                self.metrics.add("subscribers_sent", sent, lens=prof.lens, channel="email")
-                self.metrics.add("delivered", len(items), lens=prof.lens, channel="email")
-            print(f"deliver: broadcast public edition to {sent}/{len(subs)} subscribers")
-            return sent
+            from azure.data.tables import TableServiceClient, UpdateMode
+            from azure.identity import DefaultAzureCredential
+            svc = TableServiceClient(
+                endpoint=f"https://{account}.table.core.windows.net",
+                credential=DefaultAzureCredential())
+            svc.create_table_if_not_exists("editions")
+            svc.get_table_client("editions").upsert_entity({
+                "PartitionKey": "edition", "RowKey": "welcome",
+                "subject": f"Welcome to Chugh Vibes \u2014 today's top {len(rows)}",
+                "plain": plain, "html": body_html, "ts": int(time.time()),
+            }, mode=UpdateMode.REPLACE)
+            print(f"deliver: cached welcome edition ({len(rows)} items)")
         except Exception as e:
-            print(f"deliver: subscriber broadcast skipped ({e})")
-            return 0
+            print(f"deliver: welcome edition cache skipped ({e})")
 

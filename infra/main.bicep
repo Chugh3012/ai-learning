@@ -122,6 +122,13 @@ resource subscribersTable 'Microsoft.Storage/storageAccounts/tableServices/table
   parent: fnTables
 }
 
+// Cached generic top-5 edition the pipeline writes and the subscribe Function reads to send
+// each newly-confirmed user their first email instantly (no wait for the next daily run).
+resource editionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  name: 'editions'
+  parent: fnTables
+}
+
 // User-Assigned Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName

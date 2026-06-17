@@ -25,6 +25,7 @@ def send_email(settings, to: str, subject: str, plain: str, body_html: str) -> b
 
 class EmailSink(DeliverySink):
     def _notify(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
-        to = ctx.settings.email_address(ctx.profile.email_var)
+        p = ctx.profile
+        to = p.email or ctx.settings.email_address(p.email_var)
         subject = f"ai-scout \u2014 {len(rows)} new ways to use AI"
         return send_email(ctx.settings, to, subject, plain, body_html)

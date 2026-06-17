@@ -73,6 +73,9 @@ def _json(status: int, ok: bool, message: str) -> func.HttpResponse:
 def _email_key(email: str) -> str:
     return hashlib.sha256(email.encode("utf-8")).hexdigest()
 
+def _new_user_id() -> str:
+    return "usr_" + secrets.token_hex(4)
+
 def _subscribers():
     svc = _tables()
     try:
@@ -112,12 +115,26 @@ def _confirm_email_html(hello: str, confirm_url: str) -> str:
         '</div></div>'
     )
 
-def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
+def _acs_send(to: str, subject: str, plain: str, body_html: str) -> bool:
     endpoint = os.environ.get("ACS_ENDPOINT", "")
     sender = os.environ.get("EMAIL_SENDER", "")
     if not (endpoint and sender):
-        logging.warning("subscribe: ACS not configured; confirmation not sent")
+        logging.warning("email: ACS not configured; not sent")
         return False
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient(endpoint, DefaultAzureCredential())
+        client.begin_send({
+            "senderAddress": sender,
+            "recipients": {"to": [{"address": to}]},
+            "content": {"subject": subject, "plainText": plain, "html": body_html},
+        }).result()
+        return True
+    except Exception:
+        logging.exception("email: send failed")
+        return False
+
+def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
     hello = f"Hi {name}," if name else "Hi,"
     plain = (
         f"{hello}\n\n"
@@ -125,22 +142,23 @@ def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
         f"Confirm your subscription:\n{confirm_url}\n\n"
         "If you didn't request this, just ignore this email.\n"
     )
+    return _acs_send(to, "Confirm your Chugh Vibes subscription", plain,
+                     _confirm_email_html(html.escape(hello), confirm_url))
+
+def _send_welcome(to: str) -> bool:
+    # Fire the new user's first edition the moment they confirm, using the generic top-5
+    # the pipeline cached. No cache yet (cold start) -> skip; they'll get the next daily run.
     try:
-        from azure.communication.email import EmailClient
-        client = EmailClient(endpoint, DefaultAzureCredential())
-        client.begin_send({
-            "senderAddress": sender,
-            "recipients": {"to": [{"address": to}]},
-            "content": {
-                "subject": "Confirm your Chugh Vibes subscription",
-                "plainText": plain,
-                "html": _confirm_email_html(html.escape(hello), confirm_url),
-            },
-        }).result()
-        return True
+        ed = _tables().get_table_client("editions").get_entity("edition", "welcome")
     except Exception:
-        logging.exception("subscribe: confirmation send failed")
+        logging.info("welcome: no cached edition yet; skipping instant send")
         return False
+    subject = str(ed.get("subject") or "Welcome to Chugh Vibes")
+    plain = str(ed.get("plain") or "")
+    body_html = str(ed.get("html") or "")
+    if not body_html:
+        return False
+    return _acs_send(to, subject, plain, body_html)
 
 @app.route(route="f", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def feedback(req: func.HttpRequest) -> func.HttpResponse:
@@ -225,12 +243,14 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
             if now - int(pend.get("createdTs", 0)) < _RESEND_WINDOW:
                 return _json(200, True, "Almost there — check your inbox to confirm.")
             token = str(pend.get("token") or secrets.token_urlsafe(24))
+            user_id = str(pend.get("userId") or _new_user_id())
         except ResourceNotFoundError:
             token = secrets.token_urlsafe(24)
+            user_id = _new_user_id()
         table.upsert_entity(
             {
                 "PartitionKey": "pending", "RowKey": key,
-                "email": email, "name": name, "token": token,
+                "email": email, "name": name, "token": token, "userId": user_id,
                 "createdTs": now, "status": "pending",
             },
             mode=UpdateMode.REPLACE,
@@ -275,11 +295,12 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     key = str(ent["RowKey"])
     email = str(ent.get("email", ""))
     name = str(ent.get("name", ""))
+    user_id = str(ent.get("userId") or _new_user_id())
     try:
         table.upsert_entity(
             {
                 "PartitionKey": "sub", "RowKey": key,
-                "email": email, "name": name, "token": token,
+                "email": email, "name": name, "token": token, "userId": user_id,
                 "status": "active", "confirmedTs": int(time.time()),
             },
             mode=UpdateMode.REPLACE,
@@ -289,4 +310,7 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
         logging.exception("confirm: activate failed")
         return _page("Temporary error, please try again.", ok=False)
 
+    # Trigger this new user's first edition right away (graceful if no cache yet).
+    if _send_welcome(email):
+        return _page("You're in. Your first edition is on its way to your inbox.", ok=True)
     return _page("You're in. Your first edition lands tomorrow morning.", ok=True)

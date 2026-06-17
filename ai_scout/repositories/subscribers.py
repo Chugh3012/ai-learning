@@ -21,13 +21,13 @@ class SubscriberStore:
             self._client = svc.get_table_client("subscribers")
         return self._client
 
-    def confirmed(self) -> list[tuple[str, str]]:
+    def confirmed(self) -> list[tuple[str, str, str]]:
         if not self.enabled:
             return []
         try:
             rows = self._table().query_entities("PartitionKey eq 'sub' and status eq 'active'")
-            return [(str(r.get("email", "")), str(r.get("name", ""))) for r in rows
-                    if str(r.get("email", ""))]
+            return [(str(r.get("userId", "")), str(r.get("email", "")), str(r.get("name", "")))
+                    for r in rows if str(r.get("email", ""))]
         except Exception as e:
             print(f"subscribers: read failed ({e})")
             return []
