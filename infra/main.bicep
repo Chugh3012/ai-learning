@@ -54,9 +54,6 @@ param metricsDceName string = 'dce-ai-scout'
 @description('Base name for the metrics Data Collection Rule')
 param metricsDcrName string = 'dcr-ai-scout'
 
-@description('Base name for Azure Managed Grafana')
-param grafanaName string = 'graf-ai-scout'
-
 @description('Apply RBAC role assignments (default off so the template re-deploys idempotently; enable for a fresh environment or to (re)apply roles).')
 param assignRoles bool = false
 
@@ -454,10 +451,12 @@ resource communicationServiceIdentityRole 'Microsoft.Authorization/roleAssignmen
   }
 }
 
-// ---- Observability: pipeline metrics -> Log Analytics -> Grafana (all passwordless) ----
+// ---- Observability: pipeline metrics -> Log Analytics (all passwordless) ----
 // The pipeline POSTs run metrics (ingested / ranked / embedded / delivered / voted / tokens /
 // eval scores) to the DCE using its managed identity (Monitoring Metrics Publisher on the DCR);
-// the DCR routes them into the AiScoutMetrics_CL custom table; Grafana reads it via its own MSI.
+// the DCR routes them into the AiScoutMetrics_CL custom table. Visualize via Azure Monitor (Logs
+// / Workbooks) in the portal — no extra paid resource. (Azure Managed Grafana 'Essential' is not
+// ARM-deployable here and 'Standard' is ~$63/mo, so it is intentionally not provisioned.)
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsName
@@ -547,21 +546,6 @@ resource metricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   }
 }
 
-resource grafana 'Microsoft.Dashboard/grafana@2023-09-01' = {
-  name: grafanaName
-  location: appLocation
-  sku: {
-    name: 'Standard'
-  }
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    apiKey: 'Disabled'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
 // RBAC - Monitoring Metrics Publisher on the DCR (pipeline identity + user can ship metrics)
 resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(metricsDcr.id, managedIdentity.id, '3913510d-42f4-4e42-8a64-420c390055eb')
@@ -583,37 +567,6 @@ resource dcrPublisherUserRole 'Microsoft.Authorization/roleAssignments@2022-04-0
   }
 }
 
-// RBAC - Grafana's identity reads the workspace (Log Analytics Reader) + the RG (Monitoring Reader)
-resource grafanaWorkspaceReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
-  name: guid(logAnalytics.id, grafana.id, '73c42c96-874c-492b-b04d-ab87d138a893')
-  scope: logAnalytics
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '73c42c96-874c-492b-b04d-ab87d138a893')
-    principalId: grafana.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
-  name: guid(resourceGroup().id, grafana.id, '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
-    principalId: grafana.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-// RBAC - the user is a Grafana Admin on the instance (to build/import dashboards)
-resource grafanaUserAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
-  name: guid(grafana.id, userPrincipalId, '22926164-76b3-42b3-bc55-97df8dab3e41')
-  scope: grafana
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '22926164-76b3-42b3-bc55-97df8dab3e41')
-    principalId: userPrincipalId
-    principalType: 'User'
-  }
-}
-
 // Outputs
 output kbStorageId string = kbStorage.id
 output fnStorageId string = fnStorage.id
@@ -630,4 +583,3 @@ output logAnalyticsId string = logAnalytics.id
 output metricsDceEndpoint string = metricsDce.properties.logsIngestion.endpoint
 output metricsDcrImmutableId string = metricsDcr.properties.immutableId
 output metricsStream string = 'Custom-AiScoutMetrics_CL'
-output grafanaEndpoint string = grafana.properties.endpoint
