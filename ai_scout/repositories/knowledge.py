@@ -1,55 +1,47 @@
-"""KnowledgeBase — the owned SQLite knowledge base (items, signals, embeddings, drafts, sources).
+"""KnowledgeBase — the owned knowledge base (items, signals, embeddings, drafts, sources).
 
-This is the ONLY module that issues SQL against the KB. Services receive a KnowledgeBase by
-constructor injection and call its methods — no raw SQL leaks into the business logic. The
-generic `signal(item_id, kind, value, ts)` table holds everything (relevance, affinity:<lens>,
-sent:<lens>, fb_*:<lens>): new signal kinds need no migration.
+Backed by a SQLModel/SQLAlchemy engine: the schema is defined by the typed models in
+repositories/models.py (created via the engine), and a `session()` exposes the ORM for the future
+FastAPI layer. The read-heavy ANALYTICAL queries the pipeline needs (correlated subqueries, CASE
+sums, GROUP_CONCAT) stay as optimized SQL over the DBAPI connection — the idiomatic split for a
+read-heavy analytical workload. This is the ONLY module that issues SQL against the KB.
 """
 from __future__ import annotations
 
 import sqlite3
 import time
 
-from ai_scout.lib.config import KB_DIR, KB_PATH
+from sqlalchemy import create_engine
+from sqlmodel import SQLModel, Session
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS source(
-  id INTEGER PRIMARY KEY, title TEXT, url TEXT UNIQUE, kind TEXT, category TEXT);
-CREATE TABLE IF NOT EXISTS item(
-  id INTEGER PRIMARY KEY,
-  source_id INTEGER REFERENCES source(id),
-  title TEXT, url TEXT, summary TEXT,
-  published INTEGER, fetched_at INTEGER, hash TEXT UNIQUE);
-CREATE TABLE IF NOT EXISTS tag(
-  item_id INTEGER REFERENCES item(id), topic TEXT,
-  PRIMARY KEY(item_id, topic));
-CREATE TABLE IF NOT EXISTS signal(
-  id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES item(id),
-  kind TEXT, value REAL, ts INTEGER);
-CREATE TABLE IF NOT EXISTS draft(
-  id INTEGER PRIMARY KEY, item_id INTEGER REFERENCES item(id) UNIQUE,
-  status TEXT, body TEXT, created_at INTEGER);
-CREATE TABLE IF NOT EXISTS embedding(
-  item_id INTEGER PRIMARY KEY REFERENCES item(id), vec BLOB, ts INTEGER);
-CREATE INDEX IF NOT EXISTS idx_item_published ON item(published);
-"""
+from ai_scout.lib.config import KB_DIR, KB_PATH
+from ai_scout.repositories import models  # noqa: F401 — registers the tables on SQLModel.metadata
 
 
 class KnowledgeBase:
-    """Owns a sqlite connection to the KB and exposes every query the services need."""
+    """Owns the engine + a DBAPI connection to the KB and exposes every query the services need."""
 
-    def __init__(self, con: sqlite3.Connection):
+    def __init__(self, engine, con: sqlite3.Connection):
+        self.engine = engine
         self.con = con
 
     @classmethod
     def open(cls, path=None) -> "KnowledgeBase":
-        KB_DIR.mkdir(parents=True, exist_ok=True)
-        con = sqlite3.connect(str(path or KB_PATH))
-        con.executescript(_SCHEMA)
-        return cls(con)
+        path = str(path or KB_PATH)
+        if path != ":memory:":
+            KB_DIR.mkdir(parents=True, exist_ok=True)
+        engine = create_engine(f"sqlite:///{path}")
+        SQLModel.metadata.create_all(engine)        # schema from the typed models
+        con = sqlite3.connect(path)
+        return cls(engine, con)
+
+    def session(self) -> Session:
+        """An ORM session over the typed models (for the future FastAPI layer)."""
+        return Session(self.engine)
 
     def close(self) -> None:
         self.con.close()
+        self.engine.dispose()
 
     def commit(self) -> None:
         self.con.commit()

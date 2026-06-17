@@ -1,6 +1,7 @@
 """services.BriefBuilder — learning-brief rendering + connect-the-dots (offline, no Azure/model)."""
-import sqlite3
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -31,13 +32,11 @@ class TestRenderBrief(unittest.TestCase):
 
 class TestConnections(unittest.TestCase):
     def _kb(self):
-        con = sqlite3.connect(":memory:")
-        con.executescript(
-            "CREATE TABLE item(id INTEGER PRIMARY KEY, title TEXT, url TEXT);"
-            "CREATE TABLE signal(id INTEGER PRIMARY KEY, item_id INTEGER, kind TEXT, value REAL, ts INTEGER);"
-            "CREATE TABLE embedding(item_id INTEGER PRIMARY KEY, vec BLOB, ts INTEGER);")
-        self.addCleanup(con.close)
-        return KnowledgeBase(con)
+        fd, path = tempfile.mkstemp(suffix=".sqlite")
+        os.close(fd)
+        kb = KnowledgeBase.open(path)
+        self.addCleanup(kb.close)
+        return kb
 
     def test_links_today_to_a_similar_past_pick(self):
         kb = self._kb()

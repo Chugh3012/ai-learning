@@ -1,6 +1,7 @@
 """services.FeedbackService — implicit 'skip' aging + affinity recompute (offline, sqlite :memory:)."""
-import sqlite3
+import os
 import sys
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -14,13 +15,9 @@ LENS = "usr_x:prf_main"
 
 
 def _kb():
-    con = sqlite3.connect(":memory:")
-    con.executescript(
-        "CREATE TABLE item(id INTEGER PRIMARY KEY, source_id INTEGER);"
-        "CREATE TABLE tag(item_id INTEGER, topic TEXT);"
-        "CREATE TABLE signal(id INTEGER PRIMARY KEY, item_id INTEGER, kind TEXT, value REAL, ts INTEGER);"
-    )
-    return KnowledgeBase(con)
+    fd, path = tempfile.mkstemp(suffix=".sqlite")
+    os.close(fd)
+    return KnowledgeBase.open(path)
 
 
 def _svc(kb):

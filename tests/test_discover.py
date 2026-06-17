@@ -1,5 +1,5 @@
 """services.SourceDiscoverer — domain tally + proposals.yml merge (offline, no network)."""
-import sqlite3
+import os
 import sys
 import tempfile
 import unittest
@@ -11,11 +11,12 @@ from ai_scout.services import discoverer as disc  # noqa: E402
 
 
 def _kb(urls):
-    con = sqlite3.connect(":memory:")
-    con.execute("CREATE TABLE item(id INTEGER PRIMARY KEY, url TEXT)")
-    con.executemany("INSERT INTO item(url) VALUES(?)", [(u,) for u in urls])
-    con.commit()
-    return KnowledgeBase(con)
+    fd, path = tempfile.mkstemp(suffix=".sqlite")
+    os.close(fd)
+    kb = KnowledgeBase.open(path)
+    kb.con.executemany("INSERT INTO item(url) VALUES(?)", [(u,) for u in urls])
+    kb.con.commit()
+    return kb
 
 
 class TestCandidateDomains(unittest.TestCase):

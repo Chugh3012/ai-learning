@@ -13,7 +13,7 @@ from ai_scout.services.ranker import Ranker
 
 def main() -> int:
     s = Settings()
-    return RankEvaluator(Ranker(None, endpoint, model)).run()
+    return RankEvaluator(Ranker(None, s.foundry_project_endpoint, s.foundry_model_name)).run()
 
 
 if __name__ == "__main__":

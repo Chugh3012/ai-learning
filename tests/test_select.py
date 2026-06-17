@@ -1,6 +1,7 @@
 """services.Selector — two-stage per-lens selection over a KnowledgeBase (offline, sqlite :memory:)."""
-import sqlite3
+import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,16 +12,9 @@ from ai_scout.services.selector import Selector  # noqa: E402
 
 
 def _kb():
-    con = sqlite3.connect(":memory:")
-    con.executescript(
-        "CREATE TABLE source(id INTEGER PRIMARY KEY, title TEXT, category TEXT);"
-        "CREATE TABLE item(id INTEGER PRIMARY KEY, source_id INTEGER, title TEXT, url TEXT,"
-        "  summary TEXT, published INTEGER);"
-        "CREATE TABLE tag(item_id INTEGER, topic TEXT);"
-        "CREATE TABLE signal(id INTEGER PRIMARY KEY, item_id INTEGER, kind TEXT, value REAL, ts INTEGER);"
-        "CREATE TABLE embedding(item_id INTEGER PRIMARY KEY, vec BLOB, ts INTEGER);"
-    )
-    return KnowledgeBase(con)
+    fd, path = tempfile.mkstemp(suffix=".sqlite")
+    os.close(fd)
+    return KnowledgeBase.open(path)
 
 
 def _add(kb, iid, source_id, title, relevance, vec=None):
