@@ -1,16 +1,24 @@
 from __future__ import annotations
 
+import hashlib
 import html
+import json
 import logging
 import os
+import re
+import secrets
 import time
 
 import azure.functions as func
-from azure.core.exceptions import ResourceNotFoundError
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.data.tables import TableServiceClient, UpdateMode
 from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp()
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_SUBSCRIBERS = "subscribers"
+_RESEND_WINDOW = 600  # don't re-send a confirmation to the same address within 10 min
 
 _ACTIONS: dict[str, tuple[str, float]] = {
     "up": ("vote", 1.0),
@@ -31,16 +39,105 @@ def _tables() -> TableServiceClient:
         )
     return _TABLE_SERVICE
 
-def _page(message: str) -> func.HttpResponse:
+def _page(message: str, ok: bool = True) -> func.HttpResponse:
+    mark = "✓" if ok else "—"
+    accent = "#2438e0" if ok else "#6b6357"
     body = (
-        '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">'
-        '<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:420px;'
-        'margin:18vh auto;text-align:center;color:#222">'
-        f'<div style="font-size:40px">✓</div><h2 style="margin:8px 0">{html.escape(message)}</h2>'
-        '<p style="color:#777;font-size:14px">ai-scout is tuning your next digest. '
-        'You can close this tab.</p></div>'
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Chugh Vibes</title>'
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+        '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500&display=swap" rel="stylesheet">'
+        '</head><body style="margin:0;background:#f3efe4;color:#1a1712;'
+        "font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;"
+        'align-items:center;justify-content:center">'
+        '<div style="text-align:center;max-width:30rem;padding:2rem">'
+        f'<div style="font-size:44px;line-height:1;color:{accent}">{mark}</div>'
+        '<h1 style="font-family:Fraunces,Georgia,serif;font-weight:500;'
+        f'font-size:2rem;letter-spacing:-.02em;margin:1rem 0 .5rem">{html.escape(message)}</h1>'
+        '<p style="color:#6b6357;font-size:.95rem;margin:0">'
+        'You can close this tab.</p>'
+        '<p style="font-family:Fraunces,Georgia,serif;font-size:1.05rem;margin-top:2rem">'
+        'chugh<span style="color:#2438e0">·</span>vibes</p>'
+        '</div></body></html>'
     )
     return func.HttpResponse(body, mimetype="text/html", status_code=200)
+
+def _json(status: int, ok: bool, message: str) -> func.HttpResponse:
+    return func.HttpResponse(
+        json.dumps({"ok": ok, "message": message}),
+        status_code=status, mimetype="application/json",
+    )
+
+def _email_key(email: str) -> str:
+    return hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+def _subscribers():
+    svc = _tables()
+    try:
+        svc.create_table_if_not_exists(_SUBSCRIBERS)
+    except Exception:
+        pass
+    return svc.get_table_client(_SUBSCRIBERS)
+
+def _api_base(req: func.HttpRequest) -> str:
+    override = os.environ.get("SUBSCRIBE_API_BASE", "")
+    if override:
+        return override.rstrip("/")
+    from urllib.parse import urlsplit
+    parts = urlsplit(req.url)
+    return f"https://{parts.netloc}/api"
+
+def _confirm_email_html(hello: str, confirm_url: str) -> str:
+    safe = html.escape(confirm_url, quote=True)
+    return (
+        '<div style="font-family:Inter,Segoe UI,Arial,sans-serif;background:#f3efe4;'
+        'padding:32px;color:#1a1712">'
+        '<div style="max-width:520px;margin:0 auto">'
+        '<p style="font-family:Georgia,serif;font-size:20px;font-weight:600;margin:0 0 20px">'
+        'chugh<span style="color:#2438e0">&middot;</span>vibes</p>'
+        f'<p style="font-size:16px;margin:0 0 12px">{hello}</p>'
+        '<p style="font-size:16px;line-height:1.5;margin:0 0 24px">'
+        'Thanks for subscribing to <strong>Chugh Vibes</strong> — one sharp AI read a day. '
+        'Confirm your email to start.</p>'
+        f'<a href="{safe}" style="display:inline-block;background:#2438e0;color:#fff;'
+        'text-decoration:none;font-weight:600;padding:13px 22px;border-radius:2px">'
+        'Confirm subscription</a>'
+        '<p style="font-size:13px;color:#6b6357;line-height:1.5;margin:24px 0 0">'
+        "If you didn't request this, just ignore this email — nothing will be sent.</p>"
+        '</div></div>'
+    )
+
+def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
+    endpoint = os.environ.get("ACS_ENDPOINT", "")
+    sender = os.environ.get("EMAIL_SENDER", "")
+    if not (endpoint and sender):
+        logging.warning("subscribe: ACS not configured; confirmation not sent")
+        return False
+    hello = f"Hi {name}," if name else "Hi,"
+    plain = (
+        f"{hello}\n\n"
+        "Thanks for subscribing to Chugh Vibes - one sharp AI read a day.\n\n"
+        f"Confirm your subscription:\n{confirm_url}\n\n"
+        "If you didn't request this, just ignore this email.\n"
+    )
+    try:
+        from azure.communication.email import EmailClient
+        client = EmailClient(endpoint, DefaultAzureCredential())
+        client.begin_send({
+            "senderAddress": sender,
+            "recipients": {"to": [{"address": to}]},
+            "content": {
+                "subject": "Confirm your Chugh Vibes subscription",
+                "plainText": plain,
+                "html": _confirm_email_html(html.escape(hello), confirm_url),
+            },
+        }).result()
+        return True
+    except Exception:
+        logging.exception("subscribe: confirmation send failed")
+        return False
 
 @app.route(route="f", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def feedback(req: func.HttpRequest) -> func.HttpResponse:
@@ -92,3 +189,91 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     messages = {"up": "Thanks — more like this 👍", "down": "Got it — less like this 👎",
                 "save": "Saved to learn from ⭐"}
     return _page(messages.get(action, "Thanks — noted."))
+
+
+@app.route(route="subscribe", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def subscribe(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        data = req.get_json()
+    except ValueError:
+        return _json(400, False, "Invalid request.")
+
+    email = str(data.get("email", "")).strip().lower()
+    name = str(data.get("name", "")).strip()[:80]
+    trap = str(data.get("company", "")).strip()
+    # honeypot: real users never fill the hidden field — pretend success, store nothing
+    if trap:
+        return _json(200, True, "Almost there — check your inbox to confirm.")
+    if not _EMAIL_RE.match(email) or len(email) > 254:
+        return _json(400, False, "That email doesn't look right.")
+
+    key = _email_key(email)
+    now = int(time.time())
+    try:
+        table = _subscribers()
+        try:
+            active = table.get_entity("sub", key)
+            if str(active.get("status")) == "active":
+                return _json(200, True, "You're already on the list.")
+        except ResourceNotFoundError:
+            pass
+        try:
+            pend = table.get_entity("pending", key)
+            if now - int(pend.get("createdTs", 0)) < _RESEND_WINDOW:
+                return _json(200, True, "Almost there — check your inbox to confirm.")
+            token = str(pend.get("token") or secrets.token_urlsafe(24))
+        except ResourceNotFoundError:
+            token = secrets.token_urlsafe(24)
+        table.upsert_entity(
+            {
+                "PartitionKey": "pending", "RowKey": key,
+                "email": email, "name": name, "token": token,
+                "createdTs": now, "status": "pending",
+            },
+            mode=UpdateMode.REPLACE,
+        )
+    except Exception:
+        logging.exception("subscribe: store failed")
+        return _json(503, False, "Temporary error, please try again.")
+
+    _send_confirmation(email, name, f"{_api_base(req)}/confirm?t={token}")
+    return _json(200, True, "Almost there — check your inbox to confirm.")
+
+
+@app.route(route="confirm", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def confirm(req: func.HttpRequest) -> func.HttpResponse:
+    token = (req.params.get("t") or "").strip()
+    if not token:
+        return _page("This confirmation link is missing its token.", ok=False)
+    try:
+        table = _subscribers()
+        rows = list(table.query_entities(
+            "PartitionKey eq 'pending' and token eq @tok",
+            parameters={"tok": token},
+        ))
+    except Exception:
+        logging.exception("confirm: lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+
+    if not rows:
+        return _page("This link is invalid or already used.", ok=False)
+
+    ent = rows[0]
+    key = str(ent["RowKey"])
+    email = str(ent.get("email", ""))
+    name = str(ent.get("name", ""))
+    try:
+        table.upsert_entity(
+            {
+                "PartitionKey": "sub", "RowKey": key,
+                "email": email, "name": name,
+                "status": "active", "confirmedTs": int(time.time()),
+            },
+            mode=UpdateMode.REPLACE,
+        )
+        table.delete_entity("pending", key)
+    except Exception:
+        logging.exception("confirm: activate failed")
+        return _page("Temporary error, please try again.", ok=False)
+
+    return _page("You're in. Your first edition lands tomorrow morning.", ok=True)

@@ -17,6 +17,7 @@ class Profile(BaseModel):
     interest: str = ""
     email_var: str | None = None
     self_review: bool = False
+    public: bool = False
 
     @property
     def lens(self) -> str:
@@ -43,4 +44,5 @@ class Profile(BaseModel):
             interest=str(raw.get("interest", "")),
             email_var=raw.get("email_var"),
             self_review=bool(raw.get("self_review", False)),
+            public=bool(raw.get("public", False)),
         )

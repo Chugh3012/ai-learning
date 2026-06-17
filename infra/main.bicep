@@ -33,6 +33,9 @@ param communicationServiceName string = 'acs-ai-scout'
 @description('Base name for Function App')
 param functionAppName string = 'fn-ai-scout-fb'
 
+@description('Base name for the Static Web App (Chugh Vibes marketing site)')
+param staticWebAppName string = 'swa-ai-scout'
+
 @description('Base name for App Service Plan')
 param appServicePlanName string = 'ASP-rgaiscout-0373'
 
@@ -109,6 +112,13 @@ resource feedbackTokensTable 'Microsoft.Storage/storageAccounts/tableServices/ta
 
 resource feedbackEventsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
   name: 'feedbackevents'
+  parent: fnTables
+}
+
+// Newsletter subscribers (double opt-in): pending rows keyed by email hash + a confirm
+// token; on confirm they flip to active. Written passwordless by the Function's identity.
+resource subscribersTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  name: 'subscribers'
   parent: fnTables
 }
 
@@ -321,6 +331,12 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       }
     }
     siteConfig: {
+      cors: {
+        // The Chugh Vibes site (Static Web App origin) POSTs the subscribe form here.
+        allowedOrigins: [
+          'https://${staticSite.properties.defaultHostname}'
+        ]
+      }
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
@@ -330,8 +346,32 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           name: 'AzureWebJobsStorage__accountName'
           value: fnStorage.name
         }
+        {
+          // Double opt-in confirmation emails (passwordless: Function identity -> ACS).
+          name: 'ACS_ENDPOINT'
+          value: 'https://${communicationService.properties.hostName}'
+        }
+        {
+          name: 'EMAIL_SENDER'
+          value: 'DoNotReply@${emailDomain.properties.fromSenderDomain}'
+        }
       ]
     }
+  }
+}
+
+// Static Web App (Free tier) — hosts the Chugh Vibes marketing + subscribe site (web/).
+// Content is published with the SWA deployment token (swa deploy ./web), so no repo link here.
+resource staticSite 'Microsoft.Web/staticSites@2024-04-01' = {
+  name: staticWebAppName
+  location: appLocation
+  sku: {
+    name: 'Free'
+    tier: 'Free'
+  }
+  properties: {
+    allowConfigFileUpdates: true
+    stagingEnvironmentPolicy: 'Enabled'
   }
 }
 
@@ -447,6 +487,17 @@ resource communicationServiceIdentityRole 'Microsoft.Authorization/roleAssignmen
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350')
     principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// The Function's own identity sends double opt-in confirmation emails via ACS.
+resource communicationServiceFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(communicationService.id, functionApp.id, '09976791-48a7-449e-bb21-39d1a415f350')
+  scope: communicationService
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350')
+    principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
@@ -592,6 +643,8 @@ output emailServiceId string = emailService.id
 output communicationServiceId string = communicationService.id
 output functionAppId string = functionApp.id
 output functionAppPrincipalId string = functionApp.identity.principalId
+output staticSiteName string = staticSite.name
+output staticSiteHostname string = staticSite.properties.defaultHostname
 output appInsightsId string = appInsights.id
 output logAnalyticsId string = logAnalytics.id
 output metricsDceEndpoint string = metricsDce.properties.logsIngestion.endpoint

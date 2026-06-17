@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     email_to: str = ""
     feedback_url: str = ""
     feedback_storage: str = ""
+    subscriber_storage: str = ""
     metrics_dce: str = ""
     metrics_dcr_rule_id: str = ""
     metrics_stream: str = "Custom-AiScoutMetrics_CL"

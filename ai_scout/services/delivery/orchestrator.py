@@ -65,4 +65,44 @@ class Orchestrator:
                             self.metrics.add("relevance_delivered", sum(scores) / len(scores),
                                              lens=p.lens, channel=p.channel)
                     print(f"deliver: {len(items)} -> {p.lens} ({p.channel})")
+        if targets is None:
+            total += self._broadcast_subscribers(weight)
         return total
+
+    def _broadcast_subscribers(self, weight) -> int:
+        # The public edition also goes to confirmed newsletter subscribers (email only,
+        # shared lens). Optional + graceful: no store / no subscribers / no public profile
+        # -> no-op, never crashes the pipeline.
+        try:
+            from ai_scout.repositories.subscribers import SubscriberStore
+            from ai_scout.services.delivery.email_sink import send_email
+            account = self.settings.subscriber_storage or self.settings.feedback_storage
+            store = SubscriberStore(account)
+            if not store.enabled:
+                return 0
+            prof = self.registry.public_profile()
+            if prof is None:
+                return 0
+            subs = store.confirmed()
+            if not subs:
+                return 0
+            interest_vec = self.embedder.embed_interest(prof.interest)
+            items = self.selector.select(prof.lens, prof.top, prof.min_score, interest_vec, weight)
+            if not items:
+                return 0
+            rows = [(it.id, it.title, it.url) for it in items]
+            brief = self.brief_builder.build(prof.lens, items)
+            feedback_url = self.settings.feedback_url
+            tokens = self.feedback_store.mint_tokens(prof.lens, rows) if feedback_url else {}
+            plain, body_html = BriefBuilder.render(items, brief, feedback_url, tokens)
+            subject = f"ai-scout \u2014 {len(rows)} new ways to use AI"
+            sent = sum(1 for email, _name in subs
+                       if send_email(self.settings, email, subject, plain, body_html))
+            if self.metrics is not None:
+                self.metrics.add("subscribers_sent", sent, lens=prof.lens, channel="email")
+            print(f"deliver: broadcast public edition to {sent}/{len(subs)} subscribers")
+            return sent
+        except Exception as e:
+            print(f"deliver: subscriber broadcast skipped ({e})")
+            return 0
+

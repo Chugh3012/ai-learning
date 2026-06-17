@@ -36,5 +36,8 @@ class UserRegistry:
     def find_profile(self, lens: str) -> Profile | None:
         return next((p for p in self.profiles() if p.lens == lens), None)
 
+    def public_profile(self) -> Profile | None:
+        return next((p for p in self.profiles() if p.public), None)
+
     def feedback_lenses(self) -> set[str]:
         return {p.lens for p in self.profiles() if p.channel in ("email", "digest")}
