@@ -22,17 +22,31 @@ class UserRegistry:
     def users(self) -> list[User]:
         return self._users
 
-    def add_subscribers(self, subs: list[tuple[str, str, str]]) -> int:
-        # Each confirmed newsletter subscriber becomes a real, distinct user with their
-        # own daily email profile (own lens => own ranking, own feedback learning).
+    def add_subscribers(self, subs: list[dict]) -> int:
+        # Each confirmed person becomes a real, distinct user. A row may carry an explicit
+        # `profiles` list (e.g. the admin, with their curated feeds); otherwise we synthesize
+        # the default daily edition. The row's kind ("subscriber" | "admin") is the user role.
         added = 0
-        for user_id, email, name in subs:
-            if not (user_id and email):
+        for s in subs:
+            uid = str(s.get("user_id") or "")
+            email = str(s.get("email") or "")
+            if not (uid and email):
                 continue
-            prof = Profile(user_id=user_id, id="prf_daily", channel="email",
-                           cadence=Cadence.DAILY, name="Daily edition", top=5,
-                           min_score=55, interest="", email=email)
-            self._users.append(User(id=user_id, name=name, role="subscriber", profiles=[prof]))
+            raw = s.get("profiles")
+            if raw:
+                profiles = [Profile(
+                    user_id=uid, id=str(p["id"]), channel=str(p.get("channel", "email")),
+                    cadence=Cadence.from_name(str(p.get("cadence", "daily"))),
+                    name=str(p.get("name", "")), top=int(p.get("top", 5)),
+                    min_score=float(p.get("min_score", 0)), interest=str(p.get("interest", "")),
+                    self_review=bool(p.get("self_review", False)), email=email,
+                ) for p in raw]
+            else:
+                profiles = [Profile(user_id=uid, id="prf_daily", channel="email",
+                                    cadence=Cadence.DAILY, name="Daily edition", top=5,
+                                    min_score=55, interest="", email=email)]
+            self._users.append(User(id=uid, name=str(s.get("name") or ""),
+                                    role=str(s.get("kind") or "subscriber"), profiles=profiles))
             added += 1
         return added
 

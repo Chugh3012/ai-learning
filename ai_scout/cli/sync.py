@@ -68,13 +68,13 @@ def main(argv=None) -> int:
     registry = UserRegistry.load()
     feedback_store = FeedbackStore(s.feedback_storage)
 
-    # Each confirmed newsletter subscriber joins as a distinct user (own lens + feedback).
+    # Every confirmed person (incl. the admin) lives in the subscribers table and joins as a
+    # distinct user with their own lens(es) + feedback. Operators-as-config holds only the
+    # builder radar (used by CI); no end-user PII in git.
     from ai_scout.repositories.subscribers import SubscriberStore
-    owner = (s.email_to or "").strip().lower()
-    subs = [t for t in SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
-            if t[1].strip().lower() != owner]
+    subs = SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
     if subs:
-        print(f"subscribers: +{registry.add_subscribers(subs)} confirmed users")
+        print(f"subscribers: +{registry.add_subscribers(subs)} users from table")
 
     if args.feedback:
         metrics.add("voted", FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses()))

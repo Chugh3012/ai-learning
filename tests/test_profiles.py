@@ -12,12 +12,37 @@ class TestRegistry(unittest.TestCase):
 
     def test_users_have_opaque_ids_and_roles(self):
         roles = {u.role for u in self.reg.users}
-        self.assertIn("owner", roles)
+        # Operators-as-config now holds only the builder radar (used by CI); real people
+        # (incl. the admin) live in the subscribers table, not git.
         self.assertIn("builder", roles)
         for u in self.reg.users:
             self.assertTrue(u.id.startswith("usr_"))
             for p in u.profiles:
                 self.assertTrue(p.id.startswith("prf_"))
+
+    def test_add_subscribers_builds_distinct_users(self):
+        reg = UserRegistry.load()
+        n = reg.add_subscribers([
+            {"user_id": "usr_sub1", "email": "a@b.com", "name": "A", "kind": "subscriber",
+             "profiles": None},
+            {"user_id": "usr_adm", "email": "o@x.com", "name": "O", "kind": "admin", "profiles": [
+                {"id": "prf_d", "channel": "email", "cadence": "daily", "top": 5,
+                 "min_score": 55, "interest": ""},
+                {"id": "prf_r", "channel": "digest", "cadence": "on_demand", "top": 5,
+                 "min_score": 60, "interest": "x"}]},
+        ])
+        self.assertEqual(n, 2)
+        sub = self.reg_user(reg, "usr_sub1")
+        self.assertEqual(len(sub.profiles), 1)
+        self.assertEqual(sub.profiles[0].email, "a@b.com")
+        adm = self.reg_user(reg, "usr_adm")
+        self.assertEqual(len(adm.profiles), 2)
+        self.assertEqual({p.channel for p in adm.profiles}, {"email", "digest"})
+        self.assertTrue(all(p.email == "o@x.com" for p in adm.profiles))
+
+    @staticmethod
+    def reg_user(reg, uid):
+        return next(u for u in reg.users if u.id == uid)
 
     def test_user_by_role(self):
         m = self.reg.user_by_role("builder")

@@ -251,6 +251,7 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
             {
                 "PartitionKey": "pending", "RowKey": key,
                 "email": email, "name": name, "token": token, "userId": user_id,
+                "kind": "subscriber",
                 "createdTs": now, "status": "pending",
             },
             mode=UpdateMode.REPLACE,
@@ -296,11 +297,13 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     email = str(ent.get("email", ""))
     name = str(ent.get("name", ""))
     user_id = str(ent.get("userId") or _new_user_id())
+    kind = str(ent.get("kind") or "subscriber")
     try:
         table.upsert_entity(
             {
                 "PartitionKey": "sub", "RowKey": key,
                 "email": email, "name": name, "token": token, "userId": user_id,
+                "kind": kind,
                 "status": "active", "confirmedTs": int(time.time()),
             },
             mode=UpdateMode.REPLACE,
