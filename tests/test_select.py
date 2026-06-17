@@ -1,4 +1,4 @@
-"""notify._select_for_user — two-stage personalization selection (offline, sqlite :memory:).
+"""select.select_items — two-stage per-lens personalization selection (offline, sqlite :memory:).
 
 Guards the backward-compat contract (no interest vector => relevance+affinity pick, gated by
 min_score) and that an interest vector reorders toward semantically-matching items."""
@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import embed  # noqa: E402
-import notify  # noqa: E402
+import selection as selector  # noqa: E402
 
 
 def _db():
@@ -45,8 +45,8 @@ class TestSelectForUser(unittest.TestCase):
         self.addCleanup(con.close)
         _add(con, 1, 10, "high relevance item", 90)
         _add(con, 2, 11, "low relevance item", 40)
-        out = notify._select_for_user(con, "builder", top=5, min_score=60,
-                                      interest_vec=None, interest_weight=0)
+        out = selector.select_items(con, "builder", top=5, min_score=60,
+                                    interest_vec=None, interest_weight=0)
         ids = [d["id"] for d in out]
         self.assertEqual(ids, [1])               # only the 90 clears min_score 60
         self.assertEqual(out[0]["score"], 90)    # score == relevance when no interest/affinity
@@ -57,8 +57,8 @@ class TestSelectForUser(unittest.TestCase):
         _add(con, 1, 10, "seen item", 90)
         con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'sent:builder',1,0)")
         con.commit()
-        out = notify._select_for_user(con, "builder", top=5, min_score=0,
-                                      interest_vec=None, interest_weight=0)
+        out = selector.select_items(con, "builder", top=5, min_score=0,
+                                    interest_vec=None, interest_weight=0)
         self.assertEqual(out, [])
 
     def test_affinity_adds_to_score(self):
@@ -67,8 +67,8 @@ class TestSelectForUser(unittest.TestCase):
         _add(con, 1, 10, "item", 50)
         con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'affinity:builder',12,0)")
         con.commit()
-        out = notify._select_for_user(con, "builder", top=5, min_score=0,
-                                      interest_vec=None, interest_weight=0)
+        out = selector.select_items(con, "builder", top=5, min_score=0,
+                                    interest_vec=None, interest_weight=0)
         self.assertEqual(out[0]["score"], 62)
 
     def test_interest_can_lift_a_match_over_a_higher_relevance_nonmatch(self):
@@ -78,8 +78,8 @@ class TestSelectForUser(unittest.TestCase):
         _add(con, 1, 10, "off interest", 70, vec=[0.0, 1.0] + [0.0] * 254)
         _add(con, 2, 11, "on interest", 64, vec=[1.0, 0.0] + [0.0] * 254)
         interest = embed._normalize([1.0] + [0.0] * 255)
-        out = notify._select_for_user(con, "builder", top=2, min_score=0,
-                                      interest_vec=interest, interest_weight=15)
+        out = selector.select_items(con, "builder", top=2, min_score=0,
+                                    interest_vec=interest, interest_weight=15)
         # with a 15-pt z-scored spread, the on-interest item 2 should rank first.
         self.assertEqual(out[0]["id"], 2)
 
@@ -91,8 +91,8 @@ class TestSelectForUser(unittest.TestCase):
         _add(con, 1, 10, "embedded on-interest", 60, vec=[1.0, 0.0] + [0.0] * 254)
         _add(con, 2, 11, "scored but unembedded", 80)  # no vec
         interest = embed._normalize([1.0] + [0.0] * 255)
-        out = notify._select_for_user(con, "builder", top=5, min_score=0,
-                                      interest_vec=interest, interest_weight=15)
+        out = selector.select_items(con, "builder", top=5, min_score=0,
+                                    interest_vec=interest, interest_weight=15)
         self.assertIn(2, [d["id"] for d in out])
 
 

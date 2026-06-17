@@ -4,6 +4,13 @@
 # the review file renders whatever keys it produces — so a new profile can change
 # the output shape without touching code.
 #
+# A profile has two optional folded blocks:
+#   instruction: the PRODUCTION prompt (how to turn one item into the artifact).
+#   interest:    the SELECTION lens — a one-sentence description of what KIND of item
+#                this profile wants. The drafter embeds it and reuses the shared
+#                selection filter (tools/select.py) to pick matching items, exactly
+#                like a user's delivery lens. Omit it for the plain top-relevance pick.
+#
 # Output is HUMAN-REVIEWED only. Actual publishing to any platform is a separate,
 # opt-in step (not built) — see PLAN.md "publishing".
 
@@ -26,6 +33,11 @@ profiles:
     # by this profile as a full shot-by-shot production kit. The entertainment lives in the
     # visuals/pacing the system designs, NOT in the speaker performing. Publishing stays manual.
     temperature: 0.8
+    interest: >
+      Visually striking, surprising, or counterintuitive AI/LLM ideas that make a punchy
+      30-second story: a vivid demo, a wow-factor new capability, a myth-busting result, or a
+      simple trick anyone can try and immediately feel — favor the concrete and show-able over
+      the abstract or incremental.
     instruction: >
       You are a short-video DIRECTOR. The creator will ONLY record a voiceover by reading the
       script aloud — flat, normal voice. ALL entertainment must come from the visuals, text,

@@ -324,7 +324,8 @@ def main() -> int:
         ingest_feedback(con, env.get("FEEDBACK_STORAGE", ""))
     if args.draft:
         from draft import generate_drafts
-        generate_drafts(con, endpoint, model, args.draft_profile, args.draft_min, args.draft_max)
+        generate_drafts(con, endpoint, model, env.get("FOUNDRY_EMBED_NAME", "embed"),
+                        args.draft_profile, args.draft_min, args.draft_max)
     if args.deliver:
         from notify import deliver_all
         users = json.loads((ROOT / "config" / "users.json").read_text(encoding="utf-8"))["users"]

@@ -17,32 +17,41 @@ CONTENT_CFG = Path(__file__).resolve().parent.parent / "config" / "content.yml"
 
 
 def _load_profile(name: str) -> dict:
-    """Tiny reader for the flat profiles file (avoids a yaml dependency)."""
+    """Tiny reader for the flat profiles file (avoids a yaml dependency). Each profile may carry
+    a `temperature` scalar and any number of `key: >` folded blocks (e.g. `instruction`, the
+    production prompt, and `interest`, the optional SELECTION lens sentence)."""
     profiles: dict[str, dict] = {}
     cur: str | None = None
-    instr: list[str] = []
-    in_instr = False
+    block_key: str | None = None       # which `>` folded block we're currently collecting
+    blocks: dict[str, list[str]] = {}
+
+    def flush() -> None:
+        if cur:
+            for k, lines in blocks.items():
+                profiles[cur][k] = " ".join(lines).strip()
+
     for raw in CONTENT_CFG.read_text(encoding="utf-8").splitlines():
         if not raw.strip() or raw.strip().startswith("#"):
             continue
-        m = re.match(r"^  (\w[\w-]*):\s*$", raw)
+        m = re.match(r"^  (\w[\w-]*):\s*$", raw)            # new profile
         if m:
-            if cur:
-                profiles[cur]["instruction"] = " ".join(instr).strip()
-            cur, instr, in_instr = m.group(1), [], False
-            profiles[cur] = {"temperature": 0.6, "instruction": ""}
+            flush()
+            cur, block_key, blocks = m.group(1), None, {}
+            profiles[cur] = {"temperature": 0.6, "instruction": "", "interest": ""}
             continue
         t = re.match(r"^    temperature:\s*([\d.]+)\s*$", raw)
         if t and cur:
             profiles[cur]["temperature"] = float(t.group(1))
+            block_key = None
             continue
-        if re.match(r"^    instruction:\s*>\s*$", raw):
-            in_instr = True
+        b = re.match(r"^    (\w[\w-]*):\s*>\s*$", raw)        # start a folded block
+        if b and cur:
+            block_key = b.group(1)
+            blocks[block_key] = []
             continue
-        if in_instr and raw.startswith("      "):
-            instr.append(raw.strip())
-    if cur:
-        profiles[cur]["instruction"] = " ".join(instr).strip()
+        if block_key and raw.startswith("      "):
+            blocks[block_key].append(raw.strip())
+    flush()
     if name not in profiles:
         raise KeyError(f"content profile '{name}' not found in {CONTENT_CFG.name}")
     return profiles[name]
@@ -53,9 +62,13 @@ def _client(endpoint: str):
     return openai_client(endpoint)
 
 
-def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str,
+def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str, embed_model: str,
                     profile_name: str, min_score: int, max_drafts: int) -> int:
-    """Draft top un-drafted items with relevance >= min_score. Returns count drafted."""
+    """Reel/content SINK (on-demand): select items through the profile's lens, then PRODUCE a
+    content kit for each. Selection reuses the shared filter (tools/selection.py) so this sink gets
+    the same curation as delivery — interest match, dedup, diversity — instead of a raw
+    top-relevance scan. The profile's `interest` is the lens (empty -> plain relevance pick).
+    Producing marks sent:<profile> so an item is never re-drafted. Returns count drafted."""
     if not endpoint:
         return 0
     try:
@@ -64,14 +77,19 @@ def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str,
         print(f"draft: skipped ({e})")
         return 0
 
-    rows = con.execute(
-        "SELECT i.id, i.title, i.summary FROM item i "
-        "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
-        "WHERE s.value >= ? AND NOT EXISTS "
-        "(SELECT 1 FROM draft d WHERE d.item_id=i.id) "
-        "ORDER BY s.value DESC LIMIT ?",
-        (min_score, max_drafts),
-    ).fetchall()
+    from selection import select_items, mark_sent, _interest_weight
+    interest_vec = None
+    if profile.get("interest"):
+        from embed import embed_interest
+        interest_vec = embed_interest(endpoint, embed_model, profile["interest"])
+    # Deterministic pick (explore_ratio=0): a content sink shouldn't gamble a production slot on
+    # a wildcard. Lens id = profile name, so state lives under sent:<profile> / affinity:<profile>.
+    selected = select_items(con, profile_name, max_drafts, float(min_score),
+                            interest_vec, _interest_weight(), explore_ratio=0.0)
+    # Belt-and-suspenders: skip anything already in the draft table (e.g. drafted before this
+    # lens existed, so unmarked by sent:<profile>).
+    drafted = {r[0] for r in con.execute("SELECT item_id FROM draft").fetchall()}
+    rows = [(d["id"], d["title"], d["summary"]) for d in selected if d["id"] not in drafted]
     if not rows:
         print("draft: no new items above threshold")
         return 0
@@ -83,7 +101,7 @@ def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str,
         return 0
 
     now = int(time.time())
-    made = 0
+    made: list[int] = []
     for item_id, title, summary in rows:
         try:
             resp = client.chat.completions.create(
@@ -105,7 +123,9 @@ def generate_drafts(con: sqlite3.Connection, endpoint: str, deployment: str,
             "INSERT OR IGNORE INTO draft(item_id,status,body,created_at) VALUES(?,?,?,?)",
             (item_id, "pending", json.dumps(body), now),
         )
-        made += 1
+        made.append(item_id)
     con.commit()
-    print(f"draft: created {made} pending drafts (profile '{profile_name}')")
-    return made
+    if made:
+        mark_sent(con, profile_name, made)
+    print(f"draft: created {len(made)} pending drafts (profile '{profile_name}')")
+    return len(made)
