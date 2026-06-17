@@ -1,63 +1,63 @@
-"""sinks — channel factory + the orchestrator's cadence/target gating (offline, mocked Azure)."""
-import sqlite3
+"""services.delivery — channel factory + the Orchestrator's cadence/target gating (offline)."""
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-import sinks  # noqa: E402
-from profiles import User, Profile, Cadence  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ai_scout.domain.cadence import Cadence  # noqa: E402
+from ai_scout.domain.profile import Profile  # noqa: E402
+from ai_scout.domain.user import User  # noqa: E402
+from ai_scout.repositories.registry import UserRegistry  # noqa: E402
+from ai_scout.services.delivery import orchestrator as orch  # noqa: E402
+from ai_scout.services.delivery.email_sink import EmailSink  # noqa: E402
+from ai_scout.services.delivery.digest_sink import DigestSink  # noqa: E402
+from ai_scout.services.delivery.draft_sink import DraftSink  # noqa: E402
 
 
-def _con():
-    con = sqlite3.connect(":memory:")
-    con.execute("CREATE TABLE signal(id INTEGER PRIMARY KEY, item_id INTEGER, kind TEXT, "
-                "value REAL, ts INTEGER)")
-    return con
-
-
-def _users():
-    return [User(id="usr_a", role="owner", profiles=[
+def _registry():
+    user = User(id="usr_a", role="owner", profiles=[
         Profile(user_id="usr_a", id="prf_main", channel="email", cadence=Cadence.DAILY),
         Profile(user_id="usr_a", id="prf_reel", channel="draft", cadence=Cadence.ON_DEMAND,
                 format="reel"),
-    ])]
+    ])
+    return UserRegistry([user])
 
 
 class TestFactory(unittest.TestCase):
     def test_maps_channels_to_sinks(self):
-        self.assertIsInstance(sinks.make_sink("email"), sinks.EmailSink)
-        self.assertIsInstance(sinks.make_sink("digest"), sinks.DigestSink)
-        self.assertIsInstance(sinks.make_sink("draft"), sinks.DraftSink)
+        self.assertIsInstance(orch.make_sink("email"), EmailSink)
+        self.assertIsInstance(orch.make_sink("digest"), DigestSink)
+        self.assertIsInstance(orch.make_sink("draft"), DraftSink)
 
     def test_unknown_channel_raises(self):
         with self.assertRaises(ValueError):
-            sinks.make_sink("carrier-pigeon")
+            orch.make_sink("carrier-pigeon")
 
     def test_draft_sink_is_deterministic(self):
-        self.assertEqual(sinks.DraftSink.explore_ratio, 0.0)   # never gamble a production slot
-        self.assertIsNone(sinks.EmailSink.explore_ratio)       # delivery uses the config default
+        self.assertEqual(DraftSink.explore_ratio, 0.0)
+        self.assertIsNone(EmailSink.explore_ratio)
 
 
 class TestOrchestratorGating(unittest.TestCase):
+    def _orchestrator(self, sel):
+        kb = SimpleNamespace(last_sent_ts=lambda lens: None, mark_sent=lambda lens, ids: None)
+        embedder = SimpleNamespace(embed_interest=lambda interest: None)
+        selector = SimpleNamespace(select=sel)
+        return orch.Orchestrator(kb, _registry(), embedder, selector, None, None, None, {})
+
     def test_scheduled_pass_skips_on_demand_and_honors_cadence(self):
-        con = _con()
-        self.addCleanup(con.close)
-        with mock.patch.object(sinks, "select_items", return_value=[]) as sel, \
-             mock.patch("embed.embed_interest", return_value=None):
-            sinks.deliver_all(con, _users(), {}, "ep", "model")
-        lenses = [c.args[1] for c in sel.call_args_list]
-        self.assertEqual(lenses, ["usr_a:prf_main"])           # on_demand draft skipped
+        sel = mock.Mock(return_value=[])
+        self._orchestrator(sel).run()
+        lenses = [c.args[0] for c in sel.call_args_list]
+        self.assertEqual(lenses, ["usr_a:prf_main"])     # on_demand draft skipped
 
     def test_manual_targets_run_exactly_those_bypassing_cadence(self):
-        con = _con()
-        self.addCleanup(con.close)
-        with mock.patch.object(sinks, "select_items", return_value=[]) as sel, \
-             mock.patch("embed.embed_interest", return_value=None):
-            sinks.deliver_all(con, _users(), {}, "ep", "model", targets={"usr_a:prf_reel"})
-        lenses = [c.args[1] for c in sel.call_args_list]
-        self.assertEqual(lenses, ["usr_a:prf_reel"])           # only the requested on-demand lens
+        sel = mock.Mock(return_value=[])
+        self._orchestrator(sel).run(targets={"usr_a:prf_reel"})
+        lenses = [c.args[0] for c in sel.call_args_list]
+        self.assertEqual(lenses, ["usr_a:prf_reel"])     # only the requested on-demand lens
 
 
 if __name__ == "__main__":

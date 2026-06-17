@@ -42,14 +42,11 @@ def parse_digest(text: str) -> list[tuple[int, str, str]]:
 
 def _resolve_profile(role: str):
     """Resolve the agent's delivery profile by USER ROLE (never a hardcoded id). Prefers a
-    self_review profile, else the user's first. Returns a profiles.Profile or None."""
+    self_review profile, else the user's first. Returns a domain Profile or None."""
     try:
-        sys.path.insert(0, str(ROOT / "tools"))
-        from profiles import load_users, user_by_role
-        u = user_by_role(load_users(), role)
-        if not u or not u.profiles:
-            return None
-        return next((p for p in u.profiles if p.self_review), u.profiles[0])
+        sys.path.insert(0, str(ROOT))
+        from ai_scout.repositories.registry import UserRegistry
+        return UserRegistry.load().profile_for_role(role)
     except Exception as e:  # noqa: BLE001
         print(f"review: could not resolve role '{role}' ({e})")
         return None
@@ -61,8 +58,8 @@ def judge(endpoint: str, model: str, interest: str,
     if not (endpoint and items):
         return {}
     try:
-        sys.path.insert(0, str(ROOT / "tools"))
-        from foundry import openai_client, log_usage
+        sys.path.insert(0, str(ROOT))
+        from ai_scout.lib.foundry import openai_client, log_usage
         client = openai_client(endpoint)
     except Exception as e:  # noqa: BLE001 — judging is optional; a quiet model means no votes
         print(f"review: client unavailable ({e})")

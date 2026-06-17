@@ -34,8 +34,16 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Compile check (all tools + function)
-        run: python -m py_compile tools/*.py function/function_app.py
+      - name: Compile check (package + agent + function)
+        run: |
+          python - <<'PY'
+          import pathlib, py_compile
+          files = [*pathlib.Path('ai_scout').rglob('*.py'), *pathlib.Path('agent').glob('*.py'),
+                   pathlib.Path('function/function_app.py')]
+          for f in files:
+              py_compile.compile(str(f), doraise=True)
+          print(f'compiled {len(files)} files')
+          PY
 
       - name: Unit tests (offline core — no Azure)
         run: python -m unittest discover -s tests -v
@@ -51,4 +59,4 @@ jobs:
         env:
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
-        run: python tools/eval_rank.py
+        run: python -m ai_scout.cli.evaluate

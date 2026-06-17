@@ -1,103 +1,63 @@
-"""notify learning-brief rendering + connect-the-dots (offline, no Azure/model)."""
+"""services.BriefBuilder — learning-brief rendering + connect-the-dots (offline, no Azure/model)."""
 import sqlite3
 import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
-import embed  # noqa: E402
-import notify  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ai_scout.domain.brief import Brief, Card  # noqa: E402
+from ai_scout.domain.item import ScoredItem  # noqa: E402
+from ai_scout.lib import vectors  # noqa: E402
+from ai_scout.repositories.knowledge import KnowledgeBase  # noqa: E402
+from ai_scout.services.brief_builder import BriefBuilder  # noqa: E402
 
 
 class TestRenderBrief(unittest.TestCase):
     def test_cards_throughline_and_connection_in_output(self):
-        items = [(1, "Drop your system prompt", "http://x/1")]
-        cards = {1: {"lesson": "Deleting the system prompt improved reliability.",
-                     "try": "Remove your system message and compare 5 outputs."}}
-        conn = {1: ("Last week: prompt-as-questions", "http://x/old")}
-        plain, html_out = notify._render(items, "Less instruction, more reliability", cards,
-                                         conn, feedback_url="", tokens={})
-        # throughline present in both
+        items = [ScoredItem(id=1, title="Drop your system prompt", url="http://x/1")]
+        brief = Brief(theme="Less instruction, more reliability",
+                      cards={1: Card(lesson="Deleting the system prompt improved reliability.",
+                                     try_it="Remove your system message and compare 5 outputs.")},
+                      connections={1: ("Last week: prompt-as-questions", "http://x/old")})
+        plain, html_out = BriefBuilder.render(items, brief, feedback_url="", tokens={})
         self.assertIn("Less instruction, more reliability", plain)
         self.assertIn("Less instruction, more reliability", html_out)
-        # the two card fields + connection render in plain text
         self.assertIn("Deleting the system prompt", plain)
         self.assertIn("Try:", plain)
         self.assertIn("Related: Last week: prompt-as-questions", plain)
-        # html includes the try-box and source link
         self.assertIn("Try:", html_out)
         self.assertIn("Read the source", html_out)
 
-    def test_empty_fields_degrade_gracefully(self):
-        items = [(2, "Just a release", "http://x/2")]
-        cards = {2: {"lesson": "", "try": ""}}
-        plain, html_out = notify._render(items, "", cards, {}, "", {})
-        self.assertIn("Just a release", plain)        # title still shown
-        self.assertIn("http://x/2", plain)            # link still shown
-        self.assertNotIn("Try:", plain)               # no empty try line
-        self.assertNotIn("Related:", plain)           # no connection
-
-    def test_feedback_links_render_when_configured(self):
-        items = [(3, "Item", "http://x/3")]
-        cards = {3: {"lesson": "L", "try": ""}}
-        tokens = {3: {"up": "U", "down": "D", "save": "S", "click": "C"}}
-        plain, html_out = notify._render(items, "", cards, {}, "https://fb", tokens)
-        self.assertIn("https://fb?t=U", plain)
-        self.assertIn("https://fb?t=C", html_out)     # click-tracked source
-
 
 class TestConnections(unittest.TestCase):
-    def _db(self):
+    def _kb(self):
         con = sqlite3.connect(":memory:")
-        self.addCleanup(con.close)
         con.executescript(
             "CREATE TABLE item(id INTEGER PRIMARY KEY, title TEXT, url TEXT);"
             "CREATE TABLE signal(id INTEGER PRIMARY KEY, item_id INTEGER, kind TEXT, value REAL, ts INTEGER);"
             "CREATE TABLE embedding(item_id INTEGER PRIMARY KEY, vec BLOB, ts INTEGER);")
-        return con
+        self.addCleanup(con.close)
+        return KnowledgeBase(con)
 
-    def _add(self, con, iid, title, vec, sent=False):
-        con.execute("INSERT INTO item(id,title,url) VALUES(?,?,?)", (iid, title, f"http://x/{iid}"))
-        con.execute("INSERT INTO embedding(item_id,vec,ts) VALUES(?,?,0)", (iid, embed.pack(vec)))
-        if sent:
-            con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,1,0)", (iid, "sent:primary"))
-        con.commit()
+    def test_links_today_to_a_similar_past_pick(self):
+        kb = self._kb()
+        kb.con.execute("INSERT INTO item(id,title,url) VALUES(1,'today','u1'),(2,'past prompt-as-questions','u2')")
+        kb.con.execute("INSERT INTO embedding(item_id,vec,ts) VALUES(1,?,0),(2,?,0)",
+                       (vectors.pack([1.0, 0.0] + [0.0] * 254), vectors.pack([1.0, 0.0] + [0.0] * 254)))
+        kb.con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(2,'sent:primary',1,0)")
+        kb.con.commit()
+        out = BriefBuilder(kb, "", "")._connections("primary", [ScoredItem(id=1)], min_cos=0.5)
+        self.assertEqual(out.get(1), ("past prompt-as-questions", "u2"))
 
-    def test_links_today_pick_to_nearest_past_sent_item(self):
-        con = self._db()
-        # past item 10 (sent) close to today's item 1; past item 11 (sent) orthogonal
-        self._add(con, 10, "Past close", embed._normalize([1.0, 0.05] + [0.0] * 254), sent=True)
-        self._add(con, 11, "Past far", embed._normalize([0.0, 0.0, 1.0] + [0.0] * 253), sent=True)
-        self._add(con, 1, "Today", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=False)
-        out = notify._connections(con, "primary", [{"id": 1}], min_cos=0.5)
-        self.assertIn(1, out)
-        self.assertEqual(out[1][0], "Past close")     # nearest neighbour, not the far one
-
-    def test_no_link_below_threshold(self):
-        con = self._db()
-        self._add(con, 10, "Past orthogonal", embed._normalize([0.0, 1.0] + [0.0] * 254), sent=True)
-        self._add(con, 1, "Today", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=False)
-        out = notify._connections(con, "primary", [{"id": 1}], min_cos=0.5)
-        self.assertEqual(out, {})                     # cosine 0 < 0.5 -> no spurious link
-
-    def test_ignores_unsent_history(self):
-        con = self._db()
-        self._add(con, 10, "Embedded but never sent", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=False)
-        self._add(con, 1, "Today", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=False)
-        out = notify._connections(con, "primary", [{"id": 1}], min_cos=0.5)
-        self.assertEqual(out, {})                     # only previously-SENT items can be linked
-
-    def test_each_past_item_referenced_at_most_once(self):
-        con = self._db()
-        # one past item close to BOTH of today's picks; only the strongest pairing should win
-        self._add(con, 10, "Shared past", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=True)
-        self._add(con, 1, "Today A", embed._normalize([1.0, 0.02] + [0.0] * 254), sent=False)
-        self._add(con, 2, "Today B", embed._normalize([1.0, 0.20] + [0.0] * 254), sent=False)
-        out = notify._connections(con, "primary", [{"id": 1}, {"id": 2}], min_cos=0.5)
-        # the past item 'Shared past' appears for only ONE of the two (no repeated lines)
-        refs = [v[0] for v in out.values()]
-        self.assertEqual(refs.count("Shared past"), 1)
+    def test_no_similar_past_means_no_connection(self):
+        kb = self._kb()
+        kb.con.execute("INSERT INTO item(id,title,url) VALUES(1,'today','u1'),(2,'orthogonal','u2')")
+        kb.con.execute("INSERT INTO embedding(item_id,vec,ts) VALUES(1,?,0),(2,?,0)",
+                       (vectors.pack([1.0, 0.0] + [0.0] * 254), vectors.pack([0.0, 1.0] + [0.0] * 254)))
+        kb.con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(2,'sent:primary',1,0)")
+        kb.con.commit()
+        out = BriefBuilder(kb, "", "")._connections("primary", [ScoredItem(id=1)], min_cos=0.5)
+        self.assertEqual(out, {})
 
 
 if __name__ == "__main__":

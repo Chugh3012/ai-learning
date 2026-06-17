@@ -23,13 +23,10 @@ DIGESTS = ROOT / "digests"
 def _resolve_filesafe_lens(role: str) -> str:
     """Resolve a user ROLE to its agent profile's filesafe lens (digest filename stem)."""
     try:
-        sys.path.insert(0, str(ROOT / "tools"))
-        from profiles import load_users, user_by_role
-        u = user_by_role(load_users(), role)
-        if not u or not u.profiles:
-            return ""
-        prof = next((p for p in u.profiles if p.self_review), u.profiles[0])
-        return prof.filesafe_lens
+        sys.path.insert(0, str(ROOT))
+        from ai_scout.repositories.registry import UserRegistry
+        prof = UserRegistry.load().profile_for_role(role)
+        return prof.filesafe_lens if prof else ""
     except Exception as e:  # noqa: BLE001
         print(f"inbox: could not resolve role '{role}' ({e})")
         return ""

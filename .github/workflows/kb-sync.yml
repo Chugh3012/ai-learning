@@ -50,4 +50,4 @@ jobs:
           EMAIL_TO: ${{ vars.EMAIL_TO }}
           FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
-        run: python tools/kb_sync.py --days 7 --rank --feedback --deliver --discover
+        run: python -m ai_scout.cli.sync --days 7 --rank --feedback --deliver --discover
