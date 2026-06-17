@@ -30,6 +30,27 @@ class TestDedup(unittest.TestCase):
         self.assertEqual(len(curate.dedup(items)), 3)
 
 
+class TestDropSeen(unittest.TestCase):
+    def test_drops_resurfaced_story_from_other_source(self):
+        # same story, new item id (e.g. OpenAI News yesterday -> HN today) must NOT resend
+        items = [
+            {"id": 5, "title": "OpenAI launches GPT-6 model today"},
+            {"id": 6, "title": "A totally unrelated breakthrough in batteries"},
+        ]
+        seen = ["OpenAI launches GPT-6 model"]   # delivered earlier from another source
+        out = curate.drop_seen(items, seen)
+        self.assertEqual([d["id"] for d in out], [6])   # the resurfaced story is dropped
+
+    def test_no_seen_titles_is_passthrough(self):
+        items = [{"id": 1, "title": "Anything"}]
+        self.assertEqual(curate.drop_seen(items, []), items)
+
+    def test_distinct_titles_survive_past_deliveries(self):
+        items = [{"id": 1, "title": "Brand new agent framework released"}]
+        seen = ["Old news about prompt caching", "Something about vector databases"]
+        self.assertEqual(len(curate.drop_seen(items, seen)), 1)
+
+
 class TestDiversify(unittest.TestCase):
     def test_caps_per_source(self):
         items = [{"source_id": 1, "topic": f"t{i}"} for i in range(5)]

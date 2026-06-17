@@ -326,8 +326,14 @@ def _select_for_user(con: sqlite3.Connection, user_id: str, top: int,
                          "score": score})
     pool.sort(key=lambda d: d["score"], reverse=True)
 
-    from curate import dedup, diversify
-    return diversify(dedup(pool), top)
+    # Cross-delivery dedup: never resend a story already shown to this user, even from a different
+    # source/item id (sent:<user> only blocks the exact item). Compare titles to past deliveries.
+    seen_titles = [r[0] for r in con.execute(
+        "SELECT i.title FROM item i JOIN signal s ON s.item_id=i.id AND s.kind=?", (sent_kind,)
+    ).fetchall()]
+
+    from curate import dedup, diversify, drop_seen
+    return diversify(dedup(drop_seen(pool, seen_titles)), top)
 
 
 def _mark_sent(con: sqlite3.Connection, user_id: str, item_ids: list[int]) -> None:

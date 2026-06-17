@@ -56,6 +56,18 @@ def dedup(items: list[dict]) -> list[dict]:
     return kept
 
 
+def drop_seen(items: list[dict], seen_titles: list[str]) -> list[dict]:
+    """Cross-delivery dedup: remove items whose title near-duplicates one ALREADY shown to this
+    user — so the same story resurfacing from a different source (a new item id) isn't sent
+    twice. Same Jaccard threshold as dedup(). `seen_titles` = titles previously delivered."""
+    if not seen_titles:
+        return items
+    thresh = float(_cfg().get("dedup_jaccard", 0.6))
+    seen_tokens = [_tokens(t) for t in seen_titles]
+    return [it for it in items
+            if not any(_similar(_tokens(it.get("title", "")), s, thresh) for s in seen_tokens)]
+
+
 def diversify(items: list[dict], limit: int) -> list[dict]:
     """Pick up to `limit` items, capping per-source, per-topic and per-category contributions
     so the result is varied. `items` pre-sorted best-first; each dict needs 'source_id' and
