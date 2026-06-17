@@ -104,7 +104,10 @@ def _confirm_email_html(hello: str, confirm_url: str) -> str:
         f'<a href="{safe}" style="display:inline-block;background:#2438e0;color:#fff;'
         'text-decoration:none;font-weight:600;padding:13px 22px;border-radius:2px">'
         'Confirm subscription</a>'
-        '<p style="font-size:13px;color:#6b6357;line-height:1.5;margin:24px 0 0">'
+        '<p style="font-size:13px;color:#6b6357;line-height:1.5;margin:20px 0 0">'
+        'Button not working? Paste this link into your browser:<br>'
+        f'<a href="{safe}" style="color:#1a29b8;word-break:break-all">{safe}</a></p>'
+        '<p style="font-size:13px;color:#6b6357;line-height:1.5;margin:16px 0 0">'
         "If you didn't request this, just ignore this email — nothing will be sent.</p>"
         '</div></div>'
     )
@@ -256,6 +259,16 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
         return _page("Temporary error, please try again.", ok=False)
 
     if not rows:
+        # Idempotent: a second click on an already-confirmed link is friendly, not an error.
+        try:
+            done = list(table.query_entities(
+                "PartitionKey eq 'sub' and token eq @tok",
+                parameters={"tok": token},
+            ))
+        except Exception:
+            done = []
+        if done:
+            return _page("You're already confirmed — you're on the list.", ok=True)
         return _page("This link is invalid or already used.", ok=False)
 
     ent = rows[0]
@@ -266,7 +279,7 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
         table.upsert_entity(
             {
                 "PartitionKey": "sub", "RowKey": key,
-                "email": email, "name": name,
+                "email": email, "name": name, "token": token,
                 "status": "active", "confirmedTs": int(time.time()),
             },
             mode=UpdateMode.REPLACE,
