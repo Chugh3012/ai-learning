@@ -276,6 +276,9 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: functionAppName
   location: appLocation
   kind: 'functionapp,linux'
+  tags: {
+    'azd-service-name': 'feedback'
+  }
   identity: {
     type: 'SystemAssigned'
   }

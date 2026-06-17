@@ -1,7 +1,8 @@
 """Feedback capture — a tiny passwordless Azure Function. One GET route validates an opaque
-per-(user,item,action) token (Azure Table 'feedbacktokens') and records the gesture as an event
+per-(lens,item,action) token (Azure Table 'feedbacktokens') and records the gesture as an event
 in 'feedbackevents'; 'click' then 302s to the source. Never touches the SQLite KB (capture is
-decoupled — no write races). Up/down share one 'vote' row per user so a later vote overwrites.
+decoupled — no write races). Up/down share one 'vote' row per lens so a later vote overwrites.
+The token carries only the opaque LENS (`<user_id>:<profile_id>`) — no identity is embedded.
 Auth: the Function's managed identity (Storage Table Data Contributor). No keys.
 """
 from __future__ import annotations
@@ -18,8 +19,8 @@ from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp()
 
-# action -> (events RowKey suffix, value). Up/down collapse to one 'vote' row (per user) so a
-# later vote overwrites. The event RowKey is '<user>:<suffix>' so users vote independently.
+# action -> (events RowKey suffix, value). Up/down collapse to one 'vote' row (per lens) so a
+# later vote overwrites. The event RowKey is '<lens>:<suffix>' so each profile votes independently.
 _ACTIONS: dict[str, tuple[str, float]] = {
     "up": ("vote", 1.0),
     "down": ("vote", -1.0),
@@ -72,7 +73,9 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     if action not in _ACTIONS:
         return func.HttpResponse("Unknown action.", status_code=400)
     item_id = str(entity.get("itemId", ""))
-    user = str(entity.get("user", "")) or "primary"
+    lens = str(entity.get("lens", ""))
+    if not lens:
+        return func.HttpResponse("This feedback link is not valid.", status_code=404)
     row_key, value = _ACTIONS[action]
 
     try:
@@ -80,8 +83,8 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
         events.upsert_entity(
             {
                 "PartitionKey": item_id,
-                "RowKey": f"{user}:{row_key}",
-                "user": user,
+                "RowKey": f"{lens}:{row_key}",
+                "lens": lens,
                 "value": value,
                 "action": action,
                 "ts": int(time.time()),

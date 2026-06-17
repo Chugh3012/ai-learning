@@ -1,13 +1,18 @@
-"""agent/review — builder reacts to its delivered digest file (no KB, no engine)."""
+"""agent/review — the maintainer agent reacts to its delivered digest file (no KB, no engine)."""
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agent"))
 import review  # noqa: E402
+
+# A stand-in profile (the agent's digest profile) with the opaque lens the digest filename uses.
+PROF = SimpleNamespace(lens="usr_x:prf_y", filesafe_lens="usr_x-prf_y", interest="x",
+                       self_review=True)
 
 DIGEST = """# ai-scout — builder digest
 
@@ -36,8 +41,8 @@ _3 items from the shared ranking._
 """
 
 
-def _today_digest(dirpath: Path, user: str = "builder") -> Path:
-    p = dirpath / f"{user}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
+def _today_digest(dirpath: Path, stem: str = "usr_x-prf_y") -> Path:
+    p = dirpath / f"{stem}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
     p.write_text(DIGEST, encoding="utf-8")
     return p
 
@@ -59,26 +64,28 @@ class TestReview(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             _today_digest(Path(d))
             with mock.patch.object(review, "DIGESTS", Path(d)), \
+                 mock.patch.object(review, "_resolve_profile", return_value=PROF), \
                  mock.patch.object(review, "judge", return_value={874: True, 12: False, 881: True}), \
-                 mock.patch.object(review, "_interest", return_value="x"), \
                  mock.patch("outcome.record_votes",
                             side_effect=lambda a, u, items, v: calls.append((sorted(items), v)) or len(items)):
-                n = review.review("builder", "ep", "mini", "acct")
+                n = review.review("maintainer", "ep", "mini", "acct")
         self.assertEqual(n, 3)
         self.assertIn(([874, 881], 1.0), calls)   # keeps -> 👍
         self.assertIn(([12], -1.0), calls)        # skip  -> 👎
 
     def test_missing_digest_is_noop(self):
         with tempfile.TemporaryDirectory() as d:
-            with mock.patch.object(review, "DIGESTS", Path(d)):  # empty dir, no digest
-                self.assertEqual(review.review("builder", "ep", "mini", "acct"), 0)
+            with mock.patch.object(review, "DIGESTS", Path(d)), \
+                 mock.patch.object(review, "_resolve_profile", return_value=PROF):
+                self.assertEqual(review.review("maintainer", "ep", "mini", "acct"), 0)
 
     def test_empty_verdict_is_noop(self):
         with tempfile.TemporaryDirectory() as d:
             _today_digest(Path(d))
             with mock.patch.object(review, "DIGESTS", Path(d)), \
+                 mock.patch.object(review, "_resolve_profile", return_value=PROF), \
                  mock.patch.object(review, "judge", return_value={}) as j:
-                n = review.review("builder", "", "mini", "acct")
+                n = review.review("maintainer", "", "mini", "acct")
         self.assertEqual(n, 0)
         j.assert_called_once()
 

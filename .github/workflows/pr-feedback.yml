@@ -1,13 +1,13 @@
 name: pr-feedback
 
 # The agent's SELECTION is the feedback. When a builder-radar PR MERGES, the items it acted on
-# (its `items: <ids>` line) are a strong POSITIVE signal -> 👍 affinity:builder. The negative
-# side ("shown but not acted on") is owned by the daily feedback_ingest fb_skip rule, so this
-# workflow records ONLY the positive on merge — no overlap, no dead closing-issue lookup.
+# (its `items: <ids>` line) are a strong POSITIVE signal -> 👍 affinity:<maintainer-lens>. The
+# negative side ("shown but not acted on") is owned by the daily feedback_ingest fb_skip rule, so
+# this workflow records ONLY the positive on merge — no overlap, no dead closing-issue lookup.
 #   merged   -> 👍 the acted ids (clears any prior fb_skip on them at next ingest)
 #   unmerged -> nothing here; fb_skip ages those out as implicit negatives
 # Written to the same feedbackevents table a human click would; daily feedback_ingest turns it
-# into affinity:builder.
+# into affinity:<maintainer-lens>. outcome.py resolves the maintainer lens by role.
 
 on:
   pull_request:
@@ -58,7 +58,7 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Record acted items as builder 👍
+      - name: Record acted items as maintainer 👍
         if: steps.ids.outputs.acted != ''
         env:
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}

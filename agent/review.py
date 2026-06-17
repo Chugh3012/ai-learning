@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Builder review — the builder reacting to its delivered digest (keep/skip votes).
+"""Maintainer review — the agent reacting to its delivered digest (keep/skip votes).
 
-The builder is a USER: it judges the items in the digest it was delivered, exactly like a human
+The maintainer is a USER: it judges the items in the digest it was delivered, exactly like a human
 skimming their inbox and starring what's worth their attention. It reads ONLY the digest file
 (agent/inbox.py downloaded it) — never the KB, never the engine. For each item it votes KEEP
 (worth acting on) or SKIP (noise), recorded as a feedback gesture (outcome.record_votes) so the
-daily feedback_ingest folds it into affinity:<user>. Quiet day (no digest) -> no-op.
+daily feedback_ingest folds it into affinity:<lens>. Quiet day (no digest) -> no-op.
 
-Idempotent by construction: votes upsert by (item, '<user>:vote'), so re-reading the same digest
-just rewrites the same verdict — no marker needed. Passwordless. Never raises fatally.
+Idempotent by construction: votes upsert by (item, '<lens>:vote'), so re-reading the same digest
+just rewrites the same verdict — no marker needed. The user is resolved by ROLE (never a hardcoded
+id). Passwordless. Never raises fatally.
 
-Usage:  python agent/review.py builder
+Usage:  python agent/review.py maintainer
 """
 from __future__ import annotations
 
@@ -23,7 +24,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DIGESTS = ROOT / "digests"
-USERS = ROOT / "config" / "users.json"
 BATCH = 25
 
 
@@ -40,11 +40,19 @@ def parse_digest(text: str) -> list[tuple[int, str, str]]:
     return [(i, t.strip(), s.strip()) for i, (t, s) in zip(ids, blocks)]
 
 
-def _interest(user: str) -> str:
-    for u in json.loads(USERS.read_text(encoding="utf-8")).get("users", []):
-        if u.get("id") == user:
-            return u.get("interest", "")
-    return ""
+def _resolve_profile(role: str):
+    """Resolve the agent's delivery profile by USER ROLE (never a hardcoded id). Prefers a
+    self_review profile, else the user's first. Returns a profiles.Profile or None."""
+    try:
+        sys.path.insert(0, str(ROOT / "tools"))
+        from profiles import load_users, user_by_role
+        u = user_by_role(load_users(), role)
+        if not u or not u.profiles:
+            return None
+        return next((p for p in u.profiles if p.self_review), u.profiles[0])
+    except Exception as e:  # noqa: BLE001
+        print(f"review: could not resolve role '{role}' ({e})")
+        return None
 
 
 def judge(endpoint: str, model: str, interest: str,
@@ -85,29 +93,34 @@ def judge(endpoint: str, model: str, interest: str,
     return out
 
 
-def review(user: str, endpoint: str, model: str, account: str) -> int:
-    """Vote keep/skip on today's delivered digest for <user>. Returns votes cast (0 = no-op)."""
-    path = DIGESTS / f"{user}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
+def review(role: str, endpoint: str, model: str, account: str) -> int:
+    """Vote keep/skip on today's delivered digest for the user with this ROLE. Returns votes
+    cast (0 = no-op). Feedback is recorded against the profile's lens, exactly like a human click."""
+    prof = _resolve_profile(role)
+    if prof is None:
+        print(f"review: no profile for role '{role}'")
+        return 0
+    path = DIGESTS / f"{prof.filesafe_lens}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
     if not path.exists():
-        print(f"review: no digest for {user} today — nothing to react to")
+        print(f"review: no digest for {prof.lens} today — nothing to react to")
         return 0
     items = parse_digest(path.read_text(encoding="utf-8"))
-    verdicts = judge(endpoint, model, _interest(user), items)
+    verdicts = judge(endpoint, model, prof.interest, items)
     if not verdicts:
         return 0
     from outcome import record_votes
     keep = [i for i, k in verdicts.items() if k]
     skip = [i for i, k in verdicts.items() if not k]
-    record_votes(account, user, keep, 1.0)
-    record_votes(account, user, skip, -1.0)
-    print(f"review: {user} kept {len(keep)}, skipped {len(skip)} of {len(items)} delivered")
+    record_votes(account, prof.lens, keep, 1.0)
+    record_votes(account, prof.lens, skip, -1.0)
+    print(f"review: {prof.lens} kept {len(keep)}, skipped {len(skip)} of {len(items)} delivered")
     return len(verdicts)
 
 
 def main() -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent))  # sibling 'outcome' import in CI
-    user = sys.argv[1] if len(sys.argv) > 1 else "builder"
-    review(user,
+    role = sys.argv[1] if len(sys.argv) > 1 else "maintainer"
+    review(role,
            os.environ.get("FOUNDRY_PROJECT_ENDPOINT", ""),
            os.environ.get("FOUNDRY_MODEL_NAME", "mini"),
            os.environ.get("FEEDBACK_STORAGE", ""))

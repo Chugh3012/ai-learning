@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Builder inbox — the builder reading its delivery (read-only).
+"""Maintainer inbox — the agent reading its delivery (read-only).
 
-The builder is a USER of ai-scout, never its engine. It only READS the digest that kb-sync has
+The maintainer is a USER of ai-scout, never its engine. It only READS the digest that kb-sync has
 already produced and published to Blob (exactly like the human opens their top-5 email). It does
-NOT run the pipeline (no fetch / rank / embed / deliver / KB access). This downloads
-digests/<user>-<today>.md from Blob into the checkout so the builder-radar agent can read it.
-Passwordless (DefaultAzureCredential / OIDC in CI). Best-effort: never raises fatally.
+NOT run the pipeline (no fetch / rank / embed / deliver / KB access). This resolves the user by
+ROLE, then downloads digests/<filesafe_lens>-<today>.md from Blob into the checkout so the
+builder-radar agent can read it. Passwordless (DefaultAzureCredential / OIDC in CI). Never raises.
 
-Usage:  python agent/inbox.py builder
+Usage:  python agent/inbox.py maintainer
 """
 from __future__ import annotations
 
@@ -16,15 +16,36 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-DIGESTS = Path(__file__).resolve().parent.parent / "digests"
+ROOT = Path(__file__).resolve().parent.parent
+DIGESTS = ROOT / "digests"
 
 
-def fetch_digest(account: str, container: str, user: str) -> Path | None:
-    """Download <user>'s digest for today from Blob to digests/. Returns the path, or None."""
+def _resolve_filesafe_lens(role: str) -> str:
+    """Resolve a user ROLE to its agent profile's filesafe lens (digest filename stem)."""
+    try:
+        sys.path.insert(0, str(ROOT / "tools"))
+        from profiles import load_users, user_by_role
+        u = user_by_role(load_users(), role)
+        if not u or not u.profiles:
+            return ""
+        prof = next((p for p in u.profiles if p.self_review), u.profiles[0])
+        return prof.filesafe_lens
+    except Exception as e:  # noqa: BLE001
+        print(f"inbox: could not resolve role '{role}' ({e})")
+        return ""
+
+
+def fetch_digest(account: str, container: str, role: str) -> Path | None:
+    """Download the digest for the user with this ROLE for today from Blob to digests/.
+    Returns the path, or None."""
     if not account:
         print("inbox: STORAGE_ACCOUNT not set — skipping")
         return None
-    name = f"{user}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
+    stem = _resolve_filesafe_lens(role)
+    if not stem:
+        print(f"inbox: no profile for role '{role}'")
+        return None
+    name = f"{stem}-{datetime.now(timezone.utc):%Y-%m-%d}.md"
     try:
         from azure.identity import DefaultAzureCredential
         from azure.storage.blob import BlobServiceClient
@@ -46,9 +67,9 @@ def fetch_digest(account: str, container: str, user: str) -> Path | None:
 
 
 def main() -> int:
-    user = sys.argv[1] if len(sys.argv) > 1 else "builder"
+    role = sys.argv[1] if len(sys.argv) > 1 else "maintainer"
     fetch_digest(os.environ.get("STORAGE_ACCOUNT", ""),
-                 os.environ.get("BLOB_CONTAINER", "knowledge"), user)
+                 os.environ.get("BLOB_CONTAINER", "knowledge"), role)
     return 0
 
 

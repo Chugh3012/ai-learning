@@ -1,20 +1,15 @@
-# ai-scout content profiles (Layer E). Growth = ADD a profile here, no code.
-# Each profile is a content target (a platform, format, or audience). The draft
-# generator picks one with --profile (default: social). The model returns JSON;
-# the review file renders whatever keys it produces — so a new profile can change
-# the output shape without touching code.
-#
-# A profile has two optional folded blocks:
-#   instruction: the PRODUCTION prompt (how to turn one item into the artifact).
-#   interest:    the SELECTION lens — a one-sentence description of what KIND of item
-#                this profile wants. The drafter embeds it and reuses the shared
-#                selection filter (tools/select.py) to pick matching items, exactly
-#                like a user's delivery lens. Omit it for the plain top-relevance pick.
+# ai-scout content FORMATS (Layer E). Growth = ADD a format here, no code.
+# A format is a PRODUCTION recipe: how to turn one selected item into an artifact
+# (the model prompt + the JSON output shape). It is NOT a selection lens and NOT a
+# delivery channel — those live on the USER PROFILE that references this format
+# (config/users.json: a profile with channel:"draft" names its format). The review
+# file renders whatever keys the model produces, so a new format can change the output
+# shape without touching code.
 #
 # Output is HUMAN-REVIEWED only. Actual publishing to any platform is a separate,
 # opt-in step (not built) — see PLAN.md "publishing".
 
-profiles:
+formats:
   social:
     # Generic, platform-neutral short social post for a dev/AI audience.
     temperature: 0.6
@@ -30,14 +25,10 @@ profiles:
   reel:
     # 30-second Instagram/TikTok Reel where the HUMAN only provides the VOICE. Everything
     # visual — b-roll, AI images, on-screen text, background, music, transitions — is specified
-    # by this profile as a full shot-by-shot production kit. The entertainment lives in the
+    # by this format as a full shot-by-shot production kit. The entertainment lives in the
     # visuals/pacing the system designs, NOT in the speaker performing. Publishing stays manual.
+    # (The 'reel-worthy' SELECTION lens lives on the user profile that uses this format.)
     temperature: 0.8
-    interest: >
-      Visually striking, surprising, or counterintuitive AI/LLM ideas that make a punchy
-      30-second story: a vivid demo, a wow-factor new capability, a myth-busting result, or a
-      simple trick anyone can try and immediately feel — favor the concrete and show-able over
-      the abstract or incremental.
     instruction: >
       You are a short-video DIRECTOR. The creator will ONLY record a voiceover by reading the
       script aloud — flat, normal voice. ALL entertainment must come from the visuals, text,

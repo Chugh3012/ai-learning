@@ -1,0 +1,11 @@
+# ai-scout — Azure Developer CLI configuration.
+# Enables `azd deploy` for the feedback Function App and `azd provision` for infra.
+name: ai-scout
+metadata:
+  template: azd-init
+
+services:
+  feedback:
+    project: ./function
+    language: python
+    host: function

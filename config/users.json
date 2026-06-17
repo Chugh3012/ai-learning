@@ -1,9 +1,28 @@
 {
-  "_comment": "User registry (multi-tenant). Adding a user = one entry. EVERYONE shares the one relevance ranking (the shared QUALITY gate), delivered DAILY. Personalization = (a) each user's own +/- feedback (signals namespaced per user: sent:<id>, affinity:<id>, fb_*:<id>) AND (b) an optional one-sentence 'interest': we embed it once and steer that user's pick by semantic match to each item (two-tower retrieval, O(items+users) — the 100th user is just one more sentence to embed). Interest lets relevant items (incl. research) SURFACE for a user without hand-filtering sources; omit it for the pure shared ranking. min_score is the quality bar (relevance + affinity + interest match must clear it) so a quiet day sends nothing. 'email_var' names the env/Actions var holding the address (keeps addresses out of git). The agent maintaining this app is just user 'builder'; its digest, when non-empty, drives the gh-aw self-improve loop. Same machinery as every user — no special path.",
+  "_comment": "User registry (multi-tenant). A USER is an identity + feedback loop; each user owns one or more PROFILES. A profile is one consumption mode = a selection LENS ('interest' sentence, embedded once and matched per item via two-tower retrieval) + a DELIVERY channel + thresholds + a CADENCE. IDENTITY: every user and profile 'id' is an OPAQUE SURROGATE KEY (Stripe-style prefix usr_/prf_ for readability of TYPE, random suffix for the identity) — system-generated, no semantic meaning, NEVER reused or renamed. All human meaning lives in the mutable 'name' (display label) and 'role' (capability). So signals are identity-agnostic (sent:usr_..:prf_.., affinity:usr_..:prf_..) — nothing in the KB mentions who the person is; the id->name map lives only here. Rename freely by editing 'name'; never touch an 'id'. LENS is ALWAYS <user_id>:<profile_id>; the bare <user_id> namespace is reserved for a future user-level shared interest. ROLE lets workflows/code address a user by capability ('maintainer' = the agent that improves this app) instead of a hardcoded id. CHANNELS: 'email' (Azure Communication Services; 'email_var' names the env/Actions var holding the address), 'digest' (a dated markdown file), 'draft' (on-demand content sink producing a kit via the content FORMAT named by 'format', from config/content.yml). CADENCE: 'daily'/'weekly' (fires when >= interval since this profile's last delivery) or 'on_demand' (never on the scheduled run; produce it with `--produce <user_id>:<profile_id>`).",
   "users": [
-    { "id": "primary", "channel": "email",  "email_var": "EMAIL_TO", "top": 5, "min_score": 55 },
-    { "id": "builder", "channel": "digest", "top": 8, "min_score": 60,
-      "self_review": true,
-      "interest": "Techniques and changes I can apply to improve THIS AI/LLM pipeline: better prompting and instructions, evaluation and ranking methods, retrieval and RAG, agent design and orchestration, prompt/agent optimization, and breaking changes or new features in the Azure, OpenAI, Python, and agent-framework SDKs this repo depends on." }
+    {
+      "id": "usr_94b30ad9",
+      "name": "Owner",
+      "role": "owner",
+      "profiles": [
+        { "id": "prf_5fe78cef", "name": "Daily learning email", "channel": "email", "email_var": "EMAIL_TO",
+          "cadence": "daily", "top": 5, "min_score": 55, "interest": "" },
+        { "id": "prf_378ec9bc", "name": "Reels", "channel": "draft", "format": "reel",
+          "cadence": "on_demand", "top": 5, "min_score": 60,
+          "interest": "Visually striking, surprising, or counterintuitive AI/LLM ideas that make a punchy 30-second story: a vivid demo, a wow-factor new capability, a myth-busting result, or a simple trick anyone can try and immediately feel — favor the concrete and show-able over the abstract or incremental." }
+      ]
+    },
+    {
+      "id": "usr_4fadca97",
+      "name": "Maintainer agent",
+      "role": "maintainer",
+      "profiles": [
+        { "id": "prf_5115d4d5", "name": "Radar digest", "channel": "digest", "cadence": "weekly", "top": 8, "min_score": 60,
+          "self_review": true,
+          "interest": "Techniques and changes I can apply to improve THIS AI/LLM pipeline: better prompting and instructions, evaluation and ranking methods, retrieval and RAG, agent design and orchestration, prompt/agent optimization, and breaking changes or new features in the Azure, OpenAI, Python, and agent-framework SDKs this repo depends on." }
+      ]
+    }
   ]
 }
+

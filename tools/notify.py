@@ -15,8 +15,6 @@ import secrets
 import sqlite3
 import time
 
-from selection import select_items, mark_sent, _interest_weight
-
 _ACTIONS = ("up", "down", "save", "click")
 
 
@@ -101,9 +99,9 @@ def _lessons(endpoint: str, deployment: str, items: list[tuple]) -> tuple[str, d
         return "", {}
 
 
-def _connections(con: sqlite3.Connection, user_id: str,
+def _connections(con: sqlite3.Connection, lens: str,
                  selected: list[dict], min_cos: float = 0.62) -> dict[int, tuple[str, str]]:
-    """Connect-the-dots: link each of today's picks to the most similar item this user was
+    """Connect-the-dots: link each of today's picks to the most similar item this LENS was
     ALREADY sent (the owned, embedded history nobody else has). Returns {item_id: (past_title,
     past_url)} for pairs whose cosine >= min_cos. Pure-stdlib over the embedding table; no model
     call. Best-effort: returns {} if embeddings/history are unavailable."""
@@ -122,12 +120,12 @@ def _connections(con: sqlite3.Connection, user_id: str,
             today_vecs[iid] = unpack(row[0])
     if not today_vecs:
         return {}
-    # Past items this user was sent, that have an embedding (exclude today's picks).
+    # Past items this lens was sent, that have an embedding (exclude today's picks).
     past = con.execute(
         "SELECT e.item_id, i.title, i.url, e.vec FROM embedding e "
         "JOIN item i ON i.id=e.item_id "
         "JOIN signal s ON s.item_id=e.item_id AND s.kind=? ",
-        (f"sent:{user_id}",),
+        (f"sent:{lens}",),
     ).fetchall()
     today_set = set(today_ids)
     past = [(pid, t, u, v) for pid, t, u, v in past if pid not in today_set and v]
@@ -154,9 +152,11 @@ def _connections(con: sqlite3.Connection, user_id: str,
     return out
 
 
-def _mint_tokens(account: str, user_id: str, items: list[tuple]) -> dict[int, dict[str, str]]:
-    """Mint an opaque token per (user, item, action) and store it in the `feedbacktokens`
-    table. Returns {item_id: {action: token}}. Returns {} (graceful) if the store is down."""
+def _mint_tokens(account: str, lens: str, items: list[tuple]) -> dict[int, dict[str, str]]:
+    """Mint an opaque token per (lens, item, action) and store it in the `feedbacktokens`
+    table. Returns {item_id: {action: token}}. Returns {} (graceful) if the store is down.
+    The token carries the LENS (`<user_id>:<profile_id>`), so feedback attributes to exactly
+    the profile that was delivered — no identity is embedded beyond the opaque lens."""
     if not account:
         return {}
     try:
@@ -177,7 +177,7 @@ def _mint_tokens(account: str, user_id: str, items: list[tuple]) -> dict[int, di
             for action in _ACTIONS:
                 tok = secrets.token_urlsafe(16)
                 table.upsert_entity(
-                    {"PartitionKey": "tok", "RowKey": tok, "user": user_id,
+                    {"PartitionKey": "tok", "RowKey": tok, "lens": lens,
                      "itemId": int(item_id), "action": action, "url": url,
                      "ts": int(time.time())},
                     mode=UpdateMode.REPLACE,
@@ -273,10 +273,12 @@ def _render(items: list[tuple], theme: str, cards: dict[int, dict],
     return "\n".join(text_lines), "\n".join(html_lines)
 
 
-def _deliver_email(acs_endpoint: str, sender: str, to: str, count: int,
-                   plain: str, body_html: str) -> bool:
+def send_email(acs_endpoint: str, sender: str, to: str, subject: str,
+               plain: str, body_html: str) -> bool:
+    """Send one email via Azure Communication Services (passwordless). Returns False (never
+    raises) when the channel is unconfigured or the send fails — delivery is best-effort."""
     if not (acs_endpoint and sender and to):
-        print(f"deliver: email channel not configured for recipient; skipped")
+        print("deliver: email channel not configured for recipient; skipped")
         return False
     try:
         from azure.communication.email import EmailClient
@@ -285,8 +287,7 @@ def _deliver_email(acs_endpoint: str, sender: str, to: str, count: int,
         client.begin_send({
             "senderAddress": sender,
             "recipients": {"to": [{"address": to}]},
-            "content": {"subject": f"ai-scout \u2014 {count} new ways to use AI",
-                        "plainText": plain, "html": body_html},
+            "content": {"subject": subject, "plainText": plain, "html": body_html},
         }).result()
         return True
     except Exception as e:  # noqa: BLE001 — optional stage, never break the pipeline
@@ -294,70 +295,22 @@ def _deliver_email(acs_endpoint: str, sender: str, to: str, count: int,
         return False
 
 
-def _deliver_digest(user_id: str, count: int, plain: str, item_ids: list[int] | None = None) -> bool:
-    """The agent's channel: write the picks to a dated digest file the next coding session
-    reads. No long-term memory — the file IS the rolling window; old ones can be deleted.
-    Embeds a machine-readable item-id footer so the outcome-as-feedback loop (P13) can map a
-    merged/closed PR back to the radar items and record 👍/👎 automatically."""
+def write_digest(filesafe_lens: str, label: str, count: int, plain: str,
+                 item_ids: list[int] | None = None) -> bool:
+    """Write a profile's picks to a dated digest file `digests/<filesafe_lens>-<date>.md` (the ':'
+    in the lens becomes '-'). The file IS the rolling window — old ones can be deleted. Embeds a
+    machine-readable item-id footer so the outcome-as-feedback loop can map a merged/closed PR
+    back to the items and record 👍/👎 automatically."""
     from pathlib import Path
     from datetime import datetime, timezone
     out_dir = Path(__file__).resolve().parent.parent / "digests"
     out_dir.mkdir(exist_ok=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    out = out_dir / f"{user_id}-{today}.md"
-    header = (f"# ai-scout \u2014 {user_id} digest \u2014 {today}\n\n"
-              f"_{count} items from the shared ranking, reordered by {user_id}'s feedback. "
+    out = out_dir / f"{filesafe_lens}-{today}.md"
+    header = (f"# ai-scout \u2014 {label} \u2014 {today}\n\n"
+              f"_{count} items from the shared ranking, reordered by this profile's feedback. "
               f"Read, act if useful (the commit is the record), then ignore next cycle._\n\n")
     footer = f"\n\n<!-- items: {','.join(str(i) for i in (item_ids or []))} -->\n"
     out.write_text(header + plain + footer, encoding="utf-8")
     print(f"deliver: wrote {out.relative_to(out_dir.parent)}")
     return True
-
-
-def deliver_all(con: sqlite3.Connection, users: list[dict], env: dict,
-                foundry_endpoint: str, model: str) -> int:
-    """Deliver each user's personalized top-N from the ONE shared ranking, via their channel.
-    Shared machinery (ingest/KB/ranking) is untouched; only per-user state differs. Each user
-    is delivered DAILY but only items clearing their min_score quality bar — a quiet day sends
-    nothing. Feedback links (👍/👎/save) work on EVERY channel, so all users (including the agent
-    on the digest channel) personalize through the same Function. Returns total items delivered."""
-    acs_endpoint = env.get("ACS_ENDPOINT", "")
-    sender = env.get("EMAIL_SENDER", "")
-    feedback_url = env.get("FEEDBACK_URL", "")
-    feedback_account = env.get("FEEDBACK_STORAGE", "")
-    embed_model = env.get("FOUNDRY_EMBED_NAME", "embed")
-    interest_weight = _interest_weight()
-    total = 0
-    for user in users:
-        uid = user["id"]
-        channel = user.get("channel", "email")
-        top = int(user.get("top", 5))
-        min_score = float(user.get("min_score", 0))
-        # User tower: embed this user's interest sentence once (None -> no interest steering).
-        from embed import embed_interest
-        interest_vec = embed_interest(foundry_endpoint, embed_model, user.get("interest", ""))
-        selected = select_items(con, uid, top, min_score, interest_vec, interest_weight)
-        if not selected:
-            print(f"deliver: nothing clears {uid}'s bar (min_score={min_score:g}) — quiet day")
-            continue
-
-        rows = [(d["id"], d["title"], d["url"]) for d in selected]
-        blurb_items = [(d["id"], d["title"], _fulltext(d["url"]) or d["summary"]) for d in selected]
-        theme, cards = _lessons(foundry_endpoint, model, blurb_items)
-        connections = _connections(con, uid, selected)
-        # Feedback links are unified across channels: mint per-user tokens whenever feedback is
-        # configured, regardless of email vs digest. The agent clicks them just like a human.
-        tokens = _mint_tokens(feedback_account, uid, rows) if feedback_url else {}
-        plain, body_html = _render(rows, theme, cards, connections, feedback_url, tokens)
-
-        if channel == "email":
-            to = env.get(user.get("email_var", "EMAIL_TO"), "")
-            ok = _deliver_email(acs_endpoint, sender, to, len(rows), plain, body_html)
-        else:
-            ok = _deliver_digest(uid, len(rows), plain, [r[0] for r in rows])
-
-        if ok:
-            mark_sent(con, uid, [r[0] for r in rows])
-            total += len(rows)
-            print(f"deliver: sent {len(rows)} to {uid} ({channel})")
-    return total
