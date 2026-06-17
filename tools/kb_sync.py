@@ -120,16 +120,37 @@ def tag_text(text: str, rules: dict[str, list[str]]) -> list[str]:
     return [t for t, kws in rules.items() if any(k in low for k in kws)] or ["other"]
 
 
-def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
-    import feedparser  # local import so --help works without the dep
+# HTTP statuses worth a retry: rate-limit + transient server errors. 403/404 (blocks/dead feeds)
+# are NOT transient and are returned immediately — retrying them just wastes time.
+_RETRY_STATUS = frozenset({429, 500, 502, 503, 504})
 
+
+def _fetch_feed(url: str, ua: str, attempts: int = 3):
+    """Parse a feed, retrying ONLY on transient failures (HTTP 429/5xx, or a connection-level
+    error where feedparser sets bozo with no status). Linear backoff, capped. A feed that simply
+    returned no entries with an OK/permanent status is returned as-is (no point retrying)."""
+    import feedparser  # local import so --help works without the dep
+    feed = feedparser.parse(url, agent=ua)
+    tries = 1
+    while tries < attempts and not feed.entries:
+        status = getattr(feed, "status", None)
+        transient = status in _RETRY_STATUS or (getattr(feed, "bozo", 0) and status is None)
+        if not transient:
+            break
+        time.sleep(min(1.5 * tries, 5))
+        feed = feedparser.parse(url, agent=ua)
+        tries += 1
+    return feed
+
+
+def sync(con: sqlite3.Connection, rules: dict) -> tuple[int, int]:
     # Browser-like UA: some hosts (Substack) 403 the default feedparser/bot UA, especially from
     # datacenter IPs. A real UA fixes most such blocks at zero cost.
     ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
           "Chrome/124.0 Safari/537.36")
 
     def _fetch(url: str):
-        return feedparser.parse(url, agent=ua)
+        return _fetch_feed(url, ua)
 
     sources = read_sources()
     now = int(time.time())
