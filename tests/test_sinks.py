@@ -12,13 +12,11 @@ from ai_scout.repositories.registry import UserRegistry
 from ai_scout.services.delivery import orchestrator as orch
 from ai_scout.services.delivery.email_sink import EmailSink
 from ai_scout.services.delivery.digest_sink import DigestSink
-from ai_scout.services.delivery.draft_sink import DraftSink
 
 def _registry():
     user = User(id="usr_a", role="owner", profiles=[
         Profile(user_id="usr_a", id="prf_main", channel="email", cadence=Cadence.DAILY),
-        Profile(user_id="usr_a", id="prf_reel", channel="draft", cadence=Cadence.ON_DEMAND,
-                format="reel"),
+        Profile(user_id="usr_a", id="prf_reel", channel="digest", cadence=Cadence.ON_DEMAND),
     ])
     return UserRegistry([user])
 
@@ -26,15 +24,10 @@ class TestFactory(unittest.TestCase):
     def test_maps_channels_to_sinks(self):
         self.assertIsInstance(orch.make_sink("email"), EmailSink)
         self.assertIsInstance(orch.make_sink("digest"), DigestSink)
-        self.assertIsInstance(orch.make_sink("draft"), DraftSink)
 
     def test_unknown_channel_raises(self):
         with self.assertRaises(ValueError):
             orch.make_sink("carrier-pigeon")
-
-    def test_draft_sink_is_deterministic(self):
-        self.assertEqual(DraftSink.explore_ratio, 0.0)
-        self.assertIsNone(EmailSink.explore_ratio)
 
 class TestOrchestratorGating(unittest.TestCase):
     def _orchestrator(self, sel):

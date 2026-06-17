@@ -4,7 +4,7 @@ from ai_scout.services.delivery.delivery_sink import DeliverySink
 from ai_scout.services.delivery.sink import DeliveryContext
 
 class EmailSink(DeliverySink):
-    def _emit(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
+    def _notify(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
         s, p = ctx.settings, ctx.profile
         acs_endpoint = s.acs_endpoint
         sender = s.email_sender

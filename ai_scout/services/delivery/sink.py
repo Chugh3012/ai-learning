@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from ai_scout.domain.profile import Profile
 from ai_scout.lib.settings import Settings
 from ai_scout.services.brief_builder import BriefBuilder
-from ai_scout.services.producer import ContentProducer
 from ai_scout.repositories.feedback import FeedbackStore
+from ai_scout.repositories.blob import BlobStore
 
 @dataclass
 class DeliveryContext:
@@ -16,10 +16,9 @@ class DeliveryContext:
     settings: Settings
     brief_builder: BriefBuilder
     feedback_store: FeedbackStore
-    producer: ContentProducer
+    blob: BlobStore | None = None
 
 class Sink(ABC):
-    explore_ratio: float | None = None
 
     @abstractmethod
     def deliver(self, ctx: DeliveryContext) -> bool:

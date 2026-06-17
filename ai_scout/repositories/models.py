@@ -30,13 +30,6 @@ class Signal(SQLModel, table=True):
     value: float | None = None
     ts: int | None = None
 
-class Draft(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    item_id: int | None = Field(default=None, foreign_key="item.id", unique=True)
-    status: str | None = None
-    body: str | None = None
-    created_at: int | None = None
-
 class Embedding(SQLModel, table=True):
     item_id: int | None = Field(default=None, foreign_key="item.id", primary_key=True)
     vec: bytes | None = None

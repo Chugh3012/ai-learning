@@ -15,7 +15,6 @@ class Profile(BaseModel):
     top: int = 5
     min_score: float = 0.0
     interest: str = ""
-    format: str | None = None
     email_var: str | None = None
     self_review: bool = False
 
@@ -42,7 +41,6 @@ class Profile(BaseModel):
             top=int(raw.get("top", 5)),
             min_score=float(raw.get("min_score", 0)),
             interest=str(raw.get("interest", "")),
-            format=raw.get("format"),
             email_var=raw.get("email_var"),
             self_review=bool(raw.get("self_review", False)),
         )

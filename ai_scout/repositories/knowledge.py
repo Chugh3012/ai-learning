@@ -184,20 +184,6 @@ class KnowledgeBase:
         return self.con.execute(f"SELECT item_id, topic FROM tag WHERE item_id IN ({qs})",
                                 tuple(ids)).fetchall()
 
-    def drafted_ids(self) -> set[int]:
-        return {r[0] for r in self.con.execute("SELECT item_id FROM draft").fetchall()}
-
-    def add_draft(self, item_id: int, body_json: str, now: int) -> None:
-        self.con.execute(
-            "INSERT OR IGNORE INTO draft(item_id,status,body,created_at) VALUES(?,?,?,?)",
-            (item_id, "pending", body_json, now))
-
-    def pending_drafts(self) -> list[tuple]:
-        return self.con.execute(
-            "SELECT d.id, i.title, i.url, d.body FROM draft d JOIN item i ON i.id=d.item_id "
-            "WHERE d.status='pending' ORDER BY d.created_at DESC"
-        ).fetchall()
-
     def existing_source_urls(self) -> set[str]:
         return {r[0] for r in self.con.execute("SELECT url FROM source").fetchall()}
 

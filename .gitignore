@@ -7,10 +7,9 @@
 __pycache__/
 *.pyc
 
-# Owned knowledge base (P3) and generated outputs (P2/P4/P5)
+# Owned knowledge base (P3) and local delivery scratch
 data/kb/
-digests/
-drafts/*.md
+.scratch/
 
 # Regenerable eval/training exports (golden set is kept; these are derived on demand)
 .foundry/datasets/feedback_*.jsonl

@@ -13,7 +13,6 @@ from ai_scout.services.discoverer import SourceDiscoverer
 from ai_scout.services.embedder import Embedder
 from ai_scout.services.feedback_service import FeedbackService
 from ai_scout.services.ingest import Ingestor
-from ai_scout.services.producer import ContentProducer, write_review
 from ai_scout.services.ranker import Ranker
 from ai_scout.services.selector import Selector
 from ai_scout.services.delivery.orchestrator import Orchestrator
@@ -69,8 +68,8 @@ def main(argv=None) -> int:
     if args.deliver or args.produce:
         orchestrator = Orchestrator(
             kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb),
-            BriefBuilder(kb, endpoint, model), ContentProducer(kb, endpoint, model),
-            feedback_store, s)
+            BriefBuilder(kb, endpoint, model),
+            feedback_store, blob if use_blob else None, s)
         if args.deliver:
             orchestrator.run()
         if args.produce:
@@ -79,12 +78,11 @@ def main(argv=None) -> int:
     if args.discover:
         SourceDiscoverer(kb).discover()
 
-    review = write_review(kb)
     kb.close()
     print(f"sync: +{new_items} new, {total} total items")
 
     if use_blob:
-        blob.upload_kb(review)
+        blob.upload_kb()
     elif not args.no_upload:
         print("note: STORAGE_ACCOUNT not set — skipped Blob (set it in .env or repo Variables)")
     return 0

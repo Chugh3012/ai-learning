@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from datetime import datetime, timezone
 
+from ai_scout.lib.config import SCRATCH_DIR
 from ai_scout.services.brief_builder import BriefBuilder
 from ai_scout.services.delivery.sink import Sink, DeliveryContext
 
@@ -14,8 +15,23 @@ class DeliverySink(Sink):
         feedback_url = ctx.settings.feedback_url
         tokens = ctx.feedback_store.mint_tokens(p.lens, rows) if feedback_url else {}
         plain, body_html = BriefBuilder.render(ctx.items, brief, feedback_url, tokens)
-        return self._emit(ctx, plain, body_html, rows)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        header = (f"# ai-scout — {p.label} — {today}\n\n"
+                  f"_{len(rows)} items from the shared ranking, reordered by this profile's "
+                  f"feedback._\n\n")
+        footer = f"\n\n<!-- items: {','.join(str(r[0]) for r in rows)} -->\n"
+        self._write_digest(ctx, f"{p.filesafe_lens}-{today}.md", header + plain + footer)
+        return self._notify(ctx, plain, body_html, rows)
 
-    @abstractmethod
-    def _emit(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
-        raise NotImplementedError
+    def _write_digest(self, ctx: DeliveryContext, name: str, md: str) -> None:
+        if ctx.blob is not None and ctx.blob.enabled:
+            ctx.blob.put_text(f"digests/{name}", md)
+            print(f"deliver: wrote digests/{name} to Blob")
+            return
+        d = SCRATCH_DIR / "digests"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / name).write_text(md, encoding="utf-8")
+        print(f"deliver: wrote .scratch/digests/{name} (Blob not configured)")
+
+    def _notify(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
+        return True
