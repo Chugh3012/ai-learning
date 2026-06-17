@@ -464,6 +464,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 90
+    features: {
+      disableLocalAuth: true
+    }
   }
 }
 
@@ -599,10 +602,10 @@ resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-0
 
 // RBAC - the user is a Grafana Admin on the instance (to build/import dashboards)
 resource grafanaUserAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(grafana.id, userPrincipalId, '22926164-76b3-42b3-bc36-89b82d4c0e0d')
+  name: guid(grafana.id, userPrincipalId, '22926164-76b3-42b3-bc55-97df8dab3e41')
   scope: grafana
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '22926164-76b3-42b3-bc36-89b82d4c0e0d')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '22926164-76b3-42b3-bc55-97df8dab3e41')
     principalId: userPrincipalId
     principalType: 'User'
   }
