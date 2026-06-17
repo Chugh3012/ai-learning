@@ -23,7 +23,25 @@ class KnowledgeBase:
         engine = create_engine(f"sqlite:///{path}")
         SQLModel.metadata.create_all(engine)
         con = sqlite3.connect(path)
+        cls._reconcile_columns(engine, con)
         return cls(engine, con)
+
+    @staticmethod
+    def _reconcile_columns(engine, con: sqlite3.Connection) -> None:
+        for table in SQLModel.metadata.sorted_tables:
+            have = {row[1] for row in con.execute(f"PRAGMA table_info({table.name})").fetchall()}
+            if not have:
+                continue
+            for col in table.columns:
+                if col.name in have:
+                    continue
+                ddl = col.type.compile(dialect=engine.dialect)
+                try:
+                    con.execute(f'ALTER TABLE {table.name} ADD COLUMN "{col.name}" {ddl}')
+                    print(f"kb: migrated {table.name}.{col.name} ({ddl})")
+                except sqlite3.OperationalError as e:
+                    print(f"kb: could not add {table.name}.{col.name} ({e})")
+        con.commit()
 
     def session(self) -> Session:
         return Session(self.engine)
