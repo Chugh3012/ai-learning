@@ -6,7 +6,7 @@
       "role": "owner",
       "profiles": [
         { "id": "prf_5fe78cef", "name": "Daily learning email", "channel": "email", "email_var": "EMAIL_TO",
-          "cadence": "daily", "top": 5, "min_score": 55, "interest": "", "public": true },
+          "cadence": "daily", "top": 5, "min_score": 55, "interest": "" },
         { "id": "prf_378ec9bc", "name": "Reels", "channel": "digest",
           "cadence": "on_demand", "top": 5, "min_score": 60,
           "interest": "Visually striking, surprising, or counterintuitive AI/LLM ideas that make a punchy 30-second story: a vivid demo, a wow-factor new capability, a myth-busting result, or a simple trick anyone can try and immediately feel — favor the concrete and show-able over the abstract or incremental." }
@@ -20,6 +20,15 @@
         { "id": "prf_5115d4d5", "name": "Radar digest", "channel": "digest", "cadence": "weekly", "top": 8, "min_score": 60,
           "self_review": true,
           "interest": "Techniques and changes I can apply to improve THIS AI/LLM pipeline: better prompting and instructions, evaluation and ranking methods, retrieval and RAG, agent design and orchestration, prompt/agent optimization, and breaking changes or new features in the Azure, OpenAI, Python, and agent-framework SDKs this repo depends on." }
+      ]
+    },
+    {
+      "id": "usr_public",
+      "name": "Public newsletter",
+      "role": "public",
+      "profiles": [
+        { "id": "prf_daily", "name": "Chugh Vibes daily edition", "channel": "email",
+          "cadence": "daily", "top": 5, "min_score": 55, "interest": "", "public": true }
       ]
     }
   ]

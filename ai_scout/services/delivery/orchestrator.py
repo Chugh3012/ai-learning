@@ -40,6 +40,10 @@ class Orchestrator:
         total = 0
         for user in self.registry.users:
             for p in user.profiles:
+                if p.public:
+                    # The public newsletter lens is delivered only via the subscriber
+                    # broadcast below (it has no single recipient), so skip it here.
+                    continue
                 if targets is not None:
                     if p.lens not in targets:
                         continue
@@ -66,13 +70,13 @@ class Orchestrator:
                                              lens=p.lens, channel=p.channel)
                     print(f"deliver: {len(items)} -> {p.lens} ({p.channel})")
         if targets is None:
-            total += self._broadcast_subscribers(weight)
+            total += self._broadcast_subscribers(weight, now)
         return total
 
-    def _broadcast_subscribers(self, weight) -> int:
-        # The public edition also goes to confirmed newsletter subscribers (email only,
-        # shared lens). Optional + graceful: no store / no subscribers / no public profile
-        # -> no-op, never crashes the pipeline.
+    def _broadcast_subscribers(self, weight, now: int) -> int:
+        # Confirmed newsletter subscribers get the public edition: its OWN lens (one
+        # shared edition/day, independent of the owner's private daily). Optional +
+        # graceful: no store / no subscribers / no public profile / not due -> no-op.
         try:
             from ai_scout.repositories.subscribers import SubscriberStore
             from ai_scout.services.delivery.email_sink import send_email
@@ -83,18 +87,17 @@ class Orchestrator:
             prof = self.registry.public_profile()
             if prof is None:
                 return 0
-            subs = store.confirmed()
-            if not subs:
+            if not prof.cadence.is_due(self.kb.last_sent_ts(prof.lens), now):
+                print(f"deliver: public edition not due ({prof.lens}) — skip subscribers")
                 return 0
-            # the owner already gets the public edition via the normal loop (EMAIL_TO);
-            # don't double-send if they also subscribed with that address.
             owner = (self.settings.email_to or "").strip().lower()
-            subs = [(e, n) for e, n in subs if e.strip().lower() != owner]
+            subs = [(e, n) for e, n in store.confirmed() if e.strip().lower() != owner]
             if not subs:
                 return 0
             interest_vec = self.embedder.embed_interest(prof.interest)
             items = self.selector.select(prof.lens, prof.top, prof.min_score, interest_vec, weight)
             if not items:
+                print(f"deliver: nothing clears {prof.lens} (min_score={prof.min_score:g}) — quiet")
                 return 0
             rows = [(it.id, it.title, it.url) for it in items]
             brief = self.brief_builder.build(prof.lens, items)
@@ -104,8 +107,11 @@ class Orchestrator:
             subject = f"ai-scout \u2014 {len(rows)} new ways to use AI"
             sent = sum(1 for email, _name in subs
                        if send_email(self.settings, email, subject, plain, body_html))
+            if sent:
+                self.kb.mark_sent(prof.lens, [it.id for it in items])
             if self.metrics is not None:
                 self.metrics.add("subscribers_sent", sent, lens=prof.lens, channel="email")
+                self.metrics.add("delivered", len(items), lens=prof.lens, channel="email")
             print(f"deliver: broadcast public edition to {sent}/{len(subs)} subscribers")
             return sent
         except Exception as e:
