@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <div class="cursor-glow" id="glow" aria-hidden="true"></div>
   <header class="site">
     <a class="wordmark" href="/">chugh<span class="dot">·</span>vibes</a>
     <a class="nav-cta" href="#join">Subscribe</a>
@@ -19,26 +20,29 @@
   <main>
     <!-- HERO -->
     <section class="hero">
-      <p class="eyebrow">A daily dispatch on AI</p>
-      <h1 class="display">
-        Less feed.<br /><em>More signal.</em>
-      </h1>
-      <p class="lede">
-        Chugh Vibes reads the AI world so you don't have to — scanning the firehose,
-        ranking it like an editor, and sending you <strong>one short, sharp read a day</strong>.
-        The good stuff. Nothing else.
-      </p>
+      <canvas class="field" id="field" aria-hidden="true"></canvas>
+      <div class="hero-inner">
+        <p class="eyebrow">A daily dispatch on AI</p>
+        <h1 class="display">
+          Less feed.<br /><em>More signal.</em>
+        </h1>
+        <p class="lede">
+          Chugh Vibes reads the AI world so you don't have to — scanning the firehose,
+          ranking it like an editor, and sending you <strong>one short, sharp read a day</strong>.
+          The good stuff. Nothing else.
+        </p>
 
-      <form id="join-hero" class="join" novalidate>
-        <div class="field-row">
-          <input type="email" name="email" inputmode="email" autocomplete="email"
-                 placeholder="you@email.com" aria-label="Email address" required />
-          <button type="submit">Get the daily drop</button>
-        </div>
-        <input type="text" name="name" autocomplete="name" placeholder="First name (optional)" aria-label="First name" class="name" />
-        <input type="text" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
-        <p class="form-note" data-default>Free. One email a day. Unsubscribe in one click.</p>
-      </form>
+        <form id="join-hero" class="join" novalidate>
+          <div class="field-row">
+            <input type="email" name="email" inputmode="email" autocomplete="email"
+                   placeholder="you@email.com" aria-label="Email address" required />
+            <button type="submit" data-magnetic>Get the daily drop</button>
+          </div>
+          <input type="text" name="name" autocomplete="name" placeholder="First name (optional)" aria-label="First name" class="name" />
+          <input type="text" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <p class="form-note" data-default>Free. One email a day. Unsubscribe in one click.</p>
+        </form>
+      </div>
     </section>
 
     <!-- TICKER / SOURCES -->
@@ -91,9 +95,10 @@
 
     <!-- FUNNEL STAT -->
     <section class="funnel reveal">
-      <div class="funnel-line"><span class="big">300+</span><span class="lbl">items scanned daily</span></div>
+      <canvas class="funnel-canvas" id="funnel" aria-hidden="true"></canvas>
+      <div class="funnel-line"><span class="big" data-count="300" data-suffix="+">0</span><span class="lbl">items scanned daily</span></div>
       <div class="arrow">↓</div>
-      <div class="funnel-line"><span class="big accent">5</span><span class="lbl">that reach your inbox</span></div>
+      <div class="funnel-line"><span class="big accent" data-count="5">0</span><span class="lbl">that reach your inbox</span></div>
     </section>
 
     <!-- DIFFERENT -->
@@ -115,7 +120,7 @@
         <div class="field-row">
           <input type="email" name="email" inputmode="email" autocomplete="email"
                  placeholder="you@email.com" aria-label="Email address" required />
-          <button type="submit">Get the daily drop</button>
+          <button type="submit" data-magnetic>Get the daily drop</button>
         </div>
         <input type="text" name="name" autocomplete="name" placeholder="First name (optional)" aria-label="First name" class="name" />
         <input type="text" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
