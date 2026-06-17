@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import sys
 
-from ai_scout.lib.config import env_value
+from ai_scout.lib.settings import Settings
 from ai_scout.services.evaluator import RankEvaluator
 from ai_scout.services.ranker import Ranker
 
 
 def main() -> int:
-    endpoint = env_value("FOUNDRY_PROJECT_ENDPOINT")
-    model = env_value("FOUNDRY_MODEL_NAME", "mini")
+    s = Settings()
     return RankEvaluator(Ranker(None, endpoint, model)).run()
 
 

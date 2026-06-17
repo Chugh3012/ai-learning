@@ -1,0 +1,15 @@
+{% if theme %}Today's throughline: {{ theme }}
+
+{% endif %}
+{%- for r in rows %}
+{{ r.idx }}. {{ r.title }}
+{% if r.lesson %}   💡 {{ r.lesson }}
+{% endif %}
+{%- if r.try_it %}   🔧 Try: {{ r.try_it }}
+{% endif %}
+{%- if r.conn %}   ↪ Related: {{ r.conn[0] }}
+{% endif %}
+   {{ r.url }}
+{% if r.fb %}   feedback: 👍 {{ r.up }}  |  👎 {{ r.down }}  |  ⭐ {{ r.save }}
+{% endif %}
+{% endfor %}

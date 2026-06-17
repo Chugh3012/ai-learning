@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from ai_scout.domain.profile import Profile
+from ai_scout.lib.settings import Settings
 from ai_scout.services.brief_builder import BriefBuilder
 from ai_scout.services.producer import ContentProducer
 from ai_scout.repositories.feedback import FeedbackStore
@@ -16,7 +17,7 @@ class DeliveryContext:
     Orchestrator)."""
     profile: Profile
     items: list
-    env: dict
+    settings: Settings
     brief_builder: BriefBuilder
     feedback_store: FeedbackStore
     producer: ContentProducer

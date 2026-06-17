@@ -35,7 +35,7 @@ def make_sink(channel: str) -> Sink:
 class Orchestrator:
     def __init__(self, kb: KnowledgeBase, registry: UserRegistry, embedder: Embedder,
                  selector: Selector, brief_builder: BriefBuilder, producer: ContentProducer,
-                 feedback_store: FeedbackStore, env: dict):
+                 feedback_store: FeedbackStore, settings):
         self.kb = kb
         self.registry = registry
         self.embedder = embedder
@@ -43,7 +43,7 @@ class Orchestrator:
         self.brief_builder = brief_builder
         self.producer = producer
         self.feedback_store = feedback_store
-        self.env = env
+        self.settings = settings
 
     def run(self, targets: set[str] | None = None) -> int:
         """targets=None => SCHEDULED pass: skip on-demand profiles, honor each cadence.
@@ -66,7 +66,7 @@ class Orchestrator:
                 if not items:
                     print(f"deliver: nothing clears {p.lens} (min_score={p.min_score:g}) — quiet")
                     continue
-                ctx = DeliveryContext(p, items, self.env, self.brief_builder,
+                ctx = DeliveryContext(p, items, self.settings, self.brief_builder,
                                       self.feedback_store, self.producer)
                 if sink.deliver(ctx):
                     self.kb.mark_sent(p.lens, [it.id for it in items])

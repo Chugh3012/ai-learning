@@ -1,0 +1,19 @@
+<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:640px">
+<h2 style="margin:0 0 4px">ai-scout — today's learning brief</h2>
+{% if theme %}
+<p style="color:#0a66c2;font-size:14px;font-weight:600;margin:0 0 16px">✨ {{ theme }}</p>
+{% else %}
+<p style="color:#666;margin:0 0 16px">New ways to use AI, ranked for you.</p>
+{% endif %}
+{% for r in rows %}
+<div style="margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #ececec">
+  <div style="font-weight:600;font-size:16px;color:#111;line-height:1.35"><span style="color:#0a66c2">{{ r.idx }}.</span> {{ r.title }}</div>
+  {% if r.lesson %}<div style="color:#333;font-size:14px;line-height:1.55;margin:8px 0">💡 {{ r.lesson }}</div>{% endif %}
+  {% if r.try_it %}<div style="background:#eef4ff;border-left:3px solid #0a66c2;padding:8px 12px;margin:8px 0;font-size:13px;color:#0a3d6e;border-radius:3px">🔧 <b>Try:</b> {{ r.try_it }}</div>{% endif %}
+  <div style="margin:8px 0 0;font-size:13px"><a href="{{ r.src }}" style="color:#0a66c2;text-decoration:none;font-weight:600">Read the source →</a></div>
+  {% if r.conn %}<div style="color:#999;font-size:12px;margin:6px 0 0">↪ Related to an earlier pick: {{ r.conn[0] }}</div>{% endif %}
+  {% if r.fb %}<div style="margin-top:10px;font-size:13px"><a href="{{ r.up }}" style="text-decoration:none;margin-right:16px">👍 more</a><a href="{{ r.down }}" style="text-decoration:none;margin-right:16px">👎 less</a><a href="{{ r.save }}" style="text-decoration:none">⭐ save</a></div>{% endif %}
+</div>
+{% endfor %}
+<p style="color:#999;font-size:12px">ai-scout · daily learning brief</p>
+</div>

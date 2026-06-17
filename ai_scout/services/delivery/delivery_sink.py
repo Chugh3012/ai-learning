@@ -15,7 +15,7 @@ class DeliverySink(Sink):
         p = ctx.profile
         rows = [(it.id, it.title, it.url) for it in ctx.items]
         brief = ctx.brief_builder.build(p.lens, ctx.items)
-        feedback_url = ctx.env.get("FEEDBACK_URL", "")
+        feedback_url = ctx.settings.feedback_url
         tokens = ctx.feedback_store.mint_tokens(p.lens, rows) if feedback_url else {}
         plain, body_html = BriefBuilder.render(ctx.items, brief, feedback_url, tokens)
         return self._emit(ctx, plain, body_html, rows)

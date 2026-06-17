@@ -7,10 +7,10 @@ from ai_scout.services.delivery.sink import DeliveryContext
 
 class EmailSink(DeliverySink):
     def _emit(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
-        env, p = ctx.env, ctx.profile
-        acs_endpoint = env.get("ACS_ENDPOINT", "")
-        sender = env.get("EMAIL_SENDER", "")
-        to = env.get(p.email_var or "EMAIL_TO", "")
+        s, p = ctx.settings, ctx.profile
+        acs_endpoint = s.acs_endpoint
+        sender = s.email_sender
+        to = s.email_address(p.email_var)
         if not (acs_endpoint and sender and to):
             print("deliver: email channel not configured for recipient; skipped")
             return False

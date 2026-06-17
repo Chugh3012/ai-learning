@@ -5,8 +5,11 @@ description = "Owned, passwordless, cost-efficient AI/LLM scanning + ranking + p
 requires-python = ">=3.13"
 dynamic = ["dependencies"]
 
-[tool.setuptools]
-packages = ["ai_scout"]
+[tool.setuptools.packages.find]
+include = ["ai_scout*"]
+
+[tool.setuptools.package-data]
+"ai_scout.services" = ["templates/*.j2"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

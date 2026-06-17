@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from ai_scout.lib.config import load_env
+from ai_scout.lib.settings import Settings
 from ai_scout.repositories.blob import BlobStore
 from ai_scout.repositories.feedback import FeedbackStore
 from ai_scout.repositories.knowledge import KnowledgeBase
@@ -56,12 +56,12 @@ def main(argv=None) -> int:
             pass
 
     args = _parse_args(argv)
-    env = load_env()
-    endpoint = env.get("FOUNDRY_PROJECT_ENDPOINT", "")
-    model = env.get("FOUNDRY_MODEL_NAME", "nano")
-    embed_model = env.get("FOUNDRY_EMBED_NAME", "embed")
+    s = Settings()
+    endpoint = s.foundry_project_endpoint
+    model = s.foundry_model_name
+    embed_model = s.foundry_embed_name
 
-    blob = BlobStore(env.get("STORAGE_ACCOUNT", ""), env.get("BLOB_CONTAINER", "knowledge"))
+    blob = BlobStore(s.storage_account, s.blob_container)
     use_blob = not args.no_upload and blob.enabled
     if use_blob:
         blob.download_kb()
@@ -74,7 +74,7 @@ def main(argv=None) -> int:
         Embedder(kb, endpoint, embed_model).embed_unembedded(args.embed_max)
 
     registry = UserRegistry.load()
-    feedback_store = FeedbackStore(env.get("FEEDBACK_STORAGE", ""))
+    feedback_store = FeedbackStore(s.feedback_storage)
 
     if args.feedback:
         FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses())
@@ -83,7 +83,7 @@ def main(argv=None) -> int:
         orchestrator = Orchestrator(
             kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb),
             BriefBuilder(kb, endpoint, model), ContentProducer(kb, endpoint, model),
-            feedback_store, env)
+            feedback_store, s)
         if args.deliver:
             orchestrator.run()
         if args.produce:

@@ -7,14 +7,22 @@ pure-stdlib pass over the embedding table for connect-the-dots; both degrade gra
 """
 from __future__ import annotations
 
-import html
 import json
+from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader
 
 from ai_scout.domain.brief import Brief, Card
 from ai_scout.lib import foundry
 from ai_scout.lib.text import clean, fulltext
 from ai_scout.lib.vectors import unpack, dot
 from ai_scout.repositories.knowledge import KnowledgeBase
+
+_TEMPLATES = Path(__file__).resolve().parent / "templates"
+_HTML_TMPL = Environment(loader=FileSystemLoader(str(_TEMPLATES)), autoescape=True,
+                         trim_blocks=True, lstrip_blocks=True).get_template("brief.html.j2")
+_TXT_TMPL = Environment(loader=FileSystemLoader(str(_TEMPLATES)), autoescape=False,
+                        trim_blocks=True, lstrip_blocks=True).get_template("brief.txt.j2")
 
 _ACTIONS = ("up", "down", "save", "click")
 _LESSON_SYSTEM = (
@@ -109,78 +117,24 @@ class BriefBuilder:
     @staticmethod
     def render(items: list, brief: Brief, feedback_url: str = "",
                tokens: dict[int, dict[str, str]] | None = None) -> tuple[str, str]:
-        """Return (plain_text, html) for the learning brief. Pure presentation; degrades when
-        fields are empty. `items` are ScoredItem; tokens map item_id->action->token."""
+        """Return (plain_text, html) for the learning brief via Jinja2 templates. Pure
+        presentation; degrades when fields are empty. `items` are ScoredItem; tokens map
+        item_id->action->token."""
         tokens = tokens or {}
-        connections = brief.connections or {}
         fb = bool(feedback_url and tokens)
-
-        def link(item_id: int, action: str) -> str:
-            return f"{feedback_url}?t={tokens[item_id][action]}"
-
-        text_lines: list[str] = []
-        html_lines = [
-            '<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:640px">',
-            '<h2 style="margin:0 0 4px">ai-scout \u2014 today\u2019s learning brief</h2>',
-        ]
-        if brief.theme:
-            text_lines.append(f"Today's throughline: {brief.theme}\n")
-            html_lines.append(
-                f'<p style="color:#0a66c2;font-size:14px;font-weight:600;margin:0 0 16px">'
-                f'\u2728 {html.escape(brief.theme)}</p>')
-        else:
-            html_lines.append('<p style="color:#666;margin:0 0 16px">New ways to use AI, ranked for you.</p>')
-
+        rows = []
         for idx, it in enumerate(items, 1):
-            item_id, title, url = it.id, it.title, it.url
-            card = brief.cards.get(item_id)
-            lesson = card.lesson if card else ""
-            try_it = card.try_it if card else ""
-            conn = connections.get(item_id)
-            src = link(item_id, "click") if fb else url
-
-            text_lines.append(f"{idx}. {title}")
-            if lesson:
-                text_lines.append(f"   \U0001f4a1 {lesson}")
-            if try_it:
-                text_lines.append(f"   \U0001f527 Try: {try_it}")
-            if conn:
-                text_lines.append(f"   \u21aa Related: {conn[0]}")
-            text_lines.append(f"   {url}")
-            if fb:
-                text_lines.append(
-                    f"   feedback: \U0001f44d {link(item_id, 'up')}  |  \U0001f44e "
-                    f"{link(item_id, 'down')}  |  \u2b50 {link(item_id, 'save')}")
-            text_lines.append("")
-
-            row = [
-                '<div style="margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #ececec">',
-                '<div style="font-weight:600;font-size:16px;color:#111;line-height:1.35">'
-                f'<span style="color:#0a66c2">{idx}.</span> {html.escape(title)}</div>',
-            ]
-            if lesson:
-                row.append('<div style="color:#333;font-size:14px;line-height:1.55;margin:8px 0">'
-                           f'\U0001f4a1 {html.escape(lesson)}</div>')
-            if try_it:
-                row.append('<div style="background:#eef4ff;border-left:3px solid #0a66c2;'
-                           'padding:8px 12px;margin:8px 0;font-size:13px;color:#0a3d6e;border-radius:3px">'
-                           f'\U0001f527 <b>Try:</b> {html.escape(try_it)}</div>')
-            row.append(
-                '<div style="margin:8px 0 0;font-size:13px">'
-                f'<a href="{html.escape(src)}" style="color:#0a66c2;text-decoration:none;font-weight:600">'
-                'Read the source \u2192</a></div>')
-            if conn:
-                row.append('<div style="color:#999;font-size:12px;margin:6px 0 0">'
-                           f'\u21aa Related to an earlier pick: {html.escape(conn[0])}</div>')
-            if fb:
-                row.append(
-                    '<div style="margin-top:10px;font-size:13px">'
-                    f'<a href="{html.escape(link(item_id, "up"))}" style="text-decoration:none;margin-right:16px">\U0001f44d more</a>'
-                    f'<a href="{html.escape(link(item_id, "down"))}" style="text-decoration:none;margin-right:16px">\U0001f44e less</a>'
-                    f'<a href="{html.escape(link(item_id, "save"))}" style="text-decoration:none">\u2b50 save</a>'
-                    '</div>')
-            row.append('</div>')
-            html_lines.append("".join(row))
-
-        html_lines.append('<p style="color:#999;font-size:12px">ai-scout \u00b7 daily learning brief</p></div>')
-        return "\n".join(text_lines), "\n".join(html_lines)
+            card = brief.cards.get(it.id)
+            links = ({a: f"{feedback_url}?t={tokens[it.id][a]}"
+                      for a in ("up", "down", "save", "click")} if fb else {})
+            rows.append({
+                "idx": idx, "title": it.title, "url": it.url,
+                "lesson": card.lesson if card else "",
+                "try_it": card.try_it if card else "",
+                "conn": brief.connections.get(it.id),
+                "src": links.get("click", it.url) if fb else it.url,
+                "up": links.get("up"), "down": links.get("down"), "save": links.get("save"),
+                "fb": fb,
+            })
+        ctx = {"theme": brief.theme, "rows": rows}
+        return _TXT_TMPL.render(**ctx).strip() + "\n", _HTML_TMPL.render(**ctx)
