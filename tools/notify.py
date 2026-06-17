@@ -76,17 +76,17 @@ def _lessons(endpoint: str, deployment: str, items: list[tuple]) -> tuple[str, d
         "better. Turn the items into cards that TEACH, not summaries.\n"
         "First write THEME: one short line (<=14 words) naming the throughline across today's "
         "items — the pattern a curious reader should notice (no hype, only what the items show).\n"
-        "Then for EACH item write a card with three fields:\n"
+        "Then for EACH item write a card with two fields:\n"
         "  lesson: 1-2 sentences — the concrete takeaway/technique/insight to apply or understand "
         "(lead with the 'how'/'so what'; for a personal account, surface the craft — the prompt, "
-        "instruction, or workflow choice — as the lesson).\n"
+        "instruction, or workflow choice — as the lesson). Self-contained: the reader should get "
+        "the point without needing a separate description.\n"
         "  try: ONE imperative line a reader could actually do in ~30 seconds to feel the idea "
         "(a prompt to test, a setting to flip, a question to ask the model). Empty string if the "
         "item genuinely has nothing to try (news/release).\n"
-        "  what: ONE line of plain context — what the thing is.\n"
         "Be concrete, non-hyped, grounded in the provided text; never invent specifics. Return "
-        "ONLY JSON: {\"theme\":\"<line>\",\"cards\":[{\"id\":<int>,\"lesson\":\"..\",\"try\":\"..\","
-        "\"what\":\"..\"}, ...]} for every id."
+        "ONLY JSON: {\"theme\":\"<line>\",\"cards\":[{\"id\":<int>,\"lesson\":\"..\",\"try\":\"..\"}, "
+        "...]} for every id."
     )
     try:
         resp = client.chat.completions.create(
@@ -111,7 +111,7 @@ def _lessons(endpoint: str, deployment: str, items: list[tuple]) -> tuple[str, d
 
 
 def _connections(con: sqlite3.Connection, user_id: str,
-                 selected: list[dict], min_cos: float = 0.55) -> dict[int, tuple[str, str]]:
+                 selected: list[dict], min_cos: float = 0.62) -> dict[int, tuple[str, str]]:
     """Connect-the-dots: link each of today's picks to the most similar item this user was
     ALREADY sent (the owned, embedded history nobody else has). Returns {item_id: (past_title,
     past_url)} for pairs whose cosine >= min_cos. Pure-stdlib over the embedding table; no model
@@ -142,15 +142,24 @@ def _connections(con: sqlite3.Connection, user_id: str,
     past = [(pid, t, u, v) for pid, t, u, v in past if pid not in today_set and v]
     if not past:
         return {}
-    out: dict[int, tuple[str, str]] = {}
+    # Score every (today, past) pair, then assign greedily strongest-first so each PAST item is
+    # referenced at most ONCE across the digest (no repeated 'Related to ...' lines).
+    pairs = []
     for iid, tvec in today_vecs.items():
-        best, best_cos = None, min_cos
         for pid, title, url, pvec in past:
             c = dot(tvec, unpack(pvec))
-            if c >= best_cos:
-                best, best_cos = (title, url), c
-        if best:
-            out[iid] = best
+            if c >= min_cos:
+                pairs.append((c, iid, pid, title, url))
+    pairs.sort(reverse=True)
+    out: dict[int, tuple[str, str]] = {}
+    used_today: set[int] = set()
+    used_past: set[int] = set()
+    for _c, iid, pid, title, url in pairs:
+        if iid in used_today or pid in used_past:
+            continue
+        out[iid] = (title, url)
+        used_today.add(iid)
+        used_past.add(pid)
     return out
 
 
@@ -195,8 +204,8 @@ def _render(items: list[tuple], theme: str, cards: dict[int, dict],
             feedback_url: str = "", tokens: dict[int, dict[str, str]] | None = None,
             ) -> tuple[str, str]:
     """Return (plain_text, html) for a LEARNING BRIEF: a one-line throughline header, then a
-    card per item (💡 lesson · 🔧 try this · 📄 what it is · 🔗 builds on a past pick), with
-    👍/👎/save + source links. Both renderings degrade gracefully when fields are empty."""
+    card per item (💡 lesson · 🔧 try this · ↪ related past pick), with 👍/👎/save + source links.
+    Both renderings degrade gracefully when fields are empty."""
     tokens = tokens or {}
     connections = connections or {}
     fb = bool(feedback_url and tokens)
@@ -221,7 +230,6 @@ def _render(items: list[tuple], theme: str, cards: dict[int, dict],
         card = cards.get(item_id) or {}
         lesson = card.get("lesson", "")
         try_it = card.get("try", "")
-        what = card.get("what", "")
         conn = connections.get(item_id)
         src = link(item_id, "click") if fb else url
 
@@ -231,10 +239,8 @@ def _render(items: list[tuple], theme: str, cards: dict[int, dict],
             text_lines.append(f"   \U0001f4a1 {lesson}")
         if try_it:
             text_lines.append(f"   \U0001f527 Try: {try_it}")
-        if what:
-            text_lines.append(f"   \U0001f4c4 {what}")
         if conn:
-            text_lines.append(f"   \U0001f517 Builds on: {conn[0]}")
+            text_lines.append(f"   \u21aa Related: {conn[0]}")
         text_lines.append(f"   {url}")
         if fb:
             text_lines.append(
@@ -244,31 +250,29 @@ def _render(items: list[tuple], theme: str, cards: dict[int, dict],
 
         # ---- html card ----
         row = [
-            '<div style="margin:0 0 18px;padding:0 0 14px;border-bottom:1px solid #eee">',
-            f'<div style="font-weight:600;font-size:15px">{html.escape(title)}</div>',
+            '<div style="margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #ececec">',
+            '<div style="font-weight:600;font-size:16px;color:#111;line-height:1.35">'
+            f'<span style="color:#0a66c2">{idx}.</span> {html.escape(title)}</div>',
         ]
         if lesson:
-            row.append('<div style="color:#222;font-size:14px;line-height:1.5;margin:6px 0">'
+            row.append('<div style="color:#333;font-size:14px;line-height:1.55;margin:8px 0">'
                        f'\U0001f4a1 {html.escape(lesson)}</div>')
         if try_it:
-            row.append('<div style="background:#f4f8ff;border-left:3px solid #0a66c2;'
-                       'padding:6px 10px;margin:6px 0;font-size:13px;color:#0a3d6e">'
+            row.append('<div style="background:#eef4ff;border-left:3px solid #0a66c2;'
+                       'padding:8px 12px;margin:8px 0;font-size:13px;color:#0a3d6e;border-radius:3px">'
                        f'\U0001f527 <b>Try:</b> {html.escape(try_it)}</div>')
-        if what:
-            row.append('<div style="color:#777;font-size:13px;margin:4px 0">'
-                       f'\U0001f4c4 {html.escape(what)}</div>')
+        row.append(
+            '<div style="margin:8px 0 0;font-size:13px">'
+            f'<a href="{html.escape(src)}" style="color:#0a66c2;text-decoration:none;font-weight:600">'
+            'Read the source \u2192</a></div>')
         if conn:
-            conn_link = html.escape(conn[1] or "#")
-            row.append('<div style="color:#999;font-size:12px;margin:4px 0">'
-                       f'\U0001f517 Builds on: <a href="{conn_link}" '
-                       f'style="color:#999">{html.escape(conn[0])}</a></div>')
-        row.append(f'<a href="{html.escape(src)}" style="color:#0a66c2;font-size:13px">'
-                   'Read the source \u2192</a>')
+            row.append('<div style="color:#999;font-size:12px;margin:6px 0 0">'
+                       f'\u21aa Related to an earlier pick: {html.escape(conn[0])}</div>')
         if fb:
             row.append(
-                '<div style="margin-top:8px;font-size:13px">'
-                f'<a href="{html.escape(link(item_id, "up"))}" style="text-decoration:none;margin-right:14px">👍 more</a>'
-                f'<a href="{html.escape(link(item_id, "down"))}" style="text-decoration:none;margin-right:14px">👎 less</a>'
+                '<div style="margin-top:10px;font-size:13px">'
+                f'<a href="{html.escape(link(item_id, "up"))}" style="text-decoration:none;margin-right:16px">👍 more</a>'
+                f'<a href="{html.escape(link(item_id, "down"))}" style="text-decoration:none;margin-right:16px">👎 less</a>'
                 f'<a href="{html.escape(link(item_id, "save"))}" style="text-decoration:none">⭐ save</a>'
                 '</div>')
         row.append('</div>')

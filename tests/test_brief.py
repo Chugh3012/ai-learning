@@ -14,34 +14,33 @@ class TestRenderBrief(unittest.TestCase):
     def test_cards_throughline_and_connection_in_output(self):
         items = [(1, "Drop your system prompt", "http://x/1")]
         cards = {1: {"lesson": "Deleting the system prompt improved reliability.",
-                     "try": "Remove your system message and compare 5 outputs.",
-                     "what": "A practitioner's writeup."}}
+                     "try": "Remove your system message and compare 5 outputs."}}
         conn = {1: ("Last week: prompt-as-questions", "http://x/old")}
         plain, html_out = notify._render(items, "Less instruction, more reliability", cards,
                                          conn, feedback_url="", tokens={})
         # throughline present in both
         self.assertIn("Less instruction, more reliability", plain)
         self.assertIn("Less instruction, more reliability", html_out)
-        # the three card fields + connection render in plain text
+        # the two card fields + connection render in plain text
         self.assertIn("Deleting the system prompt", plain)
         self.assertIn("Try:", plain)
-        self.assertIn("Builds on: Last week: prompt-as-questions", plain)
-        # html escapes + includes the try-box and source link
+        self.assertIn("Related: Last week: prompt-as-questions", plain)
+        # html includes the try-box and source link
         self.assertIn("Try:", html_out)
         self.assertIn("Read the source", html_out)
 
     def test_empty_fields_degrade_gracefully(self):
         items = [(2, "Just a release", "http://x/2")]
-        cards = {2: {"lesson": "", "try": "", "what": ""}}
+        cards = {2: {"lesson": "", "try": ""}}
         plain, html_out = notify._render(items, "", cards, {}, "", {})
         self.assertIn("Just a release", plain)        # title still shown
         self.assertIn("http://x/2", plain)            # link still shown
         self.assertNotIn("Try:", plain)               # no empty try line
-        self.assertNotIn("Builds on:", plain)         # no connection
+        self.assertNotIn("Related:", plain)           # no connection
 
     def test_feedback_links_render_when_configured(self):
         items = [(3, "Item", "http://x/3")]
-        cards = {3: {"lesson": "L", "try": "", "what": ""}}
+        cards = {3: {"lesson": "L", "try": ""}}
         tokens = {3: {"up": "U", "down": "D", "save": "S", "click": "C"}}
         plain, html_out = notify._render(items, "", cards, {}, "https://fb", tokens)
         self.assertIn("https://fb?t=U", plain)
@@ -88,6 +87,17 @@ class TestConnections(unittest.TestCase):
         self._add(con, 1, "Today", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=False)
         out = notify._connections(con, "primary", [{"id": 1}], min_cos=0.5)
         self.assertEqual(out, {})                     # only previously-SENT items can be linked
+
+    def test_each_past_item_referenced_at_most_once(self):
+        con = self._db()
+        # one past item close to BOTH of today's picks; only the strongest pairing should win
+        self._add(con, 10, "Shared past", embed._normalize([1.0, 0.0] + [0.0] * 254), sent=True)
+        self._add(con, 1, "Today A", embed._normalize([1.0, 0.02] + [0.0] * 254), sent=False)
+        self._add(con, 2, "Today B", embed._normalize([1.0, 0.20] + [0.0] * 254), sent=False)
+        out = notify._connections(con, "primary", [{"id": 1}, {"id": 2}], min_cos=0.5)
+        # the past item 'Shared past' appears for only ONE of the two (no repeated lines)
+        refs = [v[0] for v in out.values()]
+        self.assertEqual(refs.count("Shared past"), 1)
 
 
 if __name__ == "__main__":
