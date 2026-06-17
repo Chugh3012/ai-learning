@@ -7,7 +7,6 @@ upstream in the Orchestrator + Selector; this only PRODUCES. Depends on a Knowle
 from __future__ import annotations
 
 import json
-import re
 import time
 
 from ai_scout.lib import foundry
@@ -18,43 +17,16 @@ _CONTENT = CONFIG_DIR / "content.yml"
 
 
 def load_format(name: str) -> dict:
-    """Tiny reader for the flat formats file (avoids a yaml dependency). Each format carries a
-    `temperature` scalar and any number of `key: >` folded blocks (e.g. `instruction`)."""
-    formats: dict[str, dict] = {}
-    cur: str | None = None
-    block_key: str | None = None
-    blocks: dict[str, list[str]] = {}
-
-    def flush() -> None:
-        if cur:
-            for k, lines in blocks.items():
-                formats[cur][k] = " ".join(lines).strip()
-
-    for raw in _CONTENT.read_text(encoding="utf-8").splitlines():
-        if not raw.strip() or raw.strip().startswith("#"):
-            continue
-        m = re.match(r"^  (\w[\w-]*):\s*$", raw)
-        if m:
-            flush()
-            cur, block_key, blocks = m.group(1), None, {}
-            formats[cur] = {"temperature": 0.6, "instruction": ""}
-            continue
-        t = re.match(r"^    temperature:\s*([\d.]+)\s*$", raw)
-        if t and cur:
-            formats[cur]["temperature"] = float(t.group(1))
-            block_key = None
-            continue
-        b = re.match(r"^    (\w[\w-]*):\s*>\s*$", raw)
-        if b and cur:
-            block_key = b.group(1)
-            blocks[block_key] = []
-            continue
-        if block_key and raw.startswith("      "):
-            blocks[block_key].append(raw.strip())
-    flush()
+    """Load a content FORMAT (production recipe) from config/content.yml. Each format carries a
+    `temperature` and an `instruction` (the model prompt)."""
+    import yaml
+    formats = (yaml.safe_load(_CONTENT.read_text(encoding="utf-8")) or {}).get("formats", {})
     if name not in formats:
         raise KeyError(f"content format '{name}' not found in {_CONTENT.name}")
-    return formats[name]
+    fmt = dict(formats[name])
+    fmt.setdefault("temperature", 0.6)
+    fmt.setdefault("instruction", "")
+    return fmt
 
 
 class ContentProducer:

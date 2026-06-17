@@ -35,21 +35,27 @@ def tag_text(text: str, rules: dict[str, list[str]]) -> list[str]:
     return [t for t, kws in rules.items() if any(k in low for k in kws)] or ["other"]
 
 
+def _is_retryable(feed) -> bool:
+    """Retry only TRANSIENT failures: HTTP 429/5xx, or a connection-level bozo with no status.
+    A feed that returned entries (success) or a permanent status (403/404) is not retried."""
+    if feed is None or getattr(feed, "entries", None):
+        return False
+    status = getattr(feed, "status", None)
+    return status in _RETRY_STATUS or bool(getattr(feed, "bozo", 0) and status is None)
+
+
 def _fetch_feed(url: str, attempts: int = 3):
-    """Parse a feed, retrying ONLY on transient failures (HTTP 429/5xx, or a connection-level
-    bozo with no status). Linear backoff, capped."""
+    """Parse a feed, retrying transient failures via tenacity (linear backoff, capped). Returns
+    the last feed on exhaustion rather than raising."""
     import feedparser
-    feed = feedparser.parse(url, agent=_UA)
-    tries = 1
-    while tries < attempts and not feed.entries:
-        status = getattr(feed, "status", None)
-        transient = status in _RETRY_STATUS or (getattr(feed, "bozo", 0) and status is None)
-        if not transient:
-            break
-        time.sleep(min(1.5 * tries, 5))
-        feed = feedparser.parse(url, agent=_UA)
-        tries += 1
-    return feed
+    from tenacity import Retrying, stop_after_attempt, wait_incrementing, retry_if_result
+    retryer = Retrying(
+        stop=stop_after_attempt(attempts),
+        wait=wait_incrementing(start=1.5, increment=1.5, max=5),
+        retry=retry_if_result(_is_retryable),
+        retry_error_callback=lambda state: state.outcome.result(),
+    )
+    return retryer(lambda: feedparser.parse(url, agent=_UA))
 
 
 class Ingestor:

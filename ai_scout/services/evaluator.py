@@ -5,8 +5,11 @@ regress. Depends on a Ranker (DI). Metrics: spearman, ndcg@5, prec@5, nonai_leak
 from __future__ import annotations
 
 import json
-import math
 import time
+
+import numpy as np
+from scipy.stats import spearmanr
+from sklearn.metrics import ndcg_score
 
 from ai_scout.lib.config import CONFIG_DIR, FOUNDRY_DIR
 from ai_scout.services.ranker import Ranker, BATCH
@@ -17,43 +20,25 @@ _THRESHOLDS = CONFIG_DIR / "eval.json"
 
 
 def _spearman(pairs: list[tuple[float, float]]) -> float:
-    n = len(pairs)
-    if n < 2:
+    """Spearman rank correlation of model score vs target tier (scipy, average-rank ties)."""
+    if len(pairs) < 2:
         return 0.0
-
-    def ranks(vals: list[float]) -> list[float]:
-        order = sorted(range(n), key=lambda i: vals[i])
-        r = [0.0] * n
-        i = 0
-        while i < n:
-            j = i
-            while j + 1 < n and vals[order[j + 1]] == vals[order[i]]:
-                j += 1
-            for k in range(i, j + 1):
-                r[order[k]] = (i + j) / 2 + 1
-            i = j + 1
-        return r
-
-    rs, rt = ranks([p[0] for p in pairs]), ranks([p[1] for p in pairs])
-    mrs, mrt = sum(rs) / n, sum(rt) / n
-    cov = sum((rs[i] - mrs) * (rt[i] - mrt) for i in range(n))
-    vs = sum((rs[i] - mrs) ** 2 for i in range(n)) ** 0.5
-    vt = sum((rt[i] - mrt) ** 2 for i in range(n)) ** 0.5
-    return cov / (vs * vt) if vs and vt else 0.0
+    rho = spearmanr([p[0] for p in pairs], [p[1] for p in pairs]).statistic
+    return 0.0 if rho != rho else float(rho)  # nan (constant input) -> 0.0
 
 
 def _ndcg_at(scored: list[dict], k: int) -> float:
-    srt = sorted(scored, key=lambda it: it["score"], reverse=True)
-    dcg = sum((2 ** it["tier"] - 1) / math.log2(i + 2) for i, it in enumerate(srt[:k]))
-    ideal = sorted(scored, key=lambda it: it["tier"], reverse=True)
-    idcg = sum((2 ** it["tier"] - 1) / math.log2(i + 2) for i, it in enumerate(ideal[:k]))
-    return dcg / idcg if idcg else 0.0
+    """NDCG@k with EXPONENTIAL gain (2^tier - 1), via sklearn: passing 2^tier-1 as the relevance
+    to sklearn's linear-gain DCG reproduces exponential-gain NDCG exactly (gate value unchanged)."""
+    if len(scored) < 2:
+        return 0.0
+    y_true = np.array([[2 ** it["tier"] - 1 for it in scored]], dtype=float)
+    y_score = np.array([[it["score"] for it in scored]], dtype=float)
+    return float(ndcg_score(y_true, y_score, k=k))
 
 
 def _median(xs: list[float]) -> float:
-    s = sorted(xs)
-    n = len(s)
-    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
+    return float(np.median(xs))
 
 
 class RankEvaluator:
