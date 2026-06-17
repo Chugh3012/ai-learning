@@ -289,8 +289,10 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           type: 'blobContainer'
           value: '${fnStorage.properties.primaryEndpoints.blob}app-package-fnaiscoutfb-5507037'
           authentication: {
-            type: 'StorageAccountConnectionString'
-            storageAccountConnectionStringName: 'DEPLOYMENT_STORAGE_CONNECTION_STRING'
+            // Passwordless: the Function's system-assigned identity pulls the deployment
+            // package (no connection string / account key). Requires Storage Blob Data
+            // Contributor on fnStorage for this identity (granted below).
+            type: 'SystemAssignedIdentity'
           }
         }
       }
@@ -367,6 +369,28 @@ resource fnStorageTableIdentityRole 'Microsoft.Authorization/roleAssignments@202
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
     principalId: managedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Role Assignments - Storage Blob Data Contributor on Function Storage (Flex deployment package,
+// pulled passwordless by the Function's system-assigned identity; the user can publish too).
+resource fnStorageBlobFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(fnStorage.id, functionApp.id, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  scope: fnStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource fnStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(fnStorage.id, userPrincipalId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+  scope: fnStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+    principalId: userPrincipalId
+    principalType: 'User'
   }
 }
 
