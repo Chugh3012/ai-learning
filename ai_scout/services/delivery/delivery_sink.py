@@ -14,7 +14,8 @@ class DeliverySink(Sink):
         brief = ctx.brief_builder.build(p.lens, ctx.items)
         feedback_url = ctx.settings.feedback_url
         tokens = ctx.feedback_store.mint_tokens(p.lens, rows) if feedback_url else {}
-        plain, body_html = BriefBuilder.render(ctx.items, brief, feedback_url, tokens)
+        unsub = self._unsubscribe_url(ctx)
+        plain, body_html = BriefBuilder.render(ctx.items, brief, feedback_url, tokens, unsub)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         header = (f"# ai-scout — {p.label} — {today}\n\n"
                   f"_{len(rows)} items from the shared ranking, reordered by this profile's "
@@ -22,6 +23,12 @@ class DeliverySink(Sink):
         footer = f"\n\n<!-- items: {','.join(str(r[0]) for r in rows)} -->\n"
         self._write_digest(ctx, f"{p.filesafe_lens}-{today}.md", header + plain + footer)
         return self._notify(ctx, plain, body_html, rows)
+
+    @staticmethod
+    def _unsubscribe_url(ctx: DeliveryContext) -> str:
+        base = getattr(ctx.settings, "unsubscribe_url", "")
+        token = getattr(ctx.profile, "unsubscribe_token", "")
+        return f"{base}?t={token}" if (base and token) else ""
 
     def _write_digest(self, ctx: DeliveryContext, name: str, md: str) -> None:
         if ctx.blob is not None and ctx.blob.enabled:

@@ -32,10 +32,40 @@ class BlobStore:
         if not self.enabled:
             print("note: STORAGE_ACCOUNT not set — skipped Blob upload")
             return
+        blob = self._service().get_blob_client(self.container, "kb.sqlite")
         with open(KB_PATH, "rb") as f:
-            self._service().get_blob_client(self.container, "kb.sqlite").upload_blob(
-                f, overwrite=True)
+            blob.upload_blob(f, overwrite=True)
         print("uploaded kb.sqlite to Blob")
+        # Timestamped recovery point on top of overwrite (versioning also protects the
+        # account; an explicit daily snapshot gives an obvious restore target). Graceful.
+        try:
+            snap = blob.create_snapshot()
+            print(f"snapshot: kb.sqlite @ {snap.get('snapshot')}")
+        except Exception as e:
+            print(f"snapshot: skipped ({e})")
+
+    def list_snapshots(self) -> list[str]:
+        if not self.enabled:
+            return []
+        cc = self._service().get_container_client(self.container)
+        snaps = [b.snapshot for b in cc.list_blobs(name_starts_with="kb.sqlite",
+                                                   include=["snapshots"])
+                 if getattr(b, "snapshot", None)]
+        return sorted(snaps)
+
+    def restore_snapshot(self, snapshot: str | None = None) -> str:
+        # Restore kb.sqlite from a snapshot (latest if none given) into the local KB path.
+        # Returns the snapshot id restored, or "" if there was nothing to restore.
+        if not self.enabled:
+            return ""
+        snapshot = snapshot or (self.list_snapshots() or [None])[-1]
+        if not snapshot:
+            return ""
+        blob = self._service().get_blob_client(self.container, "kb.sqlite", snapshot=snapshot)
+        KB_DIR.mkdir(parents=True, exist_ok=True)
+        with open(KB_PATH, "wb") as f:
+            f.write(blob.download_blob().readall())
+        return snapshot
 
     def put_text(self, path: str, text: str) -> bool:
         if not self.enabled:

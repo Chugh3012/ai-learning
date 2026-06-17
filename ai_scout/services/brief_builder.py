@@ -108,7 +108,8 @@ class BriefBuilder:
 
     @staticmethod
     def render(items: list, brief: Brief, feedback_url: str = "",
-               tokens: dict[int, dict[str, str]] | None = None) -> tuple[str, str]:
+               tokens: dict[int, dict[str, str]] | None = None,
+               unsubscribe_url: str = "") -> tuple[str, str]:
         tokens = tokens or {}
         fb = bool(feedback_url and tokens)
         rows = []
@@ -125,5 +126,5 @@ class BriefBuilder:
                 "up": links.get("up"), "down": links.get("down"), "save": links.get("save"),
                 "fb": fb,
             })
-        ctx = {"theme": brief.theme, "rows": rows}
+        ctx = {"theme": brief.theme, "rows": rows, "unsubscribe": unsubscribe_url}
         return _TXT_TMPL.render(**ctx).strip() + "\n", _HTML_TMPL.render(**ctx)

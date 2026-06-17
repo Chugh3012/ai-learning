@@ -13,3 +13,6 @@
 {% if r.fb %}   feedback: 👍 {{ r.up }}  |  👎 {{ r.down }}  |  ⭐ {{ r.save }}
 {% endif %}
 {% endfor %}
+{% if unsubscribe %}
+Unsubscribe: {{ unsubscribe }}
+{% endif %}

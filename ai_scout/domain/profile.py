@@ -17,6 +17,7 @@ class Profile(BaseModel):
     interest: str = ""
     email_var: str | None = None
     email: str = ""
+    unsubscribe_token: str = ""
     self_review: bool = False
 
     @property
@@ -44,5 +45,6 @@ class Profile(BaseModel):
             interest=str(raw.get("interest", "")),
             email_var=raw.get("email_var"),
             email=str(raw.get("email", "")),
+            unsubscribe_token=str(raw.get("unsubscribe_token", "")),
             self_review=bool(raw.get("self_review", False)),
         )

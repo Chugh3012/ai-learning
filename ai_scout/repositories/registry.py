@@ -33,6 +33,7 @@ class UserRegistry:
             if not uid:
                 continue
             email = str(s.get("email") or "")
+            token = str(s.get("token") or "")
             raw = s.get("profiles")
             if raw:
                 profiles = [Profile(
@@ -41,11 +42,13 @@ class UserRegistry:
                     name=str(p.get("name", "")), top=int(p.get("top", 5)),
                     min_score=float(p.get("min_score", 0)), interest=str(p.get("interest", "")),
                     self_review=bool(p.get("self_review", False)), email=email,
+                    unsubscribe_token=token,
                 ) for p in raw]
             elif email:
                 profiles = [Profile(user_id=uid, id="prf_daily", channel="email",
                                     cadence=Cadence.DAILY, name="Daily edition", top=5,
-                                    min_score=55, interest="", email=email)]
+                                    min_score=55, interest="", email=email,
+                                    unsubscribe_token=token)]
             else:
                 continue
             self._users.append(User(id=uid, name=str(s.get("name") or ""),

@@ -5,6 +5,7 @@ import time
 
 _ACTIONS = ("up", "down", "save", "click")
 _ACTION_TO_ROW = {"up": "vote", "down": "vote", "save": "save", "click": "click"}
+_TOKEN_TTL = 90 * 24 * 3600  # feedback links are valid for 90 days, then purged
 
 class FeedbackStore:
 
@@ -33,6 +34,8 @@ class FeedbackStore:
             print(f"deliver: feedback tokens unavailable ({e}); sending plain links")
             return {}
         out: dict[int, dict[str, str]] = {}
+        now = int(time.time())
+        expires = now + _TOKEN_TTL
         try:
             for item_id, _title, url in items:
                 per: dict[str, str] = {}
@@ -41,7 +44,7 @@ class FeedbackStore:
                     table.upsert_entity(
                         {"PartitionKey": "tok", "RowKey": tok, "lens": lens,
                          "itemId": int(item_id), "action": action, "url": url,
-                         "ts": int(time.time())},
+                         "ts": now, "expiresTs": expires},
                         mode=UpdateMode.REPLACE,
                     )
                     per[action] = tok
@@ -50,6 +53,28 @@ class FeedbackStore:
             print(f"deliver: token minting failed ({e}); sending plain links")
             return {}
         return out
+
+    def purge_expired_tokens(self) -> int:
+        # Delete feedback tokens past their TTL so the table stays bounded. Tokens minted
+        # before expiresTs existed fall back to ts + TTL. Best-effort + graceful.
+        if not self.enabled:
+            return 0
+        try:
+            from azure.data.tables import UpdateMode  # noqa: F401
+            table = self._table("feedbacktokens")
+            cutoff = int(time.time()) - _TOKEN_TTL
+            removed = 0
+            for e in table.query_entities(
+                    "PartitionKey eq 'tok' and ts lt @cut", parameters={"cut": cutoff}):
+                try:
+                    table.delete_entity("tok", str(e["RowKey"]))
+                    removed += 1
+                except Exception:
+                    continue
+            return removed
+        except Exception as e:
+            print(f"cleanup: token purge skipped ({e})")
+            return 0
 
     def drain_events(self) -> list[tuple[int, str, str, float]]:
         if not self.enabled:

@@ -1,9 +1,11 @@
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ai_scout.services import evaluator
+from ai_scout.cli import evaluate
 
 class TestMedian(unittest.TestCase):
     def test_odd_count_picks_middle(self):
@@ -29,6 +31,20 @@ class TestNdcg(unittest.TestCase):
     def test_ideal_ordering_is_one(self):
         scored = [{"score": 90, "tier": 2}, {"score": 80, "tier": 1}, {"score": 10, "tier": 0}]
         self.assertAlmostEqual(evaluator._ndcg_at(scored, 5), 1.0, places=6)
+
+class TestRequiredConfig(unittest.TestCase):
+    def test_missing_endpoint_flagged(self):
+        s = SimpleNamespace(foundry_project_endpoint="", foundry_model_name="mini")
+        self.assertIn("FOUNDRY_PROJECT_ENDPOINT", evaluate.required_config_missing(s))
+
+    def test_missing_model_flagged(self):
+        s = SimpleNamespace(foundry_project_endpoint="https://x", foundry_model_name="")
+        self.assertIn("FOUNDRY_MODEL_NAME", evaluate.required_config_missing(s))
+
+    def test_complete_config_passes(self):
+        # endpoint + model present, and the committed golden set + eval.json exist in repo
+        s = SimpleNamespace(foundry_project_endpoint="https://x", foundry_model_name="mini")
+        self.assertEqual(evaluate.required_config_missing(s), [])
 
 if __name__ == "__main__":
     unittest.main()

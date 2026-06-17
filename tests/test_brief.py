@@ -27,6 +27,23 @@ class TestRenderBrief(unittest.TestCase):
         self.assertIn("Try:", html_out)
         self.assertIn("Read the source", html_out)
 
+    def test_unsubscribe_footer_rendered_when_url_given(self):
+        items = [ScoredItem(id=1, title="A pick", url="http://x/1")]
+        brief = Brief(theme="", cards={}, connections={})
+        url = "https://fn.example.net/api/unsubscribe?t=abc123"
+        plain, html_out = BriefBuilder.render(items, brief, unsubscribe_url=url)
+        self.assertIn(url, plain)
+        self.assertIn("Unsubscribe", plain)
+        self.assertIn(url, html_out)
+        self.assertIn(">unsubscribe<", html_out)
+
+    def test_no_unsubscribe_footer_without_url(self):
+        items = [ScoredItem(id=1, title="A pick", url="http://x/1")]
+        brief = Brief(theme="", cards={}, connections={})
+        plain, html_out = BriefBuilder.render(items, brief)
+        self.assertNotIn("Unsubscribe", plain)
+        self.assertNotIn(">unsubscribe<", html_out)
+
 class TestConnections(unittest.TestCase):
     def _kb(self):
         fd, path = tempfile.mkstemp(suffix=".sqlite")

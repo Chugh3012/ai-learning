@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+_PENDING_TTL = 7 * 24 * 3600  # un-confirmed signups are dropped after a week
+
 class SubscriberStore:
 
     def __init__(self, account: str):
@@ -58,9 +60,32 @@ class SubscriberStore:
                     "email": email,
                     "name": str(u.get("name", "")),
                     "kind": str(u.get("kind") or "subscriber"),
+                    "token": str(u.get("token", "")),
                     "profiles": profiles,
                 })
             return out
         except Exception as e:
             print(f"subscribers: read failed ({e})")
             return []
+
+    def purge_stale_pending(self) -> int:
+        # Drop un-confirmed signups whose confirmation window has lapsed. Best-effort.
+        if not self.enabled:
+            return 0
+        try:
+            import time
+            table = self._service().get_table_client("subscribers")
+            cutoff = int(time.time()) - _PENDING_TTL
+            removed = 0
+            for e in table.query_entities(
+                    "PartitionKey eq 'pending' and createdTs lt @cut",
+                    parameters={"cut": cutoff}):
+                try:
+                    table.delete_entity("pending", str(e["RowKey"]))
+                    removed += 1
+                except Exception:
+                    continue
+            return removed
+        except Exception as e:
+            print(f"cleanup: pending purge skipped ({e})")
+            return 0
