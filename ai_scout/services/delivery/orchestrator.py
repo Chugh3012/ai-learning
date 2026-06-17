@@ -86,6 +86,12 @@ class Orchestrator:
             subs = store.confirmed()
             if not subs:
                 return 0
+            # the owner already gets the public edition via the normal loop (EMAIL_TO);
+            # don't double-send if they also subscribed with that address.
+            owner = (self.settings.email_to or "").strip().lower()
+            subs = [(e, n) for e, n in subs if e.strip().lower() != owner]
+            if not subs:
+                return 0
             interest_vec = self.embedder.embed_interest(prof.interest)
             items = self.selector.select(prof.lens, prof.top, prof.min_score, interest_vec, weight)
             if not items:
