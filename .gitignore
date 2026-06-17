@@ -7,9 +7,6 @@
 __pycache__/
 *.pyc
 
-# FreshRSS persistent data (system of record)
-data/freshrss/
-
 # Owned knowledge base (P3) and generated outputs (P2/P4/P5)
 data/kb/
 digests/

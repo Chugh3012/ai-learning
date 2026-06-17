@@ -1,14 +1,14 @@
-# ai-scout — discovery inbox (the "Jarvis" self-growth seam, PLAN.md).
+# ai-scout — discovery inbox (the "Jarvis" self-growth seam).
 #
-# tools/discover.py (kb_sync --discover) WRITES proposed sources here: external domains that
-# KB item links keep pointing to but we don't yet ingest, with an auto-discovered RSS/Atom feed.
-# Nothing here is live. You review, then approved entries are MERGED into sources.opml +
-# sources.yml and REMOVED from here (revise, don't append).
+# ai_scout/services/discoverer.py (sync --discover) WRITES proposed sources here: external domains
+# that KB item links keep pointing to but we don't yet ingest, with an auto-discovered RSS/Atom feed.
+# Nothing here is live. You review, then approved entries are MERGED into sources.opml and REMOVED
+# from here (revise, don't append).
 #
 # entry shape:
 #   - name: <label>
 #     candidate_url: <feed or site>
-#     kind: native | rsshub
+#     kind: native
 #     seen_count: <how often the system encountered it>
 #     reason: <why proposed>
 #     status: proposed   # proposed -> approved -> merged (then delete) | rejected

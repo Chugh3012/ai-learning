@@ -7,7 +7,7 @@
 # shape without touching code.
 #
 # Output is HUMAN-REVIEWED only. Actual publishing to any platform is a separate,
-# opt-in step (not built) — see PLAN.md "publishing".
+# opt-in step (not built).
 
 formats:
   social:

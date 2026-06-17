@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ai-scout curated sources — import into FreshRSS (or Folo).
-  Two kinds of feed:
-    1) Native RSS/Atom — work standalone.
-    2) RSSHub routes (xmlUrl starts with http://localhost:1200) — require the rsshub
-       container running (docker compose up). Swap host if RSSHub runs elsewhere.
-  GROWTH RULE: add a source = add ONE <outline> line here (see PLAN.md). Keep deduped.
+  ai-scout curated sources — native RSS/Atom feeds (feedparser ingest).
+  GROWTH RULE: add a source = add ONE <outline> line here. Keep deduped.
 -->
 <opml version="2.0">
   <head>
