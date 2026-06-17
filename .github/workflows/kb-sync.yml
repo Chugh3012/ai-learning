@@ -5,7 +5,10 @@ name: kb-sync
 
 on:
   schedule:
-    - cron: "30 1 * * *"   # daily ~07:00 IST (01:30 UTC)
+    # Odd minute, off the top-of-hour/half-hour. GitHub's scheduler is best-effort and DROPS or
+    # heavily delays jobs queued at congested times (:00/:30); an uncommon minute fires far more
+    # reliably. ~07:07 IST.
+    - cron: "7 1 * * *"   # 01:07 UTC daily
   workflow_dispatch: {}
 
 permissions:
