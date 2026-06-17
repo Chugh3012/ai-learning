@@ -267,15 +267,15 @@ function noiseWall(c) {
     build();
   }
   function build() {
-    const gap = Math.max(16, Math.min(26, w / 36));
+    const gap = Math.max(13, Math.min(19, w / 48));
     const cols = Math.max(1, Math.floor(w / gap)), rows = Math.max(1, Math.floor(h / gap));
     const ox = (w - (cols - 1) * gap) / 2, oy = (h - (rows - 1) * gap) / 2;
     const total = cols * rows, sig = new Set();
-    while (sig.size < Math.min(5, total)) sig.add((Math.random() * total) | 0);
+    while (sig.size < Math.min(6, total)) sig.add((Math.random() * total) | 0);
     cells = [];
     let i = 0;
     for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) {
-      cells.push({ x: ox + xx * gap, y: oy + yy * gap, sig: sig.has(i), ph: Math.random() * 6.28 });
+      cells.push({ x: ox + xx * gap + (Math.random() - 0.5) * 2, y: oy + yy * gap + (Math.random() - 0.5) * 2, sig: sig.has(i), ph: Math.random() * 6.28 });
       i++;
     }
   }
@@ -293,13 +293,17 @@ function noiseWall(c) {
       const near = d < 130 ? 1 - d / 130 : 0;
       if (cell.sig) {
         const pulse = 0.6 + 0.4 * Math.sin(t * 2 + cell.ph);
-        ctx.globalAlpha = Math.min(1, 0.55 * pulse + near * 0.4);
+        const rr = 2.7 + 1.1 * pulse + near * 2;
+        ctx.globalAlpha = Math.min(1, 0.6 * pulse + near * 0.4);
         ctx.fillStyle = ACCENT;
-        ctx.beginPath(); ctx.arc(cell.x, cell.y, 2.6 + 1.1 * pulse + near * 2, 0, 6.2832); ctx.fill();
+        ctx.beginPath(); ctx.arc(cell.x, cell.y, rr, 0, 6.2832); ctx.fill();
+        ctx.globalAlpha = 0.18 + 0.22 * pulse + near * 0.4;
+        ctx.lineWidth = 1; ctx.strokeStyle = ACCENT;
+        ctx.beginPath(); ctx.arc(cell.x, cell.y, rr + 3.5 + 2 * pulse, 0, 6.2832); ctx.stroke();
       } else {
-        ctx.globalAlpha = 0.1 + near * 0.5;
-        ctx.fillStyle = near > 0.35 ? ACCENT : INK;
-        ctx.beginPath(); ctx.arc(cell.x, cell.y, 1.3 + near * 1.6, 0, 6.2832); ctx.fill();
+        ctx.globalAlpha = 0.17 + near * 0.5;
+        ctx.fillStyle = near > 0.4 ? ACCENT : INK;
+        ctx.beginPath(); ctx.arc(cell.x, cell.y, 1.15 + near * 1.6, 0, 6.2832); ctx.fill();
       }
     }
     ctx.globalAlpha = 1;

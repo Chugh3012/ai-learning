@@ -159,6 +159,8 @@ section { padding-inline: var(--gut); }
 .steps .num { font-family: var(--mono); font-size: 0.85rem; color: var(--accent-ink); letter-spacing: 0.1em; }
 .steps h3 { font-family: var(--serif); font-weight: 500; font-size: 1.9rem; margin: 0.5rem 0 0.6rem; letter-spacing: -0.01em; }
 .steps p { color: var(--ink-soft); max-width: 32ch; }
+.steps li:nth-child(2).reveal { transition-delay: 0.1s; }
+.steps li:nth-child(3).reveal { transition-delay: 0.2s; }
 
 /* ---- funnel ---- */
 .funnel { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(3.5rem, 9vw, 8rem); text-align: center; }
@@ -181,21 +183,22 @@ section { padding-inline: var(--gut); }
 .caption em { color: var(--accent-ink); font-style: italic; }
 
 /* ---- step glyphs ---- */
-.glyph { width: 46px; height: 46px; color: var(--ink); margin-bottom: 1rem; display: block; }
+.glyph { width: 56px; height: 56px; color: var(--ink); margin: 0.4rem 0 1.1rem; display: block; }
 .glyph .a { stroke: var(--accent); }
 .glyph circle.a { fill: var(--accent); stroke: none; }
 
 /* ---- learns / equalizer ---- */
 .learns { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(3.5rem, 9vw, 8rem); text-align: center; }
 .eq { display: flex; gap: 5px; justify-content: center; align-items: flex-end; height: 54px; margin-bottom: 1.5rem; }
-.eq span { width: 6px; height: 16px; background: var(--accent); border-radius: 2px; animation: eq 1.2s ease-in-out infinite; }
-.eq span:nth-child(2) { animation-delay: 0.15s; }
-.eq span:nth-child(3) { animation-delay: 0.3s; }
-.eq span:nth-child(4) { animation-delay: 0.45s; }
-.eq span:nth-child(5) { animation-delay: 0.6s; }
-.eq span:nth-child(6) { animation-delay: 0.3s; }
-.eq span:nth-child(7) { animation-delay: 0.1s; }
-@keyframes eq { 0%, 100% { height: 14px; } 50% { height: 48px; } }
+.eq span { width: 6px; height: 50px; background: var(--accent); border-radius: 2px; transform-origin: bottom; transform: scaleY(0.28); animation: eq 1.1s ease-in-out infinite; }
+.eq span:nth-child(1) { animation-duration: 1.0s; animation-delay: 0.00s; }
+.eq span:nth-child(2) { animation-duration: 1.4s; animation-delay: 0.20s; }
+.eq span:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.10s; }
+.eq span:nth-child(4) { animation-duration: 1.6s; animation-delay: 0.35s; }
+.eq span:nth-child(5) { animation-duration: 1.1s; animation-delay: 0.05s; }
+.eq span:nth-child(6) { animation-duration: 1.3s; animation-delay: 0.25s; }
+.eq span:nth-child(7) { animation-duration: 0.95s; animation-delay: 0.15s; }
+@keyframes eq { 0%, 100% { transform: scaleY(0.28); } 50% { transform: scaleY(1); } }
 
 /* ---- final cta ---- */
 .cta { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(4rem, 11vw, 10rem); text-align: center; border-top: 1px solid var(--line); }
