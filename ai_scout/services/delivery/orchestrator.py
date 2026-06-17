@@ -49,6 +49,8 @@ class Orchestrator:
                 interest_vec = self.embedder.embed_interest(p.interest)
                 items = self.selector.select(p.lens, p.top, p.min_score, interest_vec, weight)
                 if not items:
+                    if self.metrics is not None:
+                        self.metrics.add("delivered", 0, lens=p.lens, channel=p.channel)
                     print(f"deliver: nothing clears {p.lens} (min_score={p.min_score:g}) — quiet")
                     continue
                 ctx = DeliveryContext(p, items, self.settings, self.brief_builder,
@@ -58,5 +60,9 @@ class Orchestrator:
                     total += len(items)
                     if self.metrics is not None:
                         self.metrics.add("delivered", len(items), lens=p.lens, channel=p.channel)
+                        scores = [float(getattr(it, "score", 0) or 0) for it in items]
+                        if scores:
+                            self.metrics.add("relevance_delivered", sum(scores) / len(scores),
+                                             lens=p.lens, channel=p.channel)
                     print(f"deliver: {len(items)} -> {p.lens} ({p.channel})")
         return total

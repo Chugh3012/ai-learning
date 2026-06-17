@@ -35,3 +35,10 @@ def log_usage(stage: str, resp) -> None:
 
 def usage_snapshot() -> dict:
     return dict(_USAGE)
+
+_PRICE_IN_PER_M = 0.40
+_PRICE_OUT_PER_M = 1.60
+
+def cost_usd() -> float:
+    return (_USAGE["prompt"] / 1e6 * _PRICE_IN_PER_M
+            + _USAGE["completion"] / 1e6 * _PRICE_OUT_PER_M)

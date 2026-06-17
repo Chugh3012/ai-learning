@@ -56,9 +56,10 @@ def main(argv=None) -> int:
 
     metrics = Metrics(s.metrics_dce, s.metrics_dcr_rule_id, s.metrics_stream)
     kb = KnowledgeBase.open()
-    new_items, total = Ingestor(kb).sync()
+    ingestor = Ingestor(kb)
+    new_items, total = ingestor.sync()
     metrics.add("ingested", new_items)
-    metrics.add("items_total", total)
+    metrics.add("feeds_failed", ingestor.feeds_failed)
 
     if args.rank:
         metrics.add("ranked", Ranker(kb, endpoint, model).score_unscored(args.days, args.rank_max))
@@ -83,6 +84,16 @@ def main(argv=None) -> int:
     if args.discover:
         SourceDiscoverer(kb).discover()
 
+    for k, v in kb.metrics_snapshot().items():
+        metrics.add(k, v)
+    for lens in registry.feedback_lenses():
+        eng = kb.engagement(lens)
+        for k, v in eng.items():
+            metrics.add(f"engaged_{k}", v, lens=lens)
+        reached = eng["votes"] + eng["saves"] + eng["clicks"]
+        if eng["sent"]:
+            metrics.add("keep_rate", reached / eng["sent"], lens=lens)
+
     kb.close()
     print(f"sync: +{new_items} new, {total} total items")
 
@@ -90,6 +101,7 @@ def main(argv=None) -> int:
     metrics.add("tokens_total", u["total"])
     metrics.add("tokens_prompt", u["prompt"])
     metrics.add("tokens_completion", u["completion"])
+    metrics.add("cost_usd", foundry.cost_usd())
     metrics.flush()
 
     if use_blob:

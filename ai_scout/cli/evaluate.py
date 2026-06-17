@@ -6,6 +6,7 @@ import sys
 from ai_scout.lib.config import FOUNDRY_DIR
 from ai_scout.lib.metrics import Metrics
 from ai_scout.lib.settings import Settings
+from ai_scout.lib import foundry
 from ai_scout.services.evaluator import RankEvaluator
 from ai_scout.services.ranker import Ranker
 
@@ -18,6 +19,7 @@ def main() -> int:
         for k, v in data.get("metrics", {}).items():
             metrics.add(f"eval_{k}", v)
         metrics.add("eval_pass", 1 if code == 0 else 0)
+        metrics.add("eval_cost_usd", foundry.cost_usd())
         metrics.flush()
     except Exception:
         pass

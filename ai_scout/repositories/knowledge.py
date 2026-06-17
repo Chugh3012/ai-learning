@@ -208,3 +208,25 @@ class KnowledgeBase:
     def item_links(self) -> list[str]:
         return [r[0] for r in self.con.execute(
             "SELECT url FROM item WHERE url LIKE 'http%'").fetchall()]
+
+    def metrics_snapshot(self) -> dict:
+        one = lambda q: self.con.execute(q).fetchone()[0]
+        return {
+            "items_total": one("SELECT COUNT(*) FROM item"),
+            "sources_total": one("SELECT COUNT(*) FROM source"),
+            "ranked_total": one("SELECT COUNT(DISTINCT item_id) FROM signal WHERE kind='relevance'"),
+            "embedded_total": one("SELECT COUNT(*) FROM embedding"),
+            "topics_total": one("SELECT COUNT(DISTINCT topic) FROM tag"),
+        }
+
+    def engagement(self, lens: str) -> dict:
+        def c(kind: str) -> int:
+            return self.con.execute(
+                "SELECT COUNT(*) FROM signal WHERE kind=?", (kind,)).fetchone()[0]
+        return {
+            "sent": c(f"sent:{lens}"),
+            "votes": c(f"fb_vote:{lens}"),
+            "saves": c(f"fb_save:{lens}"),
+            "clicks": c(f"fb_click:{lens}"),
+            "skips": c(f"fb_skip:{lens}"),
+        }

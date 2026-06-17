@@ -48,6 +48,8 @@ def _fetch_feed(url: str, attempts: int = 3):
 class Ingestor:
     def __init__(self, kb: KnowledgeBase):
         self.kb = kb
+        self.sources_total = 0
+        self.feeds_failed = 0
 
     def sync(self) -> tuple[int, int]:
         rules = config_json("tags.json").get("topics", {})
@@ -76,6 +78,8 @@ class Ingestor:
                         self.kb.add_tag(item_id, topic)
             self.kb.commit()
         ok = len(sources) - len(empty)
+        self.sources_total = len(sources)
+        self.feeds_failed = len(empty)
         print(f"fetch: {ok}/{len(sources)} sources returned entries")
         if empty:
             print("fetch: EMPTY (no entries — possible block/dead feed): " + "; ".join(empty))
