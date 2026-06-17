@@ -1,0 +1,12 @@
+[project]
+name = "ai-scout"
+version = "0.1.0"
+description = "Owned, passwordless, cost-efficient AI/LLM scanning + ranking + personalized delivery pipeline."
+requires-python = ">=3.13"
+dynamic = ["dependencies"]
+
+[tool.setuptools]
+packages = ["ai_scout"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
