@@ -6,6 +6,7 @@ and version-controlled independently of the code.
 """
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -48,3 +49,11 @@ def env_value(key: str, default: str = "") -> str:
     if key in os.environ:
         return os.environ[key]
     return _parse_env_file(ENV_FILE).get(key, default)
+
+
+def config_json(name: str) -> dict:
+    """Read a JSON config file from config/ (e.g. 'feedback.json'); {} on any failure."""
+    try:
+        return json.loads((CONFIG_DIR / name).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
