@@ -546,6 +546,20 @@ resource metricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   }
 }
 
+// Azure Monitor Workbook — the free, Entra-authed dashboard (For you / Ops), as code.
+resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
+  name: guid(resourceGroup().id, 'ai-scout-pipeline-workbook')
+  location: appLocation
+  kind: 'shared'
+  properties: {
+    displayName: 'ai-scout pipeline'
+    serializedData: loadTextContent('workbook.json')
+    category: 'workbooks'
+    sourceId: logAnalytics.id
+    version: 'Notebook/1.0'
+  }
+}
+
 // RBAC - Monitoring Metrics Publisher on the DCR (pipeline identity + user can ship metrics)
 resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(metricsDcr.id, managedIdentity.id, '3913510d-42f4-4e42-8a64-420c390055eb')
@@ -583,3 +597,4 @@ output logAnalyticsId string = logAnalytics.id
 output metricsDceEndpoint string = metricsDce.properties.logsIngestion.endpoint
 output metricsDcrImmutableId string = metricsDcr.properties.immutableId
 output metricsStream string = 'Custom-AiScoutMetrics_CL'
+output workbookId string = workbook.id

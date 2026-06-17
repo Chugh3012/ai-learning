@@ -1,0 +1,128 @@
+{
+  "version": "Notebook/1.0",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "items": [
+    { "type": 1, "name": "hdr-owner", "content": { "json": "## For you (owner)\nWhat the pipeline is delivering to you, and how useful it is." } },
+    {
+      "type": 3, "name": "keep-rate",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'keep_rate' | summarize Value=avg(Value) by bin(TimeGenerated, 1d), Lens | order by TimeGenerated asc",
+        "size": 0, "title": "Keep-rate — share of delivered items you engaged with",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "relevance",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'relevance_delivered' | summarize Value=avg(Value) by bin(TimeGenerated, 1d), Lens | order by TimeGenerated asc",
+        "size": 0, "title": "Relevance of what you were sent (avg score of delivered)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "delivered",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'delivered' | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Lens | order by TimeGenerated asc",
+        "size": 0, "title": "Delivered per profile (0 = a quiet day)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "engagement",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('engaged_votes','engaged_saves','engaged_clicks','engaged_skips') | summarize Value=max(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "Engagement gestures (cumulative): votes / saves / clicks / skips",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "cost",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('cost_usd','eval_cost_usd') | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "Cost per run (USD) — pipeline + eval",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "breadth",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'topics_total' | summarize Value=max(Value) by bin(TimeGenerated, 1d) | order by TimeGenerated asc",
+        "size": 0, "title": "Learning breadth — distinct topics in the KB",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    { "type": 1, "name": "hdr-ops", "content": { "json": "## Pipeline health (ops)\nIngestion, ranking quality, and spend." } },
+    {
+      "type": 3, "name": "funnel",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('ingested','ranked','embedded') | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "Feed funnel — ingested / ranked / embedded (per run)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "totals",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('items_total','sources_total') | summarize Value=max(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "KB totals — items / sources",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "feeds-failed",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'feeds_failed' | summarize Value=max(Value) by bin(TimeGenerated, 1d) | order by TimeGenerated asc",
+        "size": 0, "title": "Feeds failing per run (dead / blocked sources)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "eval-quality",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('eval_spearman','eval_ndcg5','eval_prec5') | summarize Value=avg(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "Ranking quality (eval gate): spearman / ndcg5 / prec5",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "leak",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric == 'eval_nonai_leak' | summarize Value=avg(Value) by bin(TimeGenerated, 1d) | order by TimeGenerated asc",
+        "size": 0, "title": "Non-AI leak (eval, lower is better)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3, "name": "tokens",
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "AiScoutMetrics_CL | where Metric in ('tokens_prompt','tokens_completion') | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc",
+        "size": 0, "title": "Foundry tokens — prompt / completion (per run)",
+        "timeContext": { "durationMs": 2592000000 },
+        "queryType": 0, "resourceType": "microsoft.operationalinsights/workspaces", "visualization": "timechart"
+      }
+    }
+  ]
+}
