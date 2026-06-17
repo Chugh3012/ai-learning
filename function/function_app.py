@@ -84,6 +84,32 @@ def _subscribers():
         pass
     return svc.get_table_client(_SUBSCRIBERS)
 
+def _profiles():
+    svc = _tables()
+    try:
+        svc.create_table_if_not_exists("profiles")
+    except Exception:
+        pass
+    return svc.get_table_client("profiles")
+
+def _ensure_default_profile(user_id: str) -> None:
+    # Give a newly-confirmed subscriber their own profile row (one user -> many profiles).
+    # No-op if they already have profiles (e.g. admin/builder seeded with curated feeds).
+    if not user_id:
+        return
+    try:
+        profs = _profiles()
+        existing = list(profs.query_entities("PartitionKey eq @uid", parameters={"uid": user_id}))
+        if existing:
+            return
+        profs.upsert_entity({
+            "PartitionKey": user_id, "RowKey": "prf_daily",
+            "name": "Daily edition", "channel": "email", "cadence": "daily",
+            "top": 5, "min_score": 55, "interest": "", "self_review": False,
+        }, mode=UpdateMode.REPLACE)
+    except Exception:
+        logging.exception("confirm: default profile create failed")
+
 def _api_base(req: func.HttpRequest) -> str:
     override = os.environ.get("SUBSCRIBE_API_BASE", "")
     if override:
@@ -312,6 +338,8 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     except Exception:
         logging.exception("confirm: activate failed")
         return _page("Temporary error, please try again.", ok=False)
+
+    _ensure_default_profile(user_id)
 
     # Trigger this new user's first edition right away (graceful if no cache yet).
     if _send_welcome(email):

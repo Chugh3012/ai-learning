@@ -122,6 +122,13 @@ resource subscribersTable 'Microsoft.Storage/storageAccounts/tableServices/table
   parent: fnTables
 }
 
+// Per-user profiles (one user -> many): PartitionKey = userId, RowKey = profileId. Keeps
+// profiles a first-class table alongside the subscribers (user) table rather than a JSON blob.
+resource profilesTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  name: 'profiles'
+  parent: fnTables
+}
+
 // Cached generic top-5 edition the pipeline writes and the subscribe Function reads to send
 // each newly-confirmed user their first email instantly (no wait for the next daily run).
 resource editionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
