@@ -1,10 +1,3 @@
-"""BriefBuilder — turns the day's picks into a LEARNING BRIEF (theme + teaching cards + connections)
-and renders it to plain text + HTML for the delivery sinks.
-
-`build()` makes one batched Foundry call for the throughline + per-item lesson/try, and a
-pure-stdlib pass over the embedding table for connect-the-dots; both degrade gracefully to empty.
-`render()` is pure presentation. Depends on a KnowledgeBase (DI).
-"""
 from __future__ import annotations
 
 import json
@@ -42,7 +35,6 @@ _LESSON_SYSTEM = (
     "...]} for every id."
 )
 
-
 class BriefBuilder:
     def __init__(self, kb: KnowledgeBase, endpoint: str, model: str):
         self.kb = kb
@@ -60,7 +52,7 @@ class BriefBuilder:
             return "", {}
         try:
             client = foundry.openai_client(self.endpoint)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"email: lesson client failed ({e}); sending titles only")
             return "", {}
         listing = "\n\n".join(
@@ -77,7 +69,7 @@ class BriefBuilder:
                                         try_it=str(c.get("try", "")).strip())
                      for c in data.get("cards", [])}
             return str(data.get("theme", "")).strip(), cards
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             print(f"email: lesson generation failed ({e}); sending titles only")
             return "", {}
 
@@ -117,9 +109,6 @@ class BriefBuilder:
     @staticmethod
     def render(items: list, brief: Brief, feedback_url: str = "",
                tokens: dict[int, dict[str, str]] | None = None) -> tuple[str, str]:
-        """Return (plain_text, html) for the learning brief via Jinja2 templates. Pure
-        presentation; degrades when fields are empty. `items` are ScoredItem; tokens map
-        item_id->action->token."""
         tokens = tokens or {}
         fb = bool(feedback_url and tokens)
         rows = []

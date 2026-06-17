@@ -1,10 +1,3 @@
-"""Orchestrator — drives delivery across every profile from the ONE shared ranking.
-
-Cadence-gates each profile, selects its items through the Selector, and hands them to the
-profile's Sink. Adding a channel (or a future autonomous publisher) is a new Sink subclass + one
-registry row — no change here. All collaborators are injected at construction (DI), so the same
-Orchestrator backs the CLI today and a FastAPI route later.
-"""
 from __future__ import annotations
 
 import time
@@ -23,14 +16,11 @@ from ai_scout.services.delivery.draft_sink import DraftSink
 
 _SINKS: dict[str, type[Sink]] = {"email": EmailSink, "digest": DigestSink, "draft": DraftSink}
 
-
 def make_sink(channel: str) -> Sink:
-    """Factory: resolve a channel name to its Sink adapter."""
     cls = _SINKS.get(channel)
     if cls is None:
         raise ValueError(f"unknown delivery channel '{channel}'")
     return cls()
-
 
 class Orchestrator:
     def __init__(self, kb: KnowledgeBase, registry: UserRegistry, embedder: Embedder,
@@ -46,9 +36,6 @@ class Orchestrator:
         self.settings = settings
 
     def run(self, targets: set[str] | None = None) -> int:
-        """targets=None => SCHEDULED pass: skip on-demand profiles, honor each cadence.
-        targets set (of `<user_id>:<profile_id>` lenses) => MANUAL pass: run exactly those,
-        bypassing cadence. Returns total items delivered/produced."""
         weight = interest_weight()
         now = int(time.time())
         total = 0

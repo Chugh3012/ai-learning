@@ -1,12 +1,10 @@
-"""domain + registry — surrogate ids, role resolution, cadence, lens helpers (offline)."""
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.cadence import Cadence  # noqa: E402
-from ai_scout.repositories.registry import UserRegistry  # noqa: E402
-
+from ai_scout.domain.cadence import Cadence
+from ai_scout.repositories.registry import UserRegistry
 
 class TestRegistry(unittest.TestCase):
     def setUp(self):
@@ -15,16 +13,16 @@ class TestRegistry(unittest.TestCase):
     def test_users_have_opaque_ids_and_roles(self):
         roles = {u.role for u in self.reg.users}
         self.assertIn("owner", roles)
-        self.assertIn("maintainer", roles)
+        self.assertIn("builder", roles)
         for u in self.reg.users:
             self.assertTrue(u.id.startswith("usr_"))
             for p in u.profiles:
                 self.assertTrue(p.id.startswith("prf_"))
 
     def test_user_by_role(self):
-        m = self.reg.user_by_role("maintainer")
+        m = self.reg.user_by_role("builder")
         self.assertIsNotNone(m)
-        self.assertEqual(m.role, "maintainer")
+        self.assertEqual(m.role, "builder")
         self.assertIsNone(self.reg.user_by_role("nobody"))
 
     def test_lens_is_composite_and_filesafe(self):
@@ -39,7 +37,7 @@ class TestRegistry(unittest.TestCase):
         self.assertIsNone(self.reg.find_profile("usr_x:prf_y"))
 
     def test_profile_for_role_prefers_self_review(self):
-        prof = self.reg.profile_for_role("maintainer")
+        prof = self.reg.profile_for_role("builder")
         self.assertTrue(prof.self_review)
 
     def test_feedback_lenses_excludes_draft(self):
@@ -49,7 +47,6 @@ class TestRegistry(unittest.TestCase):
                 self.assertNotIn(p.lens, fl)
             else:
                 self.assertIn(p.lens, fl)
-
 
 class TestCadence(unittest.TestCase):
     def test_daily_due_when_never_sent_or_old(self):
@@ -70,7 +67,6 @@ class TestCadence(unittest.TestCase):
 
     def test_unknown_cadence_defaults_daily(self):
         self.assertIs(Cadence.from_name("nope"), Cadence.DAILY)
-
 
 if __name__ == "__main__":
     unittest.main()

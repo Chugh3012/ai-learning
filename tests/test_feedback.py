@@ -1,4 +1,3 @@
-"""services.FeedbackService — implicit 'skip' aging + affinity recompute (offline, sqlite :memory:)."""
 import os
 import sys
 import tempfile
@@ -7,22 +6,19 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories.feedback import FeedbackStore  # noqa: E402
-from ai_scout.repositories.knowledge import KnowledgeBase  # noqa: E402
-from ai_scout.services.feedback_service import FeedbackService  # noqa: E402
+from ai_scout.repositories.feedback import FeedbackStore
+from ai_scout.repositories.knowledge import KnowledgeBase
+from ai_scout.services.feedback_service import FeedbackService
 
 LENS = "usr_x:prf_main"
-
 
 def _kb():
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
     return KnowledgeBase.open(path)
 
-
 def _svc(kb):
     return FeedbackService(kb, FeedbackStore(""))
-
 
 class TestAgeSkips(unittest.TestCase):
     def setUp(self):
@@ -67,7 +63,6 @@ class TestAgeSkips(unittest.TestCase):
         svc._age_skips(LENS, self.now)
         self.assertEqual(self._skips(), [])
 
-
 class TestRecomputeAffinity(unittest.TestCase):
     def setUp(self):
         self.kb = _kb()
@@ -105,7 +100,6 @@ class TestRecomputeAffinity(unittest.TestCase):
         self.kb.con.commit()
         _svc(self.kb)._recompute_affinity(LENS, self.now)
         self.assertLessEqual(abs(self._aff().get(1, 0)), 20.0001)
-
 
 if __name__ == "__main__":
     unittest.main()

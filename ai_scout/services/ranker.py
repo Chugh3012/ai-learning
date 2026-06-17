@@ -1,9 +1,3 @@
-"""Ranker — scores each new KB item 0-100 for shared relevance (the quality gate) via Foundry.
-
-The calibrated SIGNAL-vs-NOISE rubric is the SYSTEM prompt; it is graded by the eval gate
-(RankEvaluator), so a prompt change can't silently regress. Incremental, batched, cost-capped,
-graceful (no-op if unconfigured), passwordless. Depends on a KnowledgeBase (DI).
-"""
 from __future__ import annotations
 
 import json
@@ -44,10 +38,7 @@ SYSTEM = (
     "{\"scores\":[{\"id\":<int>,\"s\":<0-100>}, ...]} for every id given."
 )
 
-
 class Ranker:
-    """Scores items via a Foundry chat model. Inject the KB + project endpoint + deployment.
-    `kb` may be None for score-only use (the evaluator scores a golden set, not the KB)."""
 
     def __init__(self, kb: KnowledgeBase | None, endpoint: str, model: str):
         self.kb = kb
@@ -86,7 +77,6 @@ class Ranker:
         return out
 
     def score_unscored(self, days: int, max_items: int) -> int:
-        """Score recent, not-yet-scored items. Returns count scored (0 if ranking unavailable)."""
         if not self.endpoint:
             return 0
         rows = self.kb.unscored_recent(days, max_items)
@@ -94,7 +84,7 @@ class Ranker:
             return 0
         try:
             self.client()
-        except Exception as e:  # noqa: BLE001 — ranking is optional, never break the pipeline
+        except Exception as e:
             print(f"rank: skipped (client init failed: {e})")
             return 0
         now = int(time.time())
@@ -103,7 +93,7 @@ class Ranker:
             batch = rows[start:start + BATCH]
             try:
                 scores = self.score_batch(batch)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 print(f"rank: batch failed, stopping ({e})")
                 break
             for item_id, _t, _s in batch:

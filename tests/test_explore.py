@@ -1,20 +1,17 @@
-"""Selector explore/exploit — reserve slots for stochastic exploration (offline)."""
 import random
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.item import ScoredItem  # noqa: E402
-from ai_scout.services.selector import Selector  # noqa: E402
+from ai_scout.domain.item import ScoredItem
+from ai_scout.services.selector import Selector
 
 SEL = Selector(None)
-
 
 def _items(scores):
     return [ScoredItem(id=i, title=f"item {i}", score=s, source_id=i, topic=f"t{i}")
             for i, s in enumerate(scores)]
-
 
 class TestExploreExploit(unittest.TestCase):
     def test_pure_exploit_when_ratio_zero(self):
@@ -50,7 +47,6 @@ class TestExploreExploit(unittest.TestCase):
         scores = [d.score for d in out]
         self.assertEqual(scores, sorted(scores, reverse=True))
 
-
 class TestWeightedSample(unittest.TestCase):
     def test_favors_higher_score_on_average(self):
         items = _items([100, 1, 1, 1])
@@ -61,7 +57,6 @@ class TestWeightedSample(unittest.TestCase):
     def test_without_replacement(self):
         out = SEL._weighted_sample(_items([10, 9, 8]), 3, random.Random(0))
         self.assertEqual(sorted(d.id for d in out), [0, 1, 2])
-
 
 if __name__ == "__main__":
     unittest.main()

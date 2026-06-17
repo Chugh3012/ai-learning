@@ -1,4 +1,3 @@
-"""services.SourceDiscoverer — domain tally + proposals.yml merge (offline, no network)."""
 import os
 import sys
 import tempfile
@@ -6,9 +5,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories.knowledge import KnowledgeBase  # noqa: E402
-from ai_scout.services import discoverer as disc  # noqa: E402
-
+from ai_scout.repositories.knowledge import KnowledgeBase
+from ai_scout.services import discoverer as disc
 
 def _kb(urls):
     fd, path = tempfile.mkstemp(suffix=".sqlite")
@@ -17,7 +15,6 @@ def _kb(urls):
     kb.con.executemany("INSERT INTO item(url) VALUES(?)", [(u,) for u in urls])
     kb.con.commit()
     return kb
-
 
 class TestCandidateDomains(unittest.TestCase):
     def test_tallies_external_domains_over_threshold(self):
@@ -35,7 +32,6 @@ class TestCandidateDomains(unittest.TestCase):
         out = dict(disc.SourceDiscoverer(kb)._candidate_domains(skip={"mine.com"}, min_seen=3))
         self.assertNotIn("mine.com", out)
         self.assertNotIn("arxiv.org", out)
-
 
 class TestAppendProposals(unittest.TestCase):
     def test_replaces_placeholder_then_appends(self):
@@ -55,7 +51,6 @@ class TestAppendProposals(unittest.TestCase):
                 self.assertIn("newblog.dev", disc._already_proposed())
             finally:
                 disc._PROPOSALS = orig
-
 
 if __name__ == "__main__":
     unittest.main()

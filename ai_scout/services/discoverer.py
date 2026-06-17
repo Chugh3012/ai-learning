@@ -1,9 +1,3 @@
-"""SourceDiscoverer — mines recurring external link domains, autodiscovers their RSS/Atom feed,
-and proposes verified-live candidates into config/proposals.yml for HUMAN review.
-
-The pipeline grows its own intake instead of waiting for URLs; humans stay the gate. Stdlib +
-feedparser only; no network writes, never raises. Depends on a KnowledgeBase (DI).
-"""
 from __future__ import annotations
 
 import re
@@ -22,13 +16,11 @@ _FEED_PATHS = ("/feed", "/feed/", "/rss", "/rss.xml", "/atom.xml", "/index.xml",
 _SKIP = {"arxiv.org", "news.ycombinator.com", "github.com", "youtube.com", "youtu.be",
          "twitter.com", "x.com", "reddit.com", "producthunt.com", "medium.com"}
 
-
 def _domain(url: str) -> str:
     try:
         return urlparse(url).netloc.replace("www.", "").lower()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return ""
-
 
 def _our_domains() -> set[str]:
     out: set[str] = set()
@@ -37,18 +29,16 @@ def _our_domains() -> set[str]:
             u = o.get("xmlUrl")
             if u:
                 out.add(_domain(u))
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     return out
-
 
 def _already_proposed() -> set[str]:
     try:
         text = _PROPOSALS.read_text(encoding="utf-8")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return set()
     return {_domain(u) for u in re.findall(r"candidate_url:\s*(\S+)", text)}
-
 
 def _discover_feed(domain: str) -> str | None:
     import feedparser
@@ -64,7 +54,7 @@ def _discover_feed(domain: str) -> str | None:
                 href = re.search(r'href=["\']([^"\']+)["\']', tag, re.I)
                 if href:
                     candidates.append(urljoin(home, href.group(1)))
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     candidates += [urljoin(home, p) for p in _FEED_PATHS]
     seen: set[str] = set()
@@ -76,10 +66,9 @@ def _discover_feed(domain: str) -> str | None:
             f = feedparser.parse(url)
             if getattr(f, "entries", None):
                 return url
-        except Exception:  # noqa: BLE001
+        except Exception:
             continue
     return None
-
 
 def _append_proposals(found: list[dict]) -> None:
     text = _PROPOSALS.read_text(encoding="utf-8") if _PROPOSALS.exists() else "proposals: []\n"
@@ -98,7 +87,6 @@ def _append_proposals(found: list[dict]) -> None:
         text = text.rstrip("\n") + "\n" + block
     _PROPOSALS.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
 
-
 class SourceDiscoverer:
     def __init__(self, kb: KnowledgeBase):
         self.kb = kb
@@ -112,8 +100,6 @@ class SourceDiscoverer:
         return [(d, n) for d, n in counts.most_common() if n >= min_seen]
 
     def discover(self, min_seen: int = 3, max_probe: int = 25) -> int:
-        """Propose new feeds into proposals.yml from recurring external item-link domains.
-        Returns count proposed. Human reviews + merges. Never raises."""
         try:
             skip = _our_domains() | _already_proposed()
             candidates = self._candidate_domains(skip, min_seen)[:max_probe]
@@ -128,6 +114,6 @@ class SourceDiscoverer:
             print(f"discover: probed {len(candidates)} domain(s) (seen>={min_seen}); "
                   f"proposed {len(found)} new feed(s) -> config/proposals.yml")
             return len(found)
-        except Exception as e:  # noqa: BLE001 — discovery is optional, never break the pipeline
+        except Exception as e:
             print(f"discover: skipped ({e})")
             return 0

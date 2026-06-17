@@ -1,12 +1,10 @@
-"""services.ingest._fetch_feed — retry on transient HTTP failures only (offline, feedparser mocked)."""
 import sys
 import unittest
 from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.services import ingest  # noqa: E402
-
+from ai_scout.services import ingest
 
 class _FakeFeed:
     def __init__(self, entries, status=None, bozo=0):
@@ -14,7 +12,6 @@ class _FakeFeed:
         self.bozo = bozo
         if status is not None:
             self.status = status
-
 
 def _parser(sequence):
     calls = {"n": 0}
@@ -25,7 +22,6 @@ def _parser(sequence):
         return feed
     parse.calls = calls
     return parse
-
 
 class TestFetchRetry(unittest.TestCase):
     def _run(self, seq, attempts=3):
@@ -59,7 +55,6 @@ class TestFetchRetry(unittest.TestCase):
     def test_stops_after_attempts_cap(self):
         _feed, n = self._run([_FakeFeed([], status=503)], attempts=3)
         self.assertEqual(n, 3)
-
 
 if __name__ == "__main__":
     unittest.main()

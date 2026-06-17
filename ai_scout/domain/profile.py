@@ -1,17 +1,10 @@
-"""Profile — one consumption mode owned by a user."""
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
 from ai_scout.domain.cadence import Cadence
 
-
 class Profile(BaseModel):
-    """One consumption mode owned by a user. `id` is the IMMUTABLE identity (the lens key — never
-    rename it or you orphan its signals); `name` is the mutable display label, free to change.
-    `interest` is the selection lens (empty = pure shared relevance). `format` names a content
-    recipe in config/content.yml (draft channel). `email_var` names the env/Actions var holding
-    the address (email channel)."""
     model_config = ConfigDict(frozen=True)
 
     user_id: str
@@ -28,18 +21,14 @@ class Profile(BaseModel):
 
     @property
     def lens(self) -> str:
-        """The signal namespace AND CLI address for this profile: always `<user>:<profile.id>`,
-        keyed on the IMMUTABLE id so the display `name` can change without orphaning signals."""
         return f"{self.user_id}:{self.id}"
 
     @property
     def label(self) -> str:
-        """Human-facing label for headers/subjects; falls back to the id when unset."""
         return self.name or self.id
 
     @property
     def filesafe_lens(self) -> str:
-        """The lens as a filesystem-safe token (the ':' becomes '-') for digest filenames."""
         return self.lens.replace(":", "-")
 
     @classmethod

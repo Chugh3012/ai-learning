@@ -1,15 +1,10 @@
-"""BlobStore — passwordless Azure Blob access for the canonical KB + published outputs."""
 from __future__ import annotations
 
 from pathlib import Path
 
 from ai_scout.lib.config import KB_DIR, KB_PATH, DIGESTS_DIR
 
-
 class BlobStore:
-    """Owns the canonical KB in Azure Blob (download before a run, upload after) plus the
-    published digests/drafts every consumer reads. Passwordless (DefaultAzureCredential).
-    Inject the account + container (DI); a missing account makes every call a graceful no-op."""
 
     def __init__(self, account: str, container: str = "knowledge"):
         self.account = account
@@ -60,7 +55,6 @@ class BlobStore:
         print(msg + " to Blob")
 
     def download_digest(self, name: str) -> bytes | None:
-        """Download one published digest by filename (the maintainer agent reads its delivery)."""
         if not self.enabled:
             return None
         blob = self._service().get_blob_client(self.container, f"digests/{name}")

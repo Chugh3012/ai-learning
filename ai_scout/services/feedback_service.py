@@ -1,11 +1,3 @@
-"""FeedbackService — drains gesture events into per-lens KB signals and recomputes affinity.
-
-Additive, NewsBlur-style: gestures add/subtract a small bounded number of points per source/topic
-(weights in config/feedback.json); the LLM relevance score still dominates ordering. Also ages out
-implicit negatives (delivered but not acted on within skip_days). Fully reconciled each run
-(idempotent). Keyed by LENS; only the CLICK-bearing lenses passed in are reconciled (a draft
-profile has no click loop). Depends on a KnowledgeBase + FeedbackStore (DI).
-"""
 from __future__ import annotations
 
 import time
@@ -16,10 +8,8 @@ from ai_scout.repositories.knowledge import KnowledgeBase
 
 _ROW_TO_KIND = {"vote": "fb_vote", "save": "fb_save", "click": "fb_click"}
 
-
 def _clamp(x: float, lo: float = -1.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, x))
-
 
 class FeedbackService:
     def __init__(self, kb: KnowledgeBase, store: FeedbackStore):
@@ -31,11 +21,9 @@ class FeedbackService:
         return cfg.get("weights", {}), cfg.get("influence", {}), int(cfg.get("skip_days", 2))
 
     def ingest(self, feedback_lenses: set[str]) -> int:
-        """Reconcile events -> fb_*:<lens>, age skips, recompute affinity:<lens> for each
-        click-bearing lens. Returns events ingested. Never raises."""
         try:
             events = self.store.drain_events()
-        except Exception as e:  # noqa: BLE001 — optional stage, never break the pipeline
+        except Exception as e:
             print(f"feedback: events unavailable ({e}); aging skips from local KB only")
             events = []
         now = int(time.time())

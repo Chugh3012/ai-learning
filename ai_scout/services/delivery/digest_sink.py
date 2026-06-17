@@ -1,4 +1,3 @@
-"""DigestSink — writes the learning brief to a dated digest file the maintainer agent reads."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -6,7 +5,6 @@ from datetime import datetime, timezone
 from ai_scout.lib.config import DIGESTS_DIR
 from ai_scout.services.delivery.delivery_sink import DeliverySink
 from ai_scout.services.delivery.sink import DeliveryContext
-
 
 class DigestSink(DeliverySink):
     def _emit(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:

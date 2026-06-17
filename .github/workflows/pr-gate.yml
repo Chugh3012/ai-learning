@@ -34,11 +34,11 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Compile check (package + agent + function)
+      - name: Compile check (package + builder + function)
         run: |
           python - <<'PY'
           import pathlib, py_compile
-          files = [*pathlib.Path('ai_scout').rglob('*.py'), *pathlib.Path('agent').glob('*.py'),
+          files = [*pathlib.Path('ai_scout').rglob('*.py'), *pathlib.Path('builder').glob('*.py'),
                    pathlib.Path('function/function_app.py')]
           for f in files:
               py_compile.compile(str(f), doraise=True)

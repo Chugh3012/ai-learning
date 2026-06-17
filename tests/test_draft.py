@@ -1,11 +1,9 @@
-"""services.producer.load_format — flat content-format parser (production recipes only, offline)."""
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.services import producer  # noqa: E402
-
+from ai_scout.services import producer
 
 class TestLoadFormat(unittest.TestCase):
     def test_reel_format_has_production_instruction(self):
@@ -22,7 +20,6 @@ class TestLoadFormat(unittest.TestCase):
     def test_unknown_format_raises(self):
         with self.assertRaises(KeyError):
             producer.load_format("does-not-exist")
-
 
 if __name__ == "__main__":
     unittest.main()

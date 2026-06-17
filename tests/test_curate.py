@@ -1,23 +1,20 @@
-"""services.curation — near-duplicate clustering + source/topic caps over ScoredItem objects."""
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.item import ScoredItem  # noqa: E402
-from ai_scout.services import curation  # noqa: E402
-
+from ai_scout.domain.item import ScoredItem
+from ai_scout.services import curation
 
 def _it(id=0, title="", score=0.0, source_id=None, topic=None, category=None):
     return ScoredItem(id=id, title=title, score=score, source_id=source_id,
                       topic=topic, category=category)
 
-
 class TestDedup(unittest.TestCase):
     def test_collapses_near_duplicate_titles_keeping_first(self):
         items = [
             _it(1, "OpenAI launches GPT-6 model today", 90),
-            _it(2, "OpenAI launches GPT-6 model", 70),         # near-dup of #1
+            _it(2, "OpenAI launches GPT-6 model", 70),
             _it(3, "Rust 2.0 release notes published", 60),
         ]
         out = curation.dedup(items)
@@ -33,7 +30,6 @@ class TestDedup(unittest.TestCase):
     def test_empty_and_missing_titles_dont_crash(self):
         items = [_it(1, ""), _it(2, ""), _it(3, "Real headline here now")]
         self.assertEqual(len(curation.dedup(items)), 3)
-
 
 class TestDropSeen(unittest.TestCase):
     def test_drops_resurfaced_story_from_other_source(self):
@@ -51,7 +47,6 @@ class TestDropSeen(unittest.TestCase):
         items = [_it(1, "Brand new agent framework released")]
         seen = ["Old news about prompt caching", "Something about vector databases"]
         self.assertEqual(len(curation.drop_seen(items, seen)), 1)
-
 
 class TestDiversify(unittest.TestCase):
     def test_caps_per_source(self):
@@ -77,7 +72,6 @@ class TestDiversify(unittest.TestCase):
         n_research = sum(1 for d in out if d.category == "Research (arXiv)")
         self.assertEqual(len(out), 5)
         self.assertEqual(n_research, 2)
-
 
 if __name__ == "__main__":
     unittest.main()

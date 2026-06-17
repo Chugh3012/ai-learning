@@ -1,9 +1,7 @@
-"""EmailSink — delivers the learning brief via Azure Communication Services (passwordless)."""
 from __future__ import annotations
 
 from ai_scout.services.delivery.delivery_sink import DeliverySink
 from ai_scout.services.delivery.sink import DeliveryContext
-
 
 class EmailSink(DeliverySink):
     def _emit(self, ctx: DeliveryContext, plain: str, body_html: str, rows: list[tuple]) -> bool:
@@ -25,6 +23,6 @@ class EmailSink(DeliverySink):
                             "plainText": plain, "html": body_html},
             }).result()
             return True
-        except Exception as e:  # noqa: BLE001 — optional stage, never break the pipeline
+        except Exception as e:
             print(f"deliver: email send failed ({e})")
             return False

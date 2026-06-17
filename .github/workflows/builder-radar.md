@@ -12,7 +12,7 @@ on:
   workflow_dispatch: {}
 
 # The builder is a USER: it READS its digest that kb-sync already produced and published to Blob
-# (agent/inbox.py), then REACTS to it (agent/review.py votes keep/skip — like starring email),
+# (builder/inbox.py), then REACTS to it (builder/review.py votes keep/skip — like starring email),
 # exactly like the human reads and triages their top-5. It never runs the engine: no
 # fetch/rank/embed/deliver, no KB access. kb-sync (which this triggers off) did all that once.
 steps:
@@ -26,7 +26,7 @@ steps:
       client-id: ${{ vars.AZURE_CLIENT_ID }}
       tenant-id: ${{ vars.AZURE_TENANT_ID }}
       subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  - name: Read & react to maintainer digest (consumer only — never the engine)
+  - name: Read & react to builder digest (consumer only — never the engine)
     env:
       STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
       BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
@@ -35,10 +35,10 @@ steps:
       FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
     run: |
       pip install -r requirements.txt
-      python agent/inbox.py maintainer    # read its delivery from Blob (resolved by role)
-      python agent/review.py maintainer   # react: vote keep/skip on the digest
-      echo "--- maintainer digest ---"
-      cat digests/*.md 2>/dev/null | tail -n +1 || echo "(no maintainer digest today)"
+      python builder/inbox.py builder    # read its delivery from Blob (resolved by role)
+      python builder/review.py builder   # react: vote keep/skip on the digest
+      echo "--- builder digest ---"
+      cat digests/*.md 2>/dev/null | tail -n +1 || echo "(no builder digest today)"
 
 permissions:
   contents: read
@@ -70,12 +70,12 @@ safe-outputs:
 
 # Builder Radar
 
-You are the maintainer of **ai-scout** (this repo), acting as its 2nd user. First read
-`.github/copilot-instructions.md` for the architecture and the non-negotiable principles.
+You are the builder of **ai-scout** (this repo), acting as its 2nd user. First read
+`.github/copilot-instructions.md` for the non-negotiable principles.
 
-A deterministic pre-step has generated today's **maintainer digest** at `digests/*.md` —
+A deterministic pre-step has generated today's **builder digest** at `digests/*.md` —
 external AI/SDK/agent/eval news ranked for engineering relevance to THIS codebase and reordered
-by past maintainer feedback. Each item has a numeric id; the file ends with `<!-- items: <ids> -->`.
+by past builder feedback. Each item has a numeric id; the file ends with `<!-- items: <ids> -->`.
 
 ## Your job — be highly selective
 1. Read the digest. **Decide which items (if any) are genuinely worth acting on** for this repo:

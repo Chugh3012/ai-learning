@@ -1,11 +1,3 @@
-"""Selector — per-lens candidate generation + re-ranking (the standard recsys design).
-
-Two stages: RETRIEVAL (the KB returns rank-eligible, not-yet-sent candidates with relevance +
-this lens's affinity + embedding) then RANKING (final = relevance + affinity + interest-match
-bonus), gated by min_score, curated (dedup -> drop-seen -> diversify to a window), and balanced
-exploit-vs-explore. Returns ScoredItem value objects. Depends on a KnowledgeBase (DI); pure logic
-otherwise (interest match + curation are injected/imported, no Azure here).
-"""
 from __future__ import annotations
 
 import random
@@ -16,21 +8,17 @@ from ai_scout.lib.vectors import match_bonus
 from ai_scout.repositories.knowledge import KnowledgeBase
 from ai_scout.services import curation
 
-
 def interest_weight() -> float:
-    """How strongly a lens's interest match steers its pick (config/feedback.json)."""
     try:
         return float(config_json("feedback.json").get("interest_weight", 0))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0.0
-
 
 def _explore_ratio() -> float:
     try:
         return float(config_json("feedback.json").get("explore_ratio", 0.0))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return 0.0
-
 
 class Selector:
     def __init__(self, kb: KnowledgeBase):
@@ -49,9 +37,6 @@ class Selector:
 
     def _explore_exploit(self, items: list[ScoredItem], top: int, ratio: float,
                          rng: random.Random | None = None) -> list[ScoredItem]:
-        """Balance EXPLOIT (highest score) with EXPLORE (a score-weighted stochastic pick from
-        below the cut). `items` pre-sorted best-first and already gated/curated. ratio<=0 or too
-        few spare items -> pure exploit. Returns up to `top`, score-sorted."""
         rng = rng or random
         if ratio <= 0 or len(items) <= top:
             return items[:top]

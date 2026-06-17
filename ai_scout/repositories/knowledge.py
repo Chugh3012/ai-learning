@@ -1,11 +1,3 @@
-"""KnowledgeBase — the owned knowledge base (items, signals, embeddings, drafts, sources).
-
-Backed by a SQLModel/SQLAlchemy engine: the schema is defined by the typed models in
-repositories/models.py (created via the engine), and a `session()` exposes the ORM for the future
-FastAPI layer. The read-heavy ANALYTICAL queries the pipeline needs (correlated subqueries, CASE
-sums, GROUP_CONCAT) stay as optimized SQL over the DBAPI connection — the idiomatic split for a
-read-heavy analytical workload. This is the ONLY module that issues SQL against the KB.
-"""
 from __future__ import annotations
 
 import sqlite3
@@ -15,11 +7,9 @@ from sqlalchemy import create_engine
 from sqlmodel import SQLModel, Session
 
 from ai_scout.lib.config import KB_DIR, KB_PATH
-from ai_scout.repositories import models  # noqa: F401 — registers the tables on SQLModel.metadata
-
+from ai_scout.repositories import models
 
 class KnowledgeBase:
-    """Owns the engine + a DBAPI connection to the KB and exposes every query the services need."""
 
     def __init__(self, engine, con: sqlite3.Connection):
         self.engine = engine
@@ -31,12 +21,11 @@ class KnowledgeBase:
         if path != ":memory:":
             KB_DIR.mkdir(parents=True, exist_ok=True)
         engine = create_engine(f"sqlite:///{path}")
-        SQLModel.metadata.create_all(engine)        # schema from the typed models
+        SQLModel.metadata.create_all(engine)
         con = sqlite3.connect(path)
         return cls(engine, con)
 
     def session(self) -> Session:
-        """An ORM session over the typed models (for the future FastAPI layer)."""
         return Session(self.engine)
 
     def close(self) -> None:
@@ -46,7 +35,6 @@ class KnowledgeBase:
     def commit(self) -> None:
         self.con.commit()
 
-    # ---- ingest (sync) ----
     def upsert_source(self, s: dict) -> int:
         self.con.execute(
             "INSERT INTO source(title,url,kind,category) VALUES(?,?,?,?) "
@@ -57,7 +45,6 @@ class KnowledgeBase:
 
     def insert_item(self, source_id: int, title: str, url: str, summary: str,
                     published: int, now: int, h: str) -> int | None:
-        """Insert one item if new (dedup by hash). Returns the new item id, or None if duplicate."""
         cur = self.con.execute(
             "INSERT OR IGNORE INTO item(source_id,title,url,summary,published,fetched_at,hash) "
             "VALUES(?,?,?,?,?,?,?)",
@@ -73,7 +60,6 @@ class KnowledgeBase:
     def item_count(self) -> int:
         return self.con.execute("SELECT COUNT(*) FROM item").fetchone()[0]
 
-    # ---- ranking ----
     def unscored_recent(self, days: int, max_items: int) -> list[tuple]:
         cutoff = int(time.time()) - days * 86400
         return self.con.execute(
@@ -88,7 +74,6 @@ class KnowledgeBase:
         self.con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(?,?,?,?)",
                          (item_id, "relevance", float(score), now))
 
-    # ---- embeddings ----
     def unembedded_ranked(self, max_items: int) -> list[tuple]:
         return self.con.execute(
             "SELECT i.id, i.title, i.summary FROM item i "
@@ -109,7 +94,6 @@ class KnowledgeBase:
         return row[0] if row and row[0] else None
 
     def sent_with_embeddings(self, lens: str, exclude: set[int]) -> list[tuple]:
-        """(item_id, title, url, vec) for items this lens was sent that carry an embedding."""
         rows = self.con.execute(
             "SELECT e.item_id, i.title, i.url, e.vec FROM embedding e "
             "JOIN item i ON i.id=e.item_id "
@@ -118,10 +102,7 @@ class KnowledgeBase:
         ).fetchall()
         return [(pid, t, u, v) for pid, t, u, v in rows if pid not in exclude and v]
 
-    # ---- selection ----
     def candidates(self, lens: str, limit: int) -> list[tuple]:
-        """Rank-eligible items NOT yet sent to this lens, with relevance, this lens's affinity,
-        embedding and category — ordered by (relevance + affinity)."""
         return self.con.execute(
             "SELECT i.id, i.title, i.url, i.summary, i.source_id, "
             "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic, "
@@ -154,7 +135,6 @@ class KnowledgeBase:
                                (f"sent:{lens}",)).fetchone()
         return int(row[0]) if row and row[0] is not None else None
 
-    # ---- feedback (signal CRUD; the math lives in FeedbackService) ----
     def delete_signals(self, kinds: list[str]) -> None:
         qs = ",".join("?" * len(kinds))
         self.con.execute(f"DELETE FROM signal WHERE kind IN ({qs})", tuple(kinds))
@@ -173,7 +153,6 @@ class KnowledgeBase:
         return [r[0] for r in rows]
 
     def gesture_scores(self, kinds: tuple[str, str, str, str]) -> list[tuple]:
-        """Per-item (item_id, vote, save, click, skip) sums for one lens's fb_* kinds."""
         return self.con.execute(
             "SELECT item_id, "
             "SUM(CASE WHEN kind=? THEN value END), "
@@ -185,7 +164,6 @@ class KnowledgeBase:
         ).fetchall()
 
     def rank_eligible_with_tags(self) -> list[tuple]:
-        """(item_id, source_id, comma-topics) for every item with a relevance score."""
         return self.con.execute(
             "SELECT i.id, i.source_id, GROUP_CONCAT(t.topic) FROM item i "
             "JOIN signal r ON r.item_id=i.id AND r.kind='relevance' "
@@ -193,7 +171,6 @@ class KnowledgeBase:
         ).fetchall()
 
     def items_meta(self, ids: list[int]) -> list[tuple]:
-        """(item_id, source_id) for the given ids."""
         if not ids:
             return []
         qs = ",".join("?" * len(ids))
@@ -201,14 +178,12 @@ class KnowledgeBase:
                                 tuple(ids)).fetchall()
 
     def item_topics(self, ids: list[int]) -> list[tuple]:
-        """(item_id, topic) rows for the given ids."""
         if not ids:
             return []
         qs = ",".join("?" * len(ids))
         return self.con.execute(f"SELECT item_id, topic FROM tag WHERE item_id IN ({qs})",
                                 tuple(ids)).fetchall()
 
-    # ---- drafts ----
     def drafted_ids(self) -> set[int]:
         return {r[0] for r in self.con.execute("SELECT item_id FROM draft").fetchall()}
 
@@ -223,7 +198,6 @@ class KnowledgeBase:
             "WHERE d.status='pending' ORDER BY d.created_at DESC"
         ).fetchall()
 
-    # ---- discovery ----
     def existing_source_urls(self) -> set[str]:
         return {r[0] for r in self.con.execute("SELECT url FROM source").fetchall()}
 

@@ -1,4 +1,3 @@
-"""services.Selector — two-stage per-lens selection over a KnowledgeBase (offline, sqlite :memory:)."""
 import os
 import sys
 import tempfile
@@ -6,16 +5,14 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib import vectors  # noqa: E402
-from ai_scout.repositories.knowledge import KnowledgeBase  # noqa: E402
-from ai_scout.services.selector import Selector  # noqa: E402
-
+from ai_scout.lib import vectors
+from ai_scout.repositories.knowledge import KnowledgeBase
+from ai_scout.services.selector import Selector
 
 def _kb():
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
     return KnowledgeBase.open(path)
-
 
 def _add(kb, iid, source_id, title, relevance, vec=None):
     con = kb.con
@@ -28,7 +25,6 @@ def _add(kb, iid, source_id, title, relevance, vec=None):
     if vec is not None:
         con.execute("INSERT INTO embedding(item_id,vec,ts) VALUES(?,?,?)", (iid, vectors.pack(vec), 0))
     con.commit()
-
 
 class TestSelect(unittest.TestCase):
     def test_no_interest_is_relevance_pick_gated_by_min_score(self):
@@ -73,7 +69,6 @@ class TestSelect(unittest.TestCase):
         interest = vectors.normalize([1.0] + [0.0] * 255)
         out = Selector(kb).select("builder", top=5, min_score=0, interest_vec=interest, weight=15)
         self.assertIn(2, [d.id for d in out])
-
 
 if __name__ == "__main__":
     unittest.main()

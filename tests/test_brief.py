@@ -1,4 +1,3 @@
-"""services.BriefBuilder — learning-brief rendering + connect-the-dots (offline, no Azure/model)."""
 import os
 import sys
 import tempfile
@@ -6,12 +5,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.brief import Brief, Card  # noqa: E402
-from ai_scout.domain.item import ScoredItem  # noqa: E402
-from ai_scout.lib import vectors  # noqa: E402
-from ai_scout.repositories.knowledge import KnowledgeBase  # noqa: E402
-from ai_scout.services.brief_builder import BriefBuilder  # noqa: E402
-
+from ai_scout.domain.brief import Brief, Card
+from ai_scout.domain.item import ScoredItem
+from ai_scout.lib import vectors
+from ai_scout.repositories.knowledge import KnowledgeBase
+from ai_scout.services.brief_builder import BriefBuilder
 
 class TestRenderBrief(unittest.TestCase):
     def test_cards_throughline_and_connection_in_output(self):
@@ -28,7 +26,6 @@ class TestRenderBrief(unittest.TestCase):
         self.assertIn("Related: Last week: prompt-as-questions", plain)
         self.assertIn("Try:", html_out)
         self.assertIn("Read the source", html_out)
-
 
 class TestConnections(unittest.TestCase):
     def _kb(self):
@@ -57,7 +54,6 @@ class TestConnections(unittest.TestCase):
         kb.con.commit()
         out = BriefBuilder(kb, "", "")._connections("primary", [ScoredItem(id=1)], min_cos=0.5)
         self.assertEqual(out, {})
-
 
 if __name__ == "__main__":
     unittest.main()

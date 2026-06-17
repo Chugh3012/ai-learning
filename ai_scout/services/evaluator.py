@@ -1,7 +1,3 @@
-"""RankEvaluator — the ranking regression gate: runs the production rank prompt over a labeled
-golden set (median-of-N) and asserts quality thresholds, so a prompt/model change can't silently
-regress. Depends on a Ranker (DI). Metrics: spearman, ndcg@5, prec@5, nonai_leak.
-"""
 from __future__ import annotations
 
 import json
@@ -18,35 +14,27 @@ _DATASET = FOUNDRY_DIR / "datasets" / "golden_rank_v1.jsonl"
 _RESULTS = FOUNDRY_DIR / "results"
 _THRESHOLDS = CONFIG_DIR / "eval.json"
 
-
 def _spearman(pairs: list[tuple[float, float]]) -> float:
-    """Spearman rank correlation of model score vs target tier (scipy, average-rank ties)."""
     if len(pairs) < 2:
         return 0.0
     rho = spearmanr([p[0] for p in pairs], [p[1] for p in pairs]).statistic
-    return 0.0 if rho != rho else float(rho)  # nan (constant input) -> 0.0
-
+    return 0.0 if rho != rho else float(rho)
 
 def _ndcg_at(scored: list[dict], k: int) -> float:
-    """NDCG@k with EXPONENTIAL gain (2^tier - 1), via sklearn: passing 2^tier-1 as the relevance
-    to sklearn's linear-gain DCG reproduces exponential-gain NDCG exactly (gate value unchanged)."""
     if len(scored) < 2:
         return 0.0
     y_true = np.array([[2 ** it["tier"] - 1 for it in scored]], dtype=float)
     y_score = np.array([[it["score"] for it in scored]], dtype=float)
     return float(ndcg_score(y_true, y_score, k=k))
 
-
 def _median(xs: list[float]) -> float:
     return float(np.median(xs))
-
 
 class RankEvaluator:
     def __init__(self, ranker: Ranker):
         self.ranker = ranker
 
     def run(self) -> int:
-        """Score the golden set median-of-N, write results, and return 0 (pass) / 1 (fail)."""
         if not self.ranker.endpoint:
             print("eval: FOUNDRY_PROJECT_ENDPOINT not set — skipping (treated as pass)")
             return 0

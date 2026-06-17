@@ -1,4 +1,3 @@
-"""services.delivery — channel factory + the Orchestrator's cadence/target gating (offline)."""
 import sys
 import unittest
 from types import SimpleNamespace
@@ -6,15 +5,14 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.cadence import Cadence  # noqa: E402
-from ai_scout.domain.profile import Profile  # noqa: E402
-from ai_scout.domain.user import User  # noqa: E402
-from ai_scout.repositories.registry import UserRegistry  # noqa: E402
-from ai_scout.services.delivery import orchestrator as orch  # noqa: E402
-from ai_scout.services.delivery.email_sink import EmailSink  # noqa: E402
-from ai_scout.services.delivery.digest_sink import DigestSink  # noqa: E402
-from ai_scout.services.delivery.draft_sink import DraftSink  # noqa: E402
-
+from ai_scout.domain.cadence import Cadence
+from ai_scout.domain.profile import Profile
+from ai_scout.domain.user import User
+from ai_scout.repositories.registry import UserRegistry
+from ai_scout.services.delivery import orchestrator as orch
+from ai_scout.services.delivery.email_sink import EmailSink
+from ai_scout.services.delivery.digest_sink import DigestSink
+from ai_scout.services.delivery.draft_sink import DraftSink
 
 def _registry():
     user = User(id="usr_a", role="owner", profiles=[
@@ -23,7 +21,6 @@ def _registry():
                 format="reel"),
     ])
     return UserRegistry([user])
-
 
 class TestFactory(unittest.TestCase):
     def test_maps_channels_to_sinks(self):
@@ -39,7 +36,6 @@ class TestFactory(unittest.TestCase):
         self.assertEqual(DraftSink.explore_ratio, 0.0)
         self.assertIsNone(EmailSink.explore_ratio)
 
-
 class TestOrchestratorGating(unittest.TestCase):
     def _orchestrator(self, sel):
         kb = SimpleNamespace(last_sent_ts=lambda lens: None, mark_sent=lambda lens, ids: None)
@@ -51,14 +47,13 @@ class TestOrchestratorGating(unittest.TestCase):
         sel = mock.Mock(return_value=[])
         self._orchestrator(sel).run()
         lenses = [c.args[0] for c in sel.call_args_list]
-        self.assertEqual(lenses, ["usr_a:prf_main"])     # on_demand draft skipped
+        self.assertEqual(lenses, ["usr_a:prf_main"])
 
     def test_manual_targets_run_exactly_those_bypassing_cadence(self):
         sel = mock.Mock(return_value=[])
         self._orchestrator(sel).run(targets={"usr_a:prf_reel"})
         lenses = [c.args[0] for c in sel.call_args_list]
-        self.assertEqual(lenses, ["usr_a:prf_reel"])     # only the requested on-demand lens
-
+        self.assertEqual(lenses, ["usr_a:prf_reel"])
 
 if __name__ == "__main__":
     unittest.main()

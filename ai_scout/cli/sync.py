@@ -1,13 +1,3 @@
-"""`python -m ai_scout.cli.sync` — the daily pipeline run (composition root / DI container).
-
-Wires repositories (KnowledgeBase, BlobStore, FeedbackStore, UserRegistry) + services (Ingestor,
-Ranker, Embedder, FeedbackService, Orchestrator, SourceDiscoverer, ContentProducer) and runs the
-requested stages. Each stage is optional and graceful. Passwordless throughout.
-
-  --rank      score new items + embed them      --feedback  ingest gesture events -> affinity
-  --deliver   scheduled delivery (cadence)       --produce   on-demand <user>:<profile> lenses
-  --discover  propose new feeds                  --no-upload local only (skip Blob)
-"""
 from __future__ import annotations
 
 import argparse
@@ -28,7 +18,6 @@ from ai_scout.services.ranker import Ranker
 from ai_scout.services.selector import Selector
 from ai_scout.services.delivery.orchestrator import Orchestrator
 
-
 def _parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=7)
@@ -46,13 +35,11 @@ def _parse_args(argv=None) -> argparse.Namespace:
                     help="propose new feeds into config/proposals.yml from recurring item links")
     return ap.parse_args(argv)
 
-
 def main(argv=None) -> int:
-    # Force UTF-8 so a Windows cp1252 console can't crash on a non-ASCII print.
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     args = _parse_args(argv)
@@ -101,7 +88,6 @@ def main(argv=None) -> int:
     elif not args.no_upload:
         print("note: STORAGE_ACCOUNT not set — skipped Blob (set it in .env or repo Variables)")
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

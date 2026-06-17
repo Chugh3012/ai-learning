@@ -1,4 +1,3 @@
-"""DeliverySink — shared base for the human-facing reading channels (email, digest)."""
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -6,10 +5,7 @@ from abc import abstractmethod
 from ai_scout.services.brief_builder import BriefBuilder
 from ai_scout.services.delivery.sink import Sink, DeliveryContext
 
-
 class DeliverySink(Sink):
-    """Build the learning brief, mint feedback tokens, render once, then emit through the concrete
-    channel. Subclasses implement `_emit` (the transport: ACS send vs file write)."""
 
     def deliver(self, ctx: DeliveryContext) -> bool:
         p = ctx.profile

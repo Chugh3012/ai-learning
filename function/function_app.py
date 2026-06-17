@@ -1,10 +1,3 @@
-"""Feedback capture — a tiny passwordless Azure Function. One GET route validates an opaque
-per-(lens,item,action) token (Azure Table 'feedbacktokens') and records the gesture as an event
-in 'feedbackevents'; 'click' then 302s to the source. Never touches the SQLite KB (capture is
-decoupled — no write races). Up/down share one 'vote' row per lens so a later vote overwrites.
-The token carries only the opaque LENS (`<user_id>:<profile_id>`) — no identity is embedded.
-Auth: the Function's managed identity (Storage Table Data Contributor). No keys.
-"""
 from __future__ import annotations
 
 import html
@@ -19,8 +12,6 @@ from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp()
 
-# action -> (events RowKey suffix, value). Up/down collapse to one 'vote' row (per lens) so a
-# later vote overwrites. The event RowKey is '<lens>:<suffix>' so each profile votes independently.
 _ACTIONS: dict[str, tuple[str, float]] = {
     "up": ("vote", 1.0),
     "down": ("vote", -1.0),
@@ -29,7 +20,6 @@ _ACTIONS: dict[str, tuple[str, float]] = {
 }
 
 _TABLE_SERVICE: TableServiceClient | None = None
-
 
 def _tables() -> TableServiceClient:
     global _TABLE_SERVICE
@@ -40,7 +30,6 @@ def _tables() -> TableServiceClient:
             credential=DefaultAzureCredential(),
         )
     return _TABLE_SERVICE
-
 
 def _page(message: str) -> func.HttpResponse:
     body = (
@@ -53,7 +42,6 @@ def _page(message: str) -> func.HttpResponse:
     )
     return func.HttpResponse(body, mimetype="text/html", status_code=200)
 
-
 @app.route(route="f", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def feedback(req: func.HttpRequest) -> func.HttpResponse:
     token = (req.params.get("t") or "").strip()
@@ -65,7 +53,7 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
         entity = tokens.get_entity(partition_key="tok", row_key=token)
     except ResourceNotFoundError:
         return func.HttpResponse("This feedback link is not valid.", status_code=404)
-    except Exception:  # noqa: BLE001
+    except Exception:
         logging.exception("feedback: token lookup failed")
         return func.HttpResponse("Temporary error, please try again.", status_code=503)
 
@@ -91,7 +79,7 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
             },
             mode=UpdateMode.REPLACE,
         )
-    except Exception:  # noqa: BLE001
+    except Exception:
         logging.exception("feedback: event write failed")
         return func.HttpResponse("Temporary error, please try again.", status_code=503)
 

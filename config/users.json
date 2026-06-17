@@ -1,5 +1,4 @@
 {
-  "_comment": "User registry (multi-tenant). A USER is an identity + feedback loop; each user owns one or more PROFILES. A profile is one consumption mode = a selection LENS ('interest' sentence, embedded once and matched per item via two-tower retrieval) + a DELIVERY channel + thresholds + a CADENCE. IDENTITY: every user and profile 'id' is an OPAQUE SURROGATE KEY (Stripe-style prefix usr_/prf_ for readability of TYPE, random suffix for the identity) — system-generated, no semantic meaning, NEVER reused or renamed. All human meaning lives in the mutable 'name' (display label) and 'role' (capability). So signals are identity-agnostic (sent:usr_..:prf_.., affinity:usr_..:prf_..) — nothing in the KB mentions who the person is; the id->name map lives only here. Rename freely by editing 'name'; never touch an 'id'. LENS is ALWAYS <user_id>:<profile_id>; the bare <user_id> namespace is reserved for a future user-level shared interest. ROLE lets workflows/code address a user by capability ('maintainer' = the agent that improves this app) instead of a hardcoded id. CHANNELS: 'email' (Azure Communication Services; 'email_var' names the env/Actions var holding the address), 'digest' (a dated markdown file), 'draft' (on-demand content sink producing a kit via the content FORMAT named by 'format', from config/content.yml). CADENCE: 'daily'/'weekly' (fires when >= interval since this profile's last delivery) or 'on_demand' (never on the scheduled run; produce it with `--produce <user_id>:<profile_id>`).",
   "users": [
     {
       "id": "usr_94b30ad9",
@@ -15,8 +14,8 @@
     },
     {
       "id": "usr_4fadca97",
-      "name": "Maintainer agent",
-      "role": "maintainer",
+      "name": "Builder",
+      "role": "builder",
       "profiles": [
         { "id": "prf_5115d4d5", "name": "Radar digest", "channel": "digest", "cadence": "weekly", "top": 8, "min_score": 60,
           "self_review": true,

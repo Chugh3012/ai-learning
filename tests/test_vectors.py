@@ -1,16 +1,14 @@
-"""lib.vectors — two-tower vector math (pack/unpack/normalize, dot, z-scored interest bonus)."""
 import math
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib import vectors  # noqa: E402
-
+from ai_scout.lib import vectors
 
 class TestVectorMath(unittest.TestCase):
     def test_pack_unpack_l2_normalizes(self):
-        v = [3.0, 4.0] + [0.0] * 254          # raw norm 5
+        v = [3.0, 4.0] + [0.0] * 254
         u = vectors.unpack(vectors.pack(v))
         self.assertAlmostEqual(u[0], 0.6, places=5)
         self.assertAlmostEqual(u[1], 0.8, places=5)
@@ -23,7 +21,6 @@ class TestVectorMath(unittest.TestCase):
         a = vectors.normalize([1.0, 0.0])
         b = vectors.normalize([1.0, 1.0])
         self.assertAlmostEqual(vectors.dot(a, b), 1 / math.sqrt(2), places=5)
-
 
 class TestMatchBonus(unittest.TestCase):
     def setUp(self):
@@ -51,7 +48,6 @@ class TestMatchBonus(unittest.TestCase):
     def test_no_interest_or_no_vecs_is_empty(self):
         self.assertEqual(vectors.match_bonus(None, self.vecs, 15.0), {})
         self.assertEqual(vectors.match_bonus(self.interest, {}, 15.0), {})
-
 
 if __name__ == "__main__":
     unittest.main()
