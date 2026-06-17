@@ -59,4 +59,7 @@ jobs:
         env:
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}
+          METRICS_DCE: ${{ vars.METRICS_DCE }}
+          METRICS_DCR_RULE_ID: ${{ vars.METRICS_DCR_RULE_ID }}
+          METRICS_STREAM: ${{ vars.METRICS_STREAM }}
         run: python -m ai_scout.cli.evaluate

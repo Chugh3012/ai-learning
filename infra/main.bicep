@@ -45,6 +45,18 @@ param githubRepository string = 'Chugh3012/ai-learning'
 @description('GitHub branch for federated credential')
 param githubBranch string = 'main'
 
+@description('Base name for the Log Analytics workspace (metrics store)')
+param logAnalyticsName string = 'log-ai-scout'
+
+@description('Base name for the metrics Data Collection Endpoint')
+param metricsDceName string = 'dce-ai-scout'
+
+@description('Base name for the metrics Data Collection Rule')
+param metricsDcrName string = 'dcr-ai-scout'
+
+@description('Base name for Azure Managed Grafana')
+param grafanaName string = 'graf-ai-scout'
+
 // KB Storage Account (shared-key disabled, public blob access disabled)
 resource kbStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: kbStorageBaseName
@@ -439,6 +451,163 @@ resource communicationServiceIdentityRole 'Microsoft.Authorization/roleAssignmen
   }
 }
 
+// ---- Observability: pipeline metrics -> Log Analytics -> Grafana (all passwordless) ----
+// The pipeline POSTs run metrics (ingested / ranked / embedded / delivered / voted / tokens /
+// eval scores) to the DCE using its managed identity (Monitoring Metrics Publisher on the DCR);
+// the DCR routes them into the AiScoutMetrics_CL custom table; Grafana reads it via its own MSI.
+
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: logAnalyticsName
+  location: appLocation
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 90
+  }
+}
+
+resource metricsTable 'Microsoft.OperationalInsights/workspaces/tables@2023-09-01' = {
+  name: 'AiScoutMetrics_CL'
+  parent: logAnalytics
+  properties: {
+    schema: {
+      name: 'AiScoutMetrics_CL'
+      columns: [
+        { name: 'TimeGenerated', type: 'datetime' }
+        { name: 'Run', type: 'string' }
+        { name: 'Metric', type: 'string' }
+        { name: 'Value', type: 'real' }
+        { name: 'Lens', type: 'string' }
+        { name: 'Channel', type: 'string' }
+      ]
+    }
+    retentionInDays: 90
+    totalRetentionInDays: 90
+    plan: 'Analytics'
+  }
+}
+
+resource metricsDce 'Microsoft.Insights/dataCollectionEndpoints@2023-03-11' = {
+  name: metricsDceName
+  location: appLocation
+  properties: {
+    networkAcls: {
+      publicNetworkAccess: 'Enabled'
+    }
+  }
+}
+
+resource metricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
+  name: metricsDcrName
+  location: appLocation
+  dependsOn: [
+    metricsTable
+  ]
+  properties: {
+    dataCollectionEndpointId: metricsDce.id
+    streamDeclarations: {
+      'Custom-AiScoutMetrics_CL': {
+        columns: [
+          { name: 'TimeGenerated', type: 'datetime' }
+          { name: 'Run', type: 'string' }
+          { name: 'Metric', type: 'string' }
+          { name: 'Value', type: 'real' }
+          { name: 'Lens', type: 'string' }
+          { name: 'Channel', type: 'string' }
+        ]
+      }
+    }
+    destinations: {
+      logAnalytics: [
+        {
+          name: 'la'
+          workspaceResourceId: logAnalytics.id
+        }
+      ]
+    }
+    dataFlows: [
+      {
+        streams: [
+          'Custom-AiScoutMetrics_CL'
+        ]
+        destinations: [
+          'la'
+        ]
+        transformKql: 'source'
+        outputStream: 'Custom-AiScoutMetrics_CL'
+      }
+    ]
+  }
+}
+
+resource grafana 'Microsoft.Dashboard/grafana@2023-09-01' = {
+  name: grafanaName
+  location: appLocation
+  sku: {
+    name: 'Standard'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    apiKey: 'Disabled'
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// RBAC - Monitoring Metrics Publisher on the DCR (pipeline identity + user can ship metrics)
+resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(metricsDcr.id, managedIdentity.id, '3913510d-42f4-4e42-8a64-420c390055eb')
+  scope: metricsDcr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '3913510d-42f4-4e42-8a64-420c390055eb')
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource dcrPublisherUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(metricsDcr.id, userPrincipalId, '3913510d-42f4-4e42-8a64-420c390055eb')
+  scope: metricsDcr
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '3913510d-42f4-4e42-8a64-420c390055eb')
+    principalId: userPrincipalId
+    principalType: 'User'
+  }
+}
+
+// RBAC - Grafana's identity reads the workspace (Log Analytics Reader) + the RG (Monitoring Reader)
+resource grafanaWorkspaceReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(logAnalytics.id, grafana.id, '73c42c96-874c-492b-b04d-ab87d138a893')
+  scope: logAnalytics
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '73c42c96-874c-492b-b04d-ab87d138a893')
+    principalId: grafana.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, grafana.id, '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
+    principalId: grafana.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// RBAC - the user is a Grafana Admin on the instance (to build/import dashboards)
+resource grafanaUserAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(grafana.id, userPrincipalId, '22926164-76b3-42b3-bc36-89b82d4c0e0d')
+  scope: grafana
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '22926164-76b3-42b3-bc36-89b82d4c0e0d')
+    principalId: userPrincipalId
+    principalType: 'User'
+  }
+}
+
 // Outputs
 output kbStorageId string = kbStorage.id
 output fnStorageId string = fnStorage.id
@@ -451,3 +620,8 @@ output communicationServiceId string = communicationService.id
 output functionAppId string = functionApp.id
 output functionAppPrincipalId string = functionApp.identity.principalId
 output appInsightsId string = appInsights.id
+output logAnalyticsId string = logAnalytics.id
+output metricsDceEndpoint string = metricsDce.properties.logsIngestion.endpoint
+output metricsDcrImmutableId string = metricsDcr.properties.immutableId
+output metricsStream string = 'Custom-AiScoutMetrics_CL'
+output grafanaEndpoint string = grafana.properties.endpoint

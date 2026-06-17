@@ -32,3 +32,6 @@ scipy>=1.14.0
 scikit-learn>=1.5.0
 # SQLModel (SQLAlchemy + Pydantic): the typed data layer for the owned knowledge base.
 sqlmodel>=0.0.22
+# azure-monitor-ingestion: ship pipeline metrics to a Log Analytics custom table (passwordless,
+# via a Data Collection Rule) for the Grafana dashboard. Optional at runtime (no-op if unset).
+azure-monitor-ingestion>=1.0.0

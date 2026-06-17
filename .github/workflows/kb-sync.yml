@@ -50,4 +50,7 @@ jobs:
           EMAIL_TO: ${{ vars.EMAIL_TO }}
           FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
+          METRICS_DCE: ${{ vars.METRICS_DCE }}
+          METRICS_DCR_RULE_ID: ${{ vars.METRICS_DCR_RULE_ID }}
+          METRICS_STREAM: ${{ vars.METRICS_STREAM }}
         run: python -m ai_scout.cli.sync --days 7 --rank --feedback --deliver --discover

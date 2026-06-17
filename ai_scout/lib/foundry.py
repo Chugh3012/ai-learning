@@ -19,10 +19,19 @@ def embed(endpoint: str, deployment: str, texts: list[str], dims: int = 256) -> 
     resp = client.embeddings.create(model=deployment, input=texts, dimensions=dims)
     return [d.embedding for d in resp.data]
 
+_USAGE = {"prompt": 0, "completion": 0, "total": 0, "calls": 0}
+
 def log_usage(stage: str, resp) -> None:
     try:
         u = resp.usage
+        _USAGE["prompt"] += int(u.prompt_tokens)
+        _USAGE["completion"] += int(u.completion_tokens)
+        _USAGE["total"] += int(u.total_tokens)
+        _USAGE["calls"] += 1
         print(f"{stage}: tokens prompt={u.prompt_tokens} completion={u.completion_tokens} "
               f"total={u.total_tokens}")
     except Exception:
         pass
+
+def usage_snapshot() -> dict:
+    return dict(_USAGE)

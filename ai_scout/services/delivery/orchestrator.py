@@ -23,7 +23,7 @@ def make_sink(channel: str) -> Sink:
 class Orchestrator:
     def __init__(self, kb: KnowledgeBase, registry: UserRegistry, embedder: Embedder,
                  selector: Selector, brief_builder: BriefBuilder,
-                 feedback_store: FeedbackStore, blob, settings):
+                 feedback_store: FeedbackStore, blob, settings, metrics=None):
         self.kb = kb
         self.registry = registry
         self.embedder = embedder
@@ -32,6 +32,7 @@ class Orchestrator:
         self.feedback_store = feedback_store
         self.blob = blob
         self.settings = settings
+        self.metrics = metrics
 
     def run(self, targets: set[str] | None = None) -> int:
         weight = interest_weight()
@@ -55,5 +56,7 @@ class Orchestrator:
                 if sink.deliver(ctx):
                     self.kb.mark_sent(p.lens, [it.id for it in items])
                     total += len(items)
+                    if self.metrics is not None:
+                        self.metrics.add("delivered", len(items), lens=p.lens, channel=p.channel)
                     print(f"deliver: {len(items)} -> {p.lens} ({p.channel})")
         return total

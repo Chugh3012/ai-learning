@@ -1,0 +1,132 @@
+{
+  "__inputs": [],
+  "title": "ai-scout — pipeline",
+  "uid": "ai-scout-pipeline",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "time": { "from": "now-30d", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "ds",
+        "type": "datasource",
+        "query": "grafana-azure-monitor-datasource",
+        "current": {},
+        "label": "Azure Monitor"
+      },
+      {
+        "name": "workspace",
+        "type": "textbox",
+        "label": "Log Analytics resource ID",
+        "current": { "text": "", "value": "" },
+        "query": ""
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Ranking quality (eval gate, per run)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric in ('eval_spearman','eval_ndcg5','eval_prec5') | summarize Value=avg(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Non-AI leak (lower is better)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric == 'eval_nonai_leak' | summarize Value=avg(Value) by bin(TimeGenerated, 1d) | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Feed funnel — ingested / ranked / embedded / delivered",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric in ('ingested','ranked','embedded','delivered') | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Delivered per profile (lens)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric == 'delivered' | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Lens | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Feedback votes per run",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric == 'voted' | summarize Value=sum(Value) by bin(TimeGenerated, 1d) | order by TimeGenerated asc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Foundry token cost per run",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-azure-monitor-datasource", "uid": "${ds}" },
+          "queryType": "Azure Log Analytics",
+          "azureLogAnalytics": {
+            "resources": ["${workspace}"],
+            "query": "AiScoutMetrics_CL | where Metric in ('tokens_prompt','tokens_completion') | summarize Value=sum(Value) by bin(TimeGenerated, 1d), Metric | order by TimeGenerated asc"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     email_to: str = ""
     feedback_url: str = ""
     feedback_storage: str = ""
+    metrics_dce: str = ""
+    metrics_dcr_rule_id: str = ""
+    metrics_stream: str = "Custom-AiScoutMetrics_CL"
 
     def email_address(self, var_name: str | None) -> str:
         if not var_name or var_name.upper() == "EMAIL_TO":

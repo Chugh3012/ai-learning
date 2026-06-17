@@ -4,6 +4,8 @@ import argparse
 import sys
 
 from ai_scout.lib.settings import Settings
+from ai_scout.lib.metrics import Metrics
+from ai_scout.lib import foundry
 from ai_scout.repositories.blob import BlobStore
 from ai_scout.repositories.feedback import FeedbackStore
 from ai_scout.repositories.knowledge import KnowledgeBase
@@ -52,24 +54,27 @@ def main(argv=None) -> int:
     if use_blob:
         blob.download_kb()
 
+    metrics = Metrics(s.metrics_dce, s.metrics_dcr_rule_id, s.metrics_stream)
     kb = KnowledgeBase.open()
     new_items, total = Ingestor(kb).sync()
+    metrics.add("ingested", new_items)
+    metrics.add("items_total", total)
 
     if args.rank:
-        Ranker(kb, endpoint, model).score_unscored(args.days, args.rank_max)
-        Embedder(kb, endpoint, embed_model).embed_unembedded(args.embed_max)
+        metrics.add("ranked", Ranker(kb, endpoint, model).score_unscored(args.days, args.rank_max))
+        metrics.add("embedded", Embedder(kb, endpoint, embed_model).embed_unembedded(args.embed_max))
 
     registry = UserRegistry.load()
     feedback_store = FeedbackStore(s.feedback_storage)
 
     if args.feedback:
-        FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses())
+        metrics.add("voted", FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses()))
 
     if args.deliver or args.produce:
         orchestrator = Orchestrator(
             kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb),
             BriefBuilder(kb, endpoint, model),
-            feedback_store, blob if use_blob else None, s)
+            feedback_store, blob if use_blob else None, s, metrics)
         if args.deliver:
             orchestrator.run()
         if args.produce:
@@ -80,6 +85,12 @@ def main(argv=None) -> int:
 
     kb.close()
     print(f"sync: +{new_items} new, {total} total items")
+
+    u = foundry.usage_snapshot()
+    metrics.add("tokens_total", u["total"])
+    metrics.add("tokens_prompt", u["prompt"])
+    metrics.add("tokens_completion", u["completion"])
+    metrics.flush()
 
     if use_blob:
         blob.upload_kb()
