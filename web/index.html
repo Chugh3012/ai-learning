@@ -27,9 +27,8 @@
           Less feed.<br /><em>More signal.</em>
         </h1>
         <p class="lede">
-          Chugh Vibes reads the AI world so you don't have to — scanning the firehose,
-          ranking it like an editor, and sending you <strong>one short, sharp read a day</strong>.
-          The good stuff. Nothing else.
+          It reads the AI firehose, ranks it like an editor, and sends you
+          <strong>one sharp read a day</strong>. Nothing else.
         </p>
 
         <form id="join-hero" class="join" novalidate>
@@ -57,18 +56,12 @@
       </div>
     </section>
 
-    <!-- PROBLEM -->
-    <section class="prose reveal">
-      <p class="kicker">The problem</p>
-      <h2 class="h2">
-        AI moves faster than anyone can read. So most people read nothing,
-        or doomscroll everything.
-      </h2>
-      <p class="body-lg">
-        Dozens of sources. Hundreds of posts a day. Maybe three of them actually
-        matter to <em>you</em>. The other ninety-seven are hype, repackaged press
-        releases, and threads that go nowhere. Chugh Vibes is the filter.
-      </p>
+    <!-- PROBLEM: noise wall -->
+    <section class="noise reveal">
+      <p class="kicker center">The problem</p>
+      <h2 class="h2 center mxauto">Too much AI. Too little signal.</h2>
+      <canvas class="noise-wall" id="noise" aria-hidden="true"></canvas>
+      <p class="caption">Hundreds of posts a day. <strong>A handful</strong> matter.</p>
     </section>
 
     <!-- HOW IT WORKS -->
@@ -77,18 +70,29 @@
       <ol>
         <li class="reveal">
           <span class="num">01</span>
+          <svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="24" cy="24" r="6" /><circle cx="24" cy="24" r="13" opacity="0.5" /><circle cx="24" cy="24" r="20" opacity="0.22" />
+            <circle class="a" cx="38" cy="13" r="2.4" />
+          </svg>
           <h3>Scan</h3>
-          <p>Every day it pulls from a curated set of sources — research, labs, builders, the sharp corners of the web.</p>
+          <p>Curated sources, swept daily.</p>
         </li>
         <li class="reveal">
           <span class="num">02</span>
+          <svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+            <line x1="11" y1="38" x2="11" y2="30" /><line x1="20" y1="38" x2="20" y2="24" /><line x1="29" y1="38" x2="29" y2="18" /><line class="a" x1="38" y1="38" x2="38" y2="10" />
+          </svg>
           <h3>Rank</h3>
-          <p>A model scores each item for genuine relevance and signal — not clicks, not recency. The noise is dropped on the floor.</p>
+          <p>Scored for signal — not clicks.</p>
         </li>
         <li class="reveal">
           <span class="num">03</span>
+          <svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 27 v9 a2 2 0 0 0 2 2 h26 a2 2 0 0 0 2-2 v-9" />
+            <path class="a" d="M24 9 v17 m-6 -6 l6 6 l6 -6" />
+          </svg>
           <h3>Deliver</h3>
-          <p>You get a tight top handful in your inbox. Five minutes. Then close the tab and get on with your day.</p>
+          <p>The top few. Five minutes. Done.</p>
         </li>
       </ol>
     </section>
@@ -101,15 +105,12 @@
       <div class="funnel-line"><span class="big accent" data-count="5">0</span><span class="lbl">that reach your inbox</span></div>
     </section>
 
-    <!-- DIFFERENT -->
-    <section class="prose reveal">
-      <p class="kicker">Why it's different</p>
-      <h2 class="h2">It learns what <em>you</em> find worth reading.</h2>
-      <p class="body-lg">
-        Every thumbs-up or skip quietly tunes your edition. Over a few weeks it
-        stops sounding like everyone's feed and starts sounding like yours —
-        the topics, sources, and depth you actually keep.
-      </p>
+    <!-- LEARNS -->
+    <section class="learns reveal">
+      <div class="eq" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="kicker center">It gets to know you</p>
+      <h2 class="h2 center mxauto">Every keep and skip tunes your edition.</h2>
+      <p class="caption">In a few weeks it sounds like <em>you</em> — not everyone.</p>
     </section>
 
     <!-- FINAL CTA -->

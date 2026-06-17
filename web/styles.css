@@ -168,6 +168,35 @@ section { padding-inline: var(--gut); }
 .funnel .lbl { font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
 .funnel .arrow { font-size: 2rem; color: var(--line); margin: 0.5rem 0; }
 
+/* ---- utilities ---- */
+.center { text-align: center; }
+.mxauto { margin-inline: auto; }
+
+/* ---- noise wall ---- */
+.noise { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(3.5rem, 9vw, 8rem); text-align: center; }
+.noise .kicker { display: block; }
+.noise-wall { display: block; width: 100%; height: clamp(220px, 34vw, 400px); margin: 2.5rem auto 1.25rem; }
+.caption { font-family: var(--mono); font-size: 0.84rem; letter-spacing: 0.04em; color: var(--ink-soft); text-align: center; }
+.caption strong { color: var(--accent-ink); font-weight: 600; }
+.caption em { color: var(--accent-ink); font-style: italic; }
+
+/* ---- step glyphs ---- */
+.glyph { width: 46px; height: 46px; color: var(--ink); margin-bottom: 1rem; display: block; }
+.glyph .a { stroke: var(--accent); }
+.glyph circle.a { fill: var(--accent); stroke: none; }
+
+/* ---- learns / equalizer ---- */
+.learns { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(3.5rem, 9vw, 8rem); text-align: center; }
+.eq { display: flex; gap: 5px; justify-content: center; align-items: flex-end; height: 54px; margin-bottom: 1.5rem; }
+.eq span { width: 6px; height: 16px; background: var(--accent); border-radius: 2px; animation: eq 1.2s ease-in-out infinite; }
+.eq span:nth-child(2) { animation-delay: 0.15s; }
+.eq span:nth-child(3) { animation-delay: 0.3s; }
+.eq span:nth-child(4) { animation-delay: 0.45s; }
+.eq span:nth-child(5) { animation-delay: 0.6s; }
+.eq span:nth-child(6) { animation-delay: 0.3s; }
+.eq span:nth-child(7) { animation-delay: 0.1s; }
+@keyframes eq { 0%, 100% { height: 14px; } 50% { height: 48px; } }
+
 /* ---- final cta ---- */
 .cta { max-width: var(--maxw); margin: 0 auto; padding-block: clamp(4rem, 11vw, 10rem); text-align: center; border-top: 1px solid var(--line); }
 .cta .display.sm { margin-bottom: 1rem; }

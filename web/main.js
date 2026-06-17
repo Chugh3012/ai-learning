@@ -252,3 +252,70 @@ if (fSec) {
   }, { threshold: 0.4 });
   once.observe(fSec);
 }
+
+/* ---------------- problem: noise wall ---------------- */
+function noiseWall(c) {
+  const ctx = c.getContext("2d");
+  let w, h, dpr, cells = [], t = 0;
+  const mouse = { x: -9999, y: -9999 };
+  function resize() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    const r = c.getBoundingClientRect();
+    w = r.width; h = r.height;
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    build();
+  }
+  function build() {
+    const gap = Math.max(16, Math.min(26, w / 36));
+    const cols = Math.max(1, Math.floor(w / gap)), rows = Math.max(1, Math.floor(h / gap));
+    const ox = (w - (cols - 1) * gap) / 2, oy = (h - (rows - 1) * gap) / 2;
+    const total = cols * rows, sig = new Set();
+    while (sig.size < Math.min(5, total)) sig.add((Math.random() * total) | 0);
+    cells = [];
+    let i = 0;
+    for (let yy = 0; yy < rows; yy++) for (let xx = 0; xx < cols; xx++) {
+      cells.push({ x: ox + xx * gap, y: oy + yy * gap, sig: sig.has(i), ph: Math.random() * 6.28 });
+      i++;
+    }
+  }
+  addEventListener("pointermove", (e) => {
+    const r = c.getBoundingClientRect();
+    mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+  }, { passive: true });
+  addEventListener("resize", resize);
+  resize();
+  function frame() {
+    ctx.clearRect(0, 0, w, h);
+    t += 0.02;
+    for (const cell of cells) {
+      const d = Math.hypot(cell.x - mouse.x, cell.y - mouse.y);
+      const near = d < 130 ? 1 - d / 130 : 0;
+      if (cell.sig) {
+        const pulse = 0.6 + 0.4 * Math.sin(t * 2 + cell.ph);
+        ctx.globalAlpha = Math.min(1, 0.55 * pulse + near * 0.4);
+        ctx.fillStyle = ACCENT;
+        ctx.beginPath(); ctx.arc(cell.x, cell.y, 2.6 + 1.1 * pulse + near * 2, 0, 6.2832); ctx.fill();
+      } else {
+        ctx.globalAlpha = 0.1 + near * 0.5;
+        ctx.fillStyle = near > 0.35 ? ACCENT : INK;
+        ctx.beginPath(); ctx.arc(cell.x, cell.y, 1.3 + near * 1.6, 0, 6.2832); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (!REDUCE) requestAnimationFrame(frame);
+  }
+  frame();
+}
+const nSec = document.querySelector(".noise");
+if (nSec) {
+  const o = new IntersectionObserver((es) => {
+    es.forEach((en) => {
+      if (!en.isIntersecting) return;
+      o.disconnect();
+      const nc = document.getElementById("noise");
+      if (nc) noiseWall(nc);
+    });
+  }, { threshold: 0.2 });
+  o.observe(nSec);
+}
