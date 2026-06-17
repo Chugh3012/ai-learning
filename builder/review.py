@@ -24,7 +24,8 @@ def _resolve_profile(role: str):
     try:
         sys.path.insert(0, str(ROOT))
         from ai_scout.repositories.registry import UserRegistry
-        return UserRegistry.load().profile_for_role(role)
+        reg = UserRegistry.from_subscribers(os.environ.get("FEEDBACK_STORAGE", ""))
+        return reg.profile_for_role(role)
     except Exception as e:
         print(f"review: could not resolve role '{role}' ({e})")
         return None

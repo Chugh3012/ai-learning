@@ -65,16 +65,13 @@ def main(argv=None) -> int:
         metrics.add("ranked", Ranker(kb, endpoint, model).score_unscored(args.days, args.rank_max))
         metrics.add("embedded", Embedder(kb, endpoint, embed_model).embed_unembedded(args.embed_max))
 
-    registry = UserRegistry.load()
+    # The subscribers table is the single registry of audiences (admin + subscribers +
+    # the builder automation feed). No user/PII config in git.
+    registry = UserRegistry.from_subscribers(s.subscriber_storage or s.feedback_storage)
     feedback_store = FeedbackStore(s.feedback_storage)
 
-    # Every confirmed person (incl. the admin) lives in the subscribers table and joins as a
-    # distinct user with their own lens(es) + feedback. Operators-as-config holds only the
-    # builder radar (used by CI); no end-user PII in git.
-    from ai_scout.repositories.subscribers import SubscriberStore
-    subs = SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
-    if subs:
-        print(f"subscribers: +{registry.add_subscribers(subs)} users from table")
+    if subs := registry.users:
+        print(f"registry: {len(subs)} users from table")
 
     if args.feedback:
         metrics.add("voted", FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses()))

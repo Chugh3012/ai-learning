@@ -6,43 +6,57 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ai_scout.domain.cadence import Cadence
 from ai_scout.repositories.registry import UserRegistry
 
+def _sample_registry() -> UserRegistry:
+    # Mirrors what SubscriberStore.confirmed() yields from the table: the admin (curated
+    # feeds), the builder automation feed (digest, no email), and a plain subscriber.
+    reg = UserRegistry([])
+    reg.add_subscribers([
+        {"user_id": "usr_admin", "email": "o@x.com", "name": "Admin", "kind": "admin",
+         "profiles": [
+             {"id": "prf_daily", "name": "Daily", "channel": "email", "cadence": "daily",
+              "top": 5, "min_score": 55, "interest": ""},
+             {"id": "prf_reel", "name": "Reels", "channel": "digest", "cadence": "on_demand",
+              "top": 5, "min_score": 60, "interest": "x"}]},
+        {"user_id": "usr_builder", "email": "", "name": "Builder", "kind": "builder",
+         "profiles": [
+             {"id": "prf_radar", "name": "Radar", "channel": "digest", "cadence": "weekly",
+              "top": 8, "min_score": 60, "self_review": True, "interest": "y"}]},
+        {"user_id": "usr_sub", "email": "a@b.com", "name": "A", "kind": "subscriber",
+         "profiles": None},
+    ])
+    return reg
+
 class TestRegistry(unittest.TestCase):
     def setUp(self):
-        self.reg = UserRegistry.load()
+        self.reg = _sample_registry()
 
     def test_users_have_opaque_ids_and_roles(self):
         roles = {u.role for u in self.reg.users}
-        # Operators-as-config now holds only the builder radar (used by CI); real people
-        # (incl. the admin) live in the subscribers table, not git.
-        self.assertIn("builder", roles)
+        # Everyone lives in the subscribers table now: people (admin/subscriber, email) and
+        # the builder automation feed (digest, no email). No user config in git.
+        self.assertEqual(roles, {"admin", "builder", "subscriber"})
         for u in self.reg.users:
             self.assertTrue(u.id.startswith("usr_"))
             for p in u.profiles:
                 self.assertTrue(p.id.startswith("prf_"))
 
-    def test_add_subscribers_builds_distinct_users(self):
-        reg = UserRegistry.load()
-        n = reg.add_subscribers([
-            {"user_id": "usr_sub1", "email": "a@b.com", "name": "A", "kind": "subscriber",
-             "profiles": None},
-            {"user_id": "usr_adm", "email": "o@x.com", "name": "O", "kind": "admin", "profiles": [
-                {"id": "prf_d", "channel": "email", "cadence": "daily", "top": 5,
-                 "min_score": 55, "interest": ""},
-                {"id": "prf_r", "channel": "digest", "cadence": "on_demand", "top": 5,
-                 "min_score": 60, "interest": "x"}]},
-        ])
-        self.assertEqual(n, 2)
-        sub = self.reg_user(reg, "usr_sub1")
-        self.assertEqual(len(sub.profiles), 1)
-        self.assertEqual(sub.profiles[0].email, "a@b.com")
-        adm = self.reg_user(reg, "usr_adm")
-        self.assertEqual(len(adm.profiles), 2)
-        self.assertEqual({p.channel for p in adm.profiles}, {"email", "digest"})
-        self.assertTrue(all(p.email == "o@x.com" for p in adm.profiles))
+    def test_emailless_feed_builds_when_it_has_profiles(self):
+        # The builder has no email but a digest profile -> it must still become a user.
+        b = next(u for u in self.reg.users if u.role == "builder")
+        self.assertEqual(len(b.profiles), 1)
+        self.assertEqual(b.profiles[0].channel, "digest")
+        self.assertEqual(b.profiles[0].email, "")
 
-    @staticmethod
-    def reg_user(reg, uid):
-        return next(u for u in reg.users if u.id == uid)
+    def test_subscriber_without_profiles_gets_default_daily(self):
+        s = next(u for u in self.reg.users if u.role == "subscriber")
+        self.assertEqual(len(s.profiles), 1)
+        self.assertEqual(s.profiles[0].channel, "email")
+        self.assertEqual(s.profiles[0].email, "a@b.com")
+
+    def test_emailless_user_without_profiles_is_skipped(self):
+        reg = UserRegistry([])
+        n = reg.add_subscribers([{"user_id": "usr_x", "email": "", "name": "", "profiles": None}])
+        self.assertEqual(n, 0)
 
     def test_user_by_role(self):
         m = self.reg.user_by_role("builder")
@@ -72,6 +86,7 @@ class TestRegistry(unittest.TestCase):
                 self.assertNotIn(p.lens, fl)
             else:
                 self.assertIn(p.lens, fl)
+
 
 class TestCadence(unittest.TestCase):
     def test_daily_due_when_never_sent_or_old(self):

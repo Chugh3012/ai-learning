@@ -13,7 +13,8 @@ def _resolve_filesafe_lens(role: str) -> str:
     try:
         sys.path.insert(0, str(ROOT))
         from ai_scout.repositories.registry import UserRegistry
-        prof = UserRegistry.load().profile_for_role(role)
+        reg = UserRegistry.from_subscribers(os.environ.get("FEEDBACK_STORAGE", ""))
+        prof = reg.profile_for_role(role)
         return prof.filesafe_lens if prof else ""
     except Exception as e:
         print(f"inbox: could not resolve role '{role}' ({e})")

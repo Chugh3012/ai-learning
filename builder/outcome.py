@@ -16,11 +16,13 @@ def record_votes(account: str, lens: str, item_ids: list[int], value: float) -> 
     return FeedbackStore(account).record_votes(lens, [int(i) for i in item_ids], value)
 
 def _resolve_lens(role: str) -> str:
+    import os
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from ai_scout.repositories.registry import UserRegistry
-    prof = UserRegistry.load().profile_for_role(role)
+    reg = UserRegistry.from_subscribers(os.environ.get("FEEDBACK_STORAGE", ""))
+    prof = reg.profile_for_role(role)
     return prof.lens if prof else ""
 
 def main() -> int:

@@ -31,10 +31,10 @@ class SubscriberStore:
             out: list[dict] = []
             for r in rows:
                 email = str(r.get("email", ""))
-                if not email:
+                raw = r.get("profiles")
+                if not (email or raw):
                     continue
                 profiles = None
-                raw = r.get("profiles")
                 if raw:
                     try:
                         profiles = json.loads(raw)
