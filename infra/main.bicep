@@ -57,6 +57,9 @@ param metricsDcrName string = 'dcr-ai-scout'
 @description('Base name for Azure Managed Grafana')
 param grafanaName string = 'graf-ai-scout'
 
+@description('Apply RBAC role assignments (default off so the template re-deploys idempotently; enable for a fresh environment or to (re)apply roles).')
+param assignRoles bool = false
+
 // KB Storage Account (shared-key disabled, public blob access disabled)
 resource kbStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: kbStorageBaseName
@@ -336,7 +339,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
 }
 
 // Role Assignments - Storage Blob Data Contributor on KB Storage
-resource kbStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kbStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(kbStorage.id, userPrincipalId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: kbStorage
   properties: {
@@ -346,7 +349,7 @@ resource kbStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 }
 
-resource kbStorageBlobIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource kbStorageBlobIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(kbStorage.id, managedIdentity.id, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: kbStorage
   properties: {
@@ -357,7 +360,7 @@ resource kbStorageBlobIdentityRole 'Microsoft.Authorization/roleAssignments@2022
 }
 
 // Role Assignments - Storage Table Data Contributor on Function Storage
-resource fnStorageTableFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource fnStorageTableFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
   scope: fnStorage
   properties: {
@@ -367,7 +370,7 @@ resource fnStorageTableFunctionRole 'Microsoft.Authorization/roleAssignments@202
   }
 }
 
-resource fnStorageTableUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource fnStorageTableUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, userPrincipalId, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
   scope: fnStorage
   properties: {
@@ -377,7 +380,7 @@ resource fnStorageTableUserRole 'Microsoft.Authorization/roleAssignments@2022-04
   }
 }
 
-resource fnStorageTableIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource fnStorageTableIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, managedIdentity.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
   scope: fnStorage
   properties: {
@@ -389,7 +392,7 @@ resource fnStorageTableIdentityRole 'Microsoft.Authorization/roleAssignments@202
 
 // Role Assignments - Storage Blob Data Contributor on Function Storage (Flex deployment package,
 // pulled passwordless by the Function's system-assigned identity; the user can publish too).
-resource fnStorageBlobFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource fnStorageBlobFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, functionApp.id, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: fnStorage
   properties: {
@@ -399,7 +402,7 @@ resource fnStorageBlobFunctionRole 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
-resource fnStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource fnStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, userPrincipalId, 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
   scope: fnStorage
   properties: {
@@ -410,7 +413,7 @@ resource fnStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-
 }
 
 // Role Assignments - Cognitive Services OpenAI User
-resource cognitiveServicesUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource cognitiveServicesUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(cognitiveServices.id, userPrincipalId, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
   scope: cognitiveServices
   properties: {
@@ -420,7 +423,7 @@ resource cognitiveServicesUserRole 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
-resource cognitiveServicesIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource cognitiveServicesIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(cognitiveServices.id, managedIdentity.id, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
   scope: cognitiveServices
   properties: {
@@ -431,21 +434,21 @@ resource cognitiveServicesIdentityRole 'Microsoft.Authorization/roleAssignments@
 }
 
 // Role Assignments - Communication and Email Service Owner
-resource communicationServiceUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(communicationService.id, userPrincipalId, '20e02c0b-1f9c-4c53-81c4-f8bf1f8e9766')
+resource communicationServiceUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(communicationService.id, userPrincipalId, '09976791-48a7-449e-bb21-39d1a415f350')
   scope: communicationService
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '20e02c0b-1f9c-4c53-81c4-f8bf1f8e9766')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350')
     principalId: userPrincipalId
     principalType: 'User'
   }
 }
 
-resource communicationServiceIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(communicationService.id, managedIdentity.id, '20e02c0b-1f9c-4c53-81c4-f8bf1f8e9766')
+resource communicationServiceIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(communicationService.id, managedIdentity.id, '09976791-48a7-449e-bb21-39d1a415f350')
   scope: communicationService
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '20e02c0b-1f9c-4c53-81c4-f8bf1f8e9766')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '09976791-48a7-449e-bb21-39d1a415f350')
     principalId: managedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
@@ -560,7 +563,7 @@ resource grafana 'Microsoft.Dashboard/grafana@2023-09-01' = {
 }
 
 // RBAC - Monitoring Metrics Publisher on the DCR (pipeline identity + user can ship metrics)
-resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(metricsDcr.id, managedIdentity.id, '3913510d-42f4-4e42-8a64-420c390055eb')
   scope: metricsDcr
   properties: {
@@ -570,7 +573,7 @@ resource dcrPublisherIdentityRole 'Microsoft.Authorization/roleAssignments@2022-
   }
 }
 
-resource dcrPublisherUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource dcrPublisherUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(metricsDcr.id, userPrincipalId, '3913510d-42f4-4e42-8a64-420c390055eb')
   scope: metricsDcr
   properties: {
@@ -581,7 +584,7 @@ resource dcrPublisherUserRole 'Microsoft.Authorization/roleAssignments@2022-04-0
 }
 
 // RBAC - Grafana's identity reads the workspace (Log Analytics Reader) + the RG (Monitoring Reader)
-resource grafanaWorkspaceReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource grafanaWorkspaceReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(logAnalytics.id, grafana.id, '73c42c96-874c-492b-b04d-ab87d138a893')
   scope: logAnalytics
   properties: {
@@ -591,7 +594,7 @@ resource grafanaWorkspaceReader 'Microsoft.Authorization/roleAssignments@2022-04
   }
 }
 
-resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(resourceGroup().id, grafana.id, '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
@@ -601,7 +604,7 @@ resource grafanaMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-0
 }
 
 // RBAC - the user is a Grafana Admin on the instance (to build/import dashboards)
-resource grafanaUserAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource grafanaUserAdmin 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(grafana.id, userPrincipalId, '22926164-76b3-42b3-bc55-97df8dab3e41')
   scope: grafana
   properties: {
