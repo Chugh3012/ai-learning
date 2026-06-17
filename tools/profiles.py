@@ -12,6 +12,7 @@ This module is pure config/domain logic — no DB, no Azure — so it is trivial
 """
 from __future__ import annotations
 
+import enum
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,37 +20,37 @@ from pathlib import Path
 _USERS = Path(__file__).resolve().parent.parent / "config" / "users.json"
 
 
-@dataclass(frozen=True)
-class Cadence:
-    """When a profile is DUE for delivery. `interval_days=None` => on-demand (never on the
-    scheduled run; produced explicitly). Otherwise due when at least `interval_days` (minus a
-    half-day of cron slack) have passed since the profile's last delivery."""
-    name: str
-    interval_days: float | None
+class Cadence(enum.Enum):
+    """When a profile is DUE for delivery. The member VALUE is its interval in days (None =
+    on-demand: never on the scheduled run, produced explicitly). A profile is due when at least
+    `interval_days` (minus a half-day of cron slack) have passed since its last delivery."""
+    DAILY = 1.0
+    WEEKLY = 7.0
+    ON_DEMAND = None
+
+    @property
+    def interval_days(self) -> float | None:
+        return self.value
 
     @property
     def scheduled(self) -> bool:
         """True if this cadence ever fires on the scheduled run (False for on-demand)."""
-        return self.interval_days is not None
+        return self.value is not None
 
     def is_due(self, last_sent_ts: int | None, now: int) -> bool:
-        if self.interval_days is None:
+        if self.value is None:
             return False
         if last_sent_ts is None:
             return True
-        return (now - last_sent_ts) >= (self.interval_days - 0.5) * 86400
+        return (now - last_sent_ts) >= (self.value - 0.5) * 86400
 
-
-_CADENCES = {
-    "daily": Cadence("daily", 1.0),
-    "weekly": Cadence("weekly", 7.0),
-    "on_demand": Cadence("on_demand", None),
-}
-
-
-def cadence(name: str) -> Cadence:
-    """Resolve a cadence by name; unknown names fall back to daily."""
-    return _CADENCES.get((name or "daily").strip(), _CADENCES["daily"])
+    @classmethod
+    def from_name(cls, name: str) -> "Cadence":
+        """Resolve a cadence by its config name (e.g. 'weekly'); unknown names fall back to daily."""
+        try:
+            return cls[(name or "daily").strip().upper()]
+        except KeyError:
+            return cls.DAILY
 
 
 @dataclass(frozen=True)
@@ -109,7 +110,7 @@ def _to_profile(user_id: str, raw: dict) -> Profile:
         user_id=user_id,
         id=str(raw["id"]),
         channel=str(raw.get("channel", "email")),
-        cadence=cadence(str(raw.get("cadence", "daily"))),
+        cadence=Cadence.from_name(str(raw.get("cadence", "daily"))),
         name=str(raw.get("name", "")),
         top=int(raw.get("top", 5)),
         min_score=float(raw.get("min_score", 0)),

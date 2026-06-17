@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import sinks  # noqa: E402
-from profiles import User, Profile, cadence  # noqa: E402
+from profiles import User, Profile, Cadence  # noqa: E402
 
 
 def _con():
@@ -19,8 +19,8 @@ def _con():
 
 def _users():
     return [User(id="usr_a", role="owner", profiles=[
-        Profile(user_id="usr_a", id="prf_main", channel="email", cadence=cadence("daily")),
-        Profile(user_id="usr_a", id="prf_reel", channel="draft", cadence=cadence("on_demand"),
+        Profile(user_id="usr_a", id="prf_main", channel="email", cadence=Cadence.DAILY),
+        Profile(user_id="usr_a", id="prf_reel", channel="draft", cadence=Cadence.ON_DEMAND,
                 format="reel"),
     ])]
 

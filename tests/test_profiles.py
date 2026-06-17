@@ -49,23 +49,23 @@ class TestRegistry(unittest.TestCase):
 
 class TestCadence(unittest.TestCase):
     def test_daily_due_when_never_sent_or_old(self):
-        c = profiles.cadence("daily")
+        c = profiles.Cadence.DAILY
         self.assertTrue(c.scheduled)
         self.assertTrue(c.is_due(None, 1_000_000))             # never sent
         self.assertTrue(c.is_due(1_000_000 - 2 * 86400, 1_000_000))
 
     def test_weekly_holds_until_interval(self):
-        c = profiles.cadence("weekly")
+        c = profiles.Cadence.WEEKLY
         self.assertFalse(c.is_due(1_000_000 - 2 * 86400, 1_000_000))   # 2d < 7d
         self.assertTrue(c.is_due(1_000_000 - 8 * 86400, 1_000_000))    # 8d >= 7d
 
     def test_on_demand_never_scheduled(self):
-        c = profiles.cadence("on_demand")
+        c = profiles.Cadence.ON_DEMAND
         self.assertFalse(c.scheduled)
         self.assertFalse(c.is_due(None, 1_000_000))
 
     def test_unknown_cadence_defaults_daily(self):
-        self.assertEqual(profiles.cadence("nope").name, "daily")
+        self.assertIs(profiles.Cadence.from_name("nope"), profiles.Cadence.DAILY)
 
 
 if __name__ == "__main__":
