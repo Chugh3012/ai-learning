@@ -70,7 +70,9 @@ def main(argv=None) -> int:
 
     # Each confirmed newsletter subscriber joins as a distinct user (own lens + feedback).
     from ai_scout.repositories.subscribers import SubscriberStore
-    subs = SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
+    owner = (s.email_to or "").strip().lower()
+    subs = [t for t in SubscriberStore(s.subscriber_storage or s.feedback_storage).confirmed()
+            if t[1].strip().lower() != owner]
     if subs:
         print(f"subscribers: +{registry.add_subscribers(subs)} confirmed users")
 
