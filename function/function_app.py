@@ -19,6 +19,11 @@ app = func.FunctionApp()
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _SUBSCRIBERS = "subscribers"
 _RESEND_WINDOW = 600  # don't re-send a confirmation to the same address within 10 min
+_CONFIRM_TTL = 48 * 3600  # a confirmation link is good for 48 hours
+_FEEDBACK_TTL = 90 * 24 * 3600  # a feedback link is good for 90 days
+_RATE_WINDOW = 3600  # per-IP sliding window for subscribe abuse guard
+_RATE_LIMIT = 10  # max confirmation sends a single IP can trigger per window
+_GLOBAL_LIMIT = 60  # absolute cap on confirmation sends per window (spoof-proof backstop)
 
 _ACTIONS: dict[str, tuple[str, float]] = {
     "up": ("vote", 1.0),
@@ -72,6 +77,70 @@ def _json(status: int, ok: bool, message: str) -> func.HttpResponse:
 
 def _email_key(email: str) -> str:
     return hashlib.sha256(email.encode("utf-8")).hexdigest()
+
+def _strip_port(value: str) -> str:
+    v = (value or "").strip()
+    if not v:
+        return ""
+    if v.startswith("["):  # [ipv6]:port
+        return v[1:v.index("]")] if "]" in v else v
+    if v.count(":") == 1:  # ipv4:port
+        return v.split(":")[0]
+    return v  # bare ipv4, or ipv6 without a port
+
+def _client_ip(req: func.HttpRequest) -> str:
+    # Use a platform-observed IP, NOT a client-forgeable header. X-Azure-SocketIP is the raw
+    # TCP peer (not client-settable); failing that, Azure App Service appends the real client
+    # IP as the LAST X-Forwarded-For hop, so the last entry — not the first — is trustworthy.
+    sock = req.headers.get("X-Azure-SocketIP", "").strip()
+    if sock:
+        return _strip_port(sock)
+    fwd = req.headers.get("X-Forwarded-For", "")
+    if fwd:
+        return _strip_port(fwd.split(",")[-1])
+    return _strip_port(req.headers.get("X-Azure-ClientIP", "")) or "unknown"
+
+def _under_cap(table, part: str, key: str, limit: int, now: int) -> bool:
+    try:
+        row = table.get_entity(part, key)
+        start = int(row.get("windowStart", 0))
+        count = int(row.get("count", 0))
+    except ResourceNotFoundError:
+        start, count = now, 0
+    if now - start >= _RATE_WINDOW:
+        start, count = now, 0
+    if count >= limit:
+        return False
+    table.upsert_entity(
+        {"PartitionKey": part, "RowKey": key, "windowStart": start, "count": count + 1},
+        mode=UpdateMode.REPLACE,
+    )
+    return True
+
+def _rate_ok(req: func.HttpRequest) -> bool:
+    # Two layered fixed-window caps on confirmation sends: per trusted-IP (stops one source)
+    # AND a global cap (bounds total email volume even if the source IP is spoofed/rotated).
+    # Fail-open: if the counter store is unreachable we still serve (availability first).
+    ip = _client_ip(req)
+    ipkey = hashlib.sha256(ip.encode("utf-8")).hexdigest()
+    now = int(time.time())
+    try:
+        svc = _tables()
+        try:
+            svc.create_table_if_not_exists("ratelimit")
+        except Exception:
+            pass
+        table = svc.get_table_client("ratelimit")
+        if not _under_cap(table, "ip", ipkey, _RATE_LIMIT, now):
+            logging.warning("subscribe_rate_limited: per-IP cap hit")
+            return False
+        if not _under_cap(table, "global", "confirm", _GLOBAL_LIMIT, now):
+            logging.warning("subscribe_rate_limited: global confirmation cap hit")
+            return False
+        return True
+    except Exception:
+        logging.exception("subscribe_rate_limit_store_failed: allowing")
+        return True
 
 def _new_user_id() -> str:
     return "usr_" + secrets.token_hex(4)
@@ -141,7 +210,8 @@ def _confirm_email_html(hello: str, confirm_url: str) -> str:
         '</div></div>'
     )
 
-def _acs_send(to: str, subject: str, plain: str, body_html: str) -> bool:
+def _acs_send(to: str, subject: str, plain: str, body_html: str,
+              headers: dict[str, str] | None = None) -> bool:
     endpoint = os.environ.get("ACS_ENDPOINT", "")
     sender = os.environ.get("EMAIL_SENDER", "")
     if not (endpoint and sender):
@@ -150,11 +220,14 @@ def _acs_send(to: str, subject: str, plain: str, body_html: str) -> bool:
     try:
         from azure.communication.email import EmailClient
         client = EmailClient(endpoint, DefaultAzureCredential())
-        client.begin_send({
+        message = {
             "senderAddress": sender,
             "recipients": {"to": [{"address": to}]},
             "content": {"subject": subject, "plainText": plain, "html": body_html},
-        }).result()
+        }
+        if headers:
+            message["headers"] = headers
+        client.begin_send(message).result()
         return True
     except Exception:
         logging.exception("email: send failed")
@@ -171,7 +244,7 @@ def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
     return _acs_send(to, "Confirm your Chugh Vibes subscription", plain,
                      _confirm_email_html(html.escape(hello), confirm_url))
 
-def _send_welcome(to: str) -> bool:
+def _send_welcome(to: str, unsubscribe_url: str = "") -> bool:
     # Fire the new user's first edition the moment they confirm, using the generic top-5
     # the pipeline cached. No cache yet (cold start) -> skip; they'll get the next daily run.
     try:
@@ -184,7 +257,18 @@ def _send_welcome(to: str) -> bool:
     body_html = str(ed.get("html") or "")
     if not body_html:
         return False
-    return _acs_send(to, subject, plain, body_html)
+    headers = None
+    if unsubscribe_url:
+        safe = html.escape(unsubscribe_url, quote=True)
+        plain += f"\n\nUnsubscribe: {unsubscribe_url}\n"
+        body_html += (
+            '<p style="color:#999;font-size:12px;font-family:Inter,Arial,sans-serif">'
+            f'<a href="{safe}" style="color:#999">Unsubscribe</a></p>')
+        headers = {
+            "List-Unsubscribe": f"<{unsubscribe_url}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
+    return _acs_send(to, subject, plain, body_html, headers)
 
 @app.route(route="f", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def feedback(req: func.HttpRequest) -> func.HttpResponse:
@@ -204,6 +288,10 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     action = str(entity.get("action", ""))
     if action not in _ACTIONS:
         return func.HttpResponse("Unknown action.", status_code=400)
+    expires = int(entity.get("expiresTs") or (int(entity.get("ts", 0)) + _FEEDBACK_TTL))
+    if time.time() > expires:
+        logging.info("feedback_expired: token past TTL")
+        return func.HttpResponse("This feedback link has expired.", status_code=410)
     item_id = str(entity.get("itemId", ""))
     lens = str(entity.get("lens", ""))
     if not lens:
@@ -273,6 +361,8 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
         except ResourceNotFoundError:
             token = secrets.token_urlsafe(24)
             user_id = _new_user_id()
+        if not _rate_ok(req):
+            return _json(429, False, "Too many requests. Please try again in a little while.")
         table.upsert_entity(
             {
                 "PartitionKey": "pending", "RowKey": key,
@@ -286,7 +376,10 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
         logging.exception("subscribe: store failed")
         return _json(503, False, "Temporary error, please try again.")
 
-    _send_confirmation(email, name, f"{_api_base(req)}/confirm?t={token}")
+    if _send_confirmation(email, name, f"{_api_base(req)}/confirm?t={token}"):
+        logging.info("subscribe_confirmation_sent")
+    else:
+        logging.warning("subscribe_confirmation_send_failed")
     return _json(200, True, "Almost there — check your inbox to confirm.")
 
 
@@ -320,6 +413,12 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
 
     ent = rows[0]
     key = str(ent["RowKey"])
+    if int(time.time()) - int(ent.get("createdTs", 0)) > _CONFIRM_TTL:
+        try:
+            table.delete_entity("pending", key)
+        except Exception:
+            pass
+        return _page("This confirmation link has expired. Please subscribe again.", ok=False)
     email = str(ent.get("email", ""))
     name = str(ent.get("name", ""))
     user_id = str(ent.get("userId") or _new_user_id())
@@ -342,6 +441,44 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     _ensure_default_profile(user_id)
 
     # Trigger this new user's first edition right away (graceful if no cache yet).
-    if _send_welcome(email):
+    unsubscribe_url = f"{_api_base(req)}/unsubscribe?t={token}"
+    if _send_welcome(email, unsubscribe_url):
         return _page("You're in. Your first edition is on its way to your inbox.", ok=True)
     return _page("You're in. Your first edition lands tomorrow morning.", ok=True)
+
+
+@app.route(route="unsubscribe", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def unsubscribe(req: func.HttpRequest) -> func.HttpResponse:
+    # One-click unsubscribe. GET = footer link (returns a page); POST = RFC 8058
+    # List-Unsubscribe-Post (mail clients call it silently, expect 200). Idempotent.
+    token = (req.params.get("t") or "").strip()
+    if not token:
+        return _page("This unsubscribe link is missing its token.", ok=False)
+    try:
+        table = _subscribers()
+        rows = list(table.query_entities(
+            "PartitionKey eq 'sub' and token eq @tok",
+            parameters={"tok": token},
+        ))
+    except Exception:
+        logging.exception("unsubscribe: lookup failed")
+        if req.method == "POST":
+            return func.HttpResponse(status_code=202)
+        return _page("Temporary error, please try again.", ok=False)
+
+    for ent in rows:
+        try:
+            table.update_entity(
+                {
+                    "PartitionKey": "sub", "RowKey": str(ent["RowKey"]),
+                    "status": "unsubscribed", "unsubscribedTs": int(time.time()),
+                },
+                mode=UpdateMode.MERGE,
+            )
+            logging.info("unsubscribe_success")
+        except Exception:
+            logging.exception("unsubscribe: update failed")
+
+    if req.method == "POST":
+        return func.HttpResponse(status_code=200)
+    return _page("You're unsubscribed. You won't get any more editions.", ok=True)

@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     metrics_dcr_rule_id: str = ""
     metrics_stream: str = "Custom-AiScoutMetrics_CL"
 
+    @property
+    def unsubscribe_url(self) -> str:
+        # Same Function host as the feedback route, different path (/api/unsubscribe).
+        if not self.feedback_url:
+            return ""
+        return self.feedback_url.rsplit("/", 1)[0] + "/unsubscribe"
+
     def email_address(self, var_name: str | None) -> str:
         if not var_name or var_name.upper() == "EMAIL_TO":
             return self.email_to

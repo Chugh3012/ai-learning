@@ -3,6 +3,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -100,6 +101,45 @@ class TestRecomputeAffinity(unittest.TestCase):
         self.kb.con.commit()
         _svc(self.kb)._recompute_affinity(LENS, self.now)
         self.assertLessEqual(abs(self._aff().get(1, 0)), 20.0001)
+
+class _FakeTable:
+    def __init__(self):
+        self.rows: dict[str, dict] = {}
+
+    def upsert_entity(self, entity, mode=None):
+        self.rows[str(entity["RowKey"])] = dict(entity)
+
+    def query_entities(self, query, parameters=None):
+        cut = (parameters or {}).get("cut", 0)
+        return [r for r in self.rows.values() if int(r.get("ts", 0)) < cut]
+
+    def delete_entity(self, pk, rk):
+        self.rows.pop(str(rk), None)
+
+class TestTokenTTL(unittest.TestCase):
+    def setUp(self):
+        self.table = _FakeTable()
+        self.store = FeedbackStore("acct")
+        self.patch = mock.patch.object(self.store, "_table", return_value=self.table)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+
+    def test_minted_tokens_carry_expiry(self):
+        self.store.mint_tokens(LENS, [(1, "t", "http://x")])
+        self.assertTrue(self.table.rows)
+        for row in self.table.rows.values():
+            self.assertGreater(int(row["expiresTs"]), int(row["ts"]))
+
+    def test_purge_removes_only_expired(self):
+        now = int(time.time())
+        self.table.rows = {
+            "old": {"PartitionKey": "tok", "RowKey": "old", "ts": now - 200 * 86400},
+            "fresh": {"PartitionKey": "tok", "RowKey": "fresh", "ts": now},
+        }
+        removed = self.store.purge_expired_tokens()
+        self.assertEqual(removed, 1)
+        self.assertIn("fresh", self.table.rows)
+        self.assertNotIn("old", self.table.rows)
 
 if __name__ == "__main__":
     unittest.main()

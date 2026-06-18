@@ -60,6 +60,15 @@ param metricsDcrName string = 'dcr-ai-scout'
 @description('Apply RBAC role assignments (default off so the template re-deploys idempotently; enable for a fresh environment or to (re)apply roles).')
 param assignRoles bool = false
 
+@description('Email for operational alerts. Empty (default) deploys NO alert rules or action group, keeping the template at $0; set it to opt into the basic alert rules (~$0.50/rule/mo).')
+param alertEmail string = ''
+
+@description('Fire the source-health alert when feeds_failed in a day exceeds this.')
+param alertFeedsFailedMax int = 8
+
+@description('Fire the cost alert when a day of model spend (USD) exceeds this.')
+param alertCostBudgetUsd int = 1
+
 // KB Storage Account (shared-key disabled, public blob access disabled)
 resource kbStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: kbStorageBaseName
@@ -78,9 +87,29 @@ resource kbStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 
 resource kbBlobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
-  name: '${kbStorage.name}/default/knowledge'
+  name: 'knowledge'
+  parent: kbBlobService
   properties: {
     publicAccess: 'None'
+  }
+}
+
+// Data protection for the owned KB: versioning keeps every overwrite recoverable, and soft
+// delete guards against accidental blob/container deletion. Pairs with the daily snapshot
+// the pipeline takes on upload and the `ai_scout.cli.restore` restore command.
+resource kbBlobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  name: 'default'
+  parent: kbStorage
+  properties: {
+    isVersioningEnabled: true
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 14
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 14
+    }
   }
 }
 
@@ -95,6 +124,7 @@ resource fnStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   properties: {
     accessTier: 'Hot'
     allowBlobPublicAccess: false
+    allowSharedKeyAccess: false
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
   }
@@ -136,6 +166,13 @@ resource editionsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2
   parent: fnTables
 }
 
+// Per-IP fixed-window counter that caps how many confirmation emails one source can trigger
+// (anti-spam / cost guard on the anonymous subscribe endpoint). IP is hashed, not stored raw.
+resource rateLimitTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2023-05-01' = {
+  name: 'ratelimit'
+  parent: fnTables
+}
+
 // User-Assigned Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
@@ -154,6 +191,23 @@ resource federatedCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/f
   }
 }
 
+// Pull-request runs (the pr-gate eval) present a different OIDC subject. Created serially —
+// a managed identity rejects parallel federated-credential writes.
+resource federatedCredentialPr 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  name: 'gh-pr'
+  parent: managedIdentity
+  dependsOn: [
+    federatedCredential
+  ]
+  properties: {
+    audiences: [
+      'api://AzureADTokenExchange'
+    ]
+    issuer: 'https://token.actions.githubusercontent.com'
+    subject: 'repo:${githubRepository}:pull_request'
+  }
+}
+
 // Cognitive Services (AI Services) Account
 resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: cognitiveServicesName
@@ -162,6 +216,9 @@ resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
     name: 'S0'
   }
   kind: 'AIServices'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     customSubDomainName: cognitiveServicesName
     disableLocalAuth: true
@@ -345,8 +402,14 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
       }
     }
     siteConfig: {
+      minTlsVersion: '1.2'
+      scmMinTlsVersion: '1.2'
+      ftpsState: 'Disabled'
+      http20Enabled: true
       cors: {
         // The Chugh Vibes site (Static Web App origin) POSTs the subscribe form here.
+        // Scoped to that single origin (no wildcard); credentials are not used.
+        supportCredentials: false
         allowedOrigins: [
           'https://${staticSite.properties.defaultHostname}'
         ]
@@ -460,6 +523,18 @@ resource fnStorageBlobUserRole 'Microsoft.Authorization/roleAssignments@2022-04-
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
     principalId: userPrincipalId
     principalType: 'User'
+  }
+}
+
+// Storage Queue Data Contributor on Function Storage. The Flex Consumption host uses queues
+// for internal coordination via its identity; required once shared-key access is disabled.
+resource fnStorageQueueFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(fnStorage.id, functionApp.id, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+  scope: fnStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 
@@ -622,6 +697,140 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
     category: 'workbooks'
     sourceId: logAnalytics.id
     version: 'Notebook/1.0'
+  }
+}
+
+// Basic operational alerts over the metrics table. Opt-in: nothing here deploys unless an
+// alertEmail is supplied, so the default template stays free. Email notifications via an
+// action group; the three log-search rules cover the heartbeat, source health, and cost.
+resource alertActionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (!empty(alertEmail)) {
+  name: 'ag-ai-scout-alerts'
+  location: 'global'
+  properties: {
+    groupShortName: 'aiscout'
+    enabled: true
+    emailReceivers: [
+      {
+        name: 'owner'
+        emailAddress: alertEmail
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+// Heartbeat: the daily pipeline must land at least one ingest in the last 36h (allows one
+// missed run plus buffer). No data => the pipeline is stuck or its identity broke.
+resource noSyncAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (!empty(alertEmail)) {
+  name: 'ai-scout-no-sync-36h'
+  location: appLocation
+  properties: {
+    displayName: 'ai-scout: no successful sync in 36h'
+    description: 'The daily pipeline has not ingested anything in 36 hours.'
+    severity: 1
+    enabled: true
+    scopes: [
+      logAnalytics.id
+    ]
+    evaluationFrequency: 'PT6H'
+    windowSize: 'P2D'
+    criteria: {
+      allOf: [
+        {
+          query: 'AiScoutMetrics_CL | where Metric == "ingested" | where TimeGenerated > ago(36h) | summarize AggregatedValue = count()'
+          timeAggregation: 'Total'
+          metricMeasureColumn: 'AggregatedValue'
+          operator: 'LessThan'
+          threshold: 1
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [
+        alertActionGroup.id
+      ]
+    }
+  }
+}
+
+// Source health: too many feeds failing in a day signals broken/blocked sources.
+resource feedsFailedAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (!empty(alertEmail)) {
+  name: 'ai-scout-feeds-failed'
+  location: appLocation
+  properties: {
+    displayName: 'ai-scout: source failure rate high'
+    description: 'More than the allowed number of feeds failed in the last day.'
+    severity: 2
+    enabled: true
+    scopes: [
+      logAnalytics.id
+    ]
+    evaluationFrequency: 'PT6H'
+    windowSize: 'P1D'
+    criteria: {
+      allOf: [
+        {
+          query: 'AiScoutMetrics_CL | where Metric == "feeds_failed" | summarize AggregatedValue = max(Value)'
+          timeAggregation: 'Maximum'
+          metricMeasureColumn: 'AggregatedValue'
+          operator: 'GreaterThan'
+          threshold: alertFeedsFailedMax
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [
+        alertActionGroup.id
+      ]
+    }
+  }
+}
+
+// Cost guard: a day of model spend above budget means a runaway prompt/loop.
+resource costAlert 'Microsoft.Insights/scheduledQueryRules@2023-12-01' = if (!empty(alertEmail)) {
+  name: 'ai-scout-cost-budget'
+  location: appLocation
+  properties: {
+    displayName: 'ai-scout: daily model cost over budget'
+    description: 'Model spend in the last day exceeded the configured budget.'
+    severity: 2
+    enabled: true
+    scopes: [
+      logAnalytics.id
+    ]
+    evaluationFrequency: 'PT6H'
+    windowSize: 'P1D'
+    criteria: {
+      allOf: [
+        {
+          query: 'AiScoutMetrics_CL | where Metric == "cost_usd" | summarize AggregatedValue = sum(Value)'
+          timeAggregation: 'Total'
+          metricMeasureColumn: 'AggregatedValue'
+          operator: 'GreaterThan'
+          threshold: alertCostBudgetUsd
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [
+        alertActionGroup.id
+      ]
+    }
   }
 }
 

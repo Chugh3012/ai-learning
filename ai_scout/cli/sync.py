@@ -75,6 +75,11 @@ def main(argv=None) -> int:
 
     if args.feedback:
         metrics.add("voted", FeedbackService(kb, feedback_store).ingest(registry.feedback_lenses()))
+        from ai_scout.repositories.subscribers import SubscriberStore
+        purged_tok = feedback_store.purge_expired_tokens()
+        purged_pend = SubscriberStore(s.subscriber_storage or s.feedback_storage).purge_stale_pending()
+        if purged_tok or purged_pend:
+            print(f"cleanup: purged {purged_tok} expired tokens, {purged_pend} stale pending signups")
 
     if args.deliver or args.produce:
         orchestrator = Orchestrator(
