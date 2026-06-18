@@ -191,6 +191,23 @@ resource federatedCredential 'Microsoft.ManagedIdentity/userAssignedIdentities/f
   }
 }
 
+// Pull-request runs (the pr-gate eval) present a different OIDC subject. Created serially —
+// a managed identity rejects parallel federated-credential writes.
+resource federatedCredentialPr 'Microsoft.ManagedIdentity/userAssignedIdentities/federatedIdentityCredentials@2023-01-31' = {
+  name: 'gh-pr'
+  parent: managedIdentity
+  dependsOn: [
+    federatedCredential
+  ]
+  properties: {
+    audiences: [
+      'api://AzureADTokenExchange'
+    ]
+    issuer: 'https://token.actions.githubusercontent.com'
+    subject: 'repo:${githubRepository}:pull_request'
+  }
+}
+
 // Cognitive Services (AI Services) Account
 resource cognitiveServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: cognitiveServicesName
