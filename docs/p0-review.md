@@ -1,6 +1,7 @@
 # Phase 0 Review: Open Items
 
 Review date: 2026-06-18  
+Last rechecked: 2026-06-19  
 Reviewer stance: principal engineer, production readiness and abuse-resistance focus.
 
 ## Current Verdict
@@ -22,7 +23,8 @@ findings have been addressed in code and tests:
 - ACS unsubscribe headers: accepted as addressed based on live E2E evidence that a welcome send
   with `List-Unsubscribe` succeeded.
 
-No remaining P0/P1 blockers were found in this pass.
+No remaining P0/P1 blockers were found in this pass. The 2026-06-19 re-check found no new
+blockers and no additional P2 closures; the open list below remains current.
 
 ## Verification Performed
 
@@ -34,6 +36,12 @@ No remaining P0/P1 blockers were found in this pass.
   - Result: **passed**.
   - Warning: `BCP081` for `Microsoft.CognitiveServices/accounts/projects@2026-05-01`; non-blocking,
     but Bicep cannot validate that resource shape locally.
+
+Rechecked on 2026-06-19 with the same commands:
+
+- Unit tests: **121 tests passed**.
+- Python compile check: **45 files compiled**.
+- Bicep build: **passed** with the same non-blocking `BCP081` warning.
 
 ## Remaining Open Items
 
@@ -48,6 +56,11 @@ Recommended decision:
 
 - Keep it as global editorial signal for now and document that behavior, or
 - Re-render/remint the welcome edition for the confirming user's profile before `_send_welcome()`.
+
+**Addressed 2026-06-19:** the welcome edition now renders without feedback buttons (they were inert
+for a new subscriber with no history, and the welcome lens is never reconciled). The first daily
+edition carries working per-profile feedback; the welcome keeps its per-user unsubscribe link. See
+`Orchestrator._cache_welcome_edition` and `docs/runbook.md`.
 
 ### P2: Static web API endpoint remains hardcoded
 
@@ -64,6 +77,9 @@ Recommended action:
 - Generate a `config.js` or `config.json` during deployment, or
 - Use Static Web App app settings/build-time replacement.
 
+**Addressed 2026-06-19:** the API origin moved to `web/config.js` (`window.APP_CONFIG.apiBase`);
+`web/main.js` reads it. Swap that one file per environment — no code edit.
+
 ### P2: Alert enablement needs operator documentation
 
 `alertEmail` defaults to empty, so alert resources do not deploy unless an operator opts in. That
@@ -74,6 +90,9 @@ Recommended action:
 - Document how to enable alerts.
 - Add a deployment checklist item: set `alertEmail` in production.
 - Include expected monthly cost and which rules are created.
+
+**Addressed 2026-06-19:** documented in `docs/runbook.md` ("Enable alerts") — the `alertEmail`
+opt-in, the three rules created, thresholds, and the ~$0.50/rule/mo cost.
 
 ### P2: Restore command needs a runbook
 
@@ -86,6 +105,10 @@ Recommended action:
 - Document how to restore a specific snapshot.
 - Document the validation step after restore.
 - Explicitly warn not to re-upload a restored KB until local validation passes.
+
+**Addressed 2026-06-19:** documented in `docs/runbook.md` ("Restore the knowledge base") — list,
+restore-latest, restore-specific, post-restore validation, and the do-not-re-upload-until-validated
+warning.
 
 ## Acceptance Recommendation
 

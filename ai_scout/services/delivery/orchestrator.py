@@ -87,9 +87,11 @@ class Orchestrator:
                 return
             rows = [(it.id, it.title, it.url) for it in items]
             brief = self.brief_builder.build(lens, items)
-            feedback_url = self.settings.feedback_url
-            tokens = self.feedback_store.mint_tokens(lens, rows) if feedback_url else {}
-            plain, body_html = BriefBuilder.render(items, brief, feedback_url, tokens)
+            # No feedback buttons in the welcome: a brand-new user has no history to
+            # personalize and the welcome lens is never reconciled into affinity, so those
+            # controls would be inert. Their first daily edition carries working per-profile
+            # feedback; the per-user unsubscribe link is added by the Function when it sends.
+            plain, body_html = BriefBuilder.render(items, brief)
             from azure.data.tables import TableServiceClient, UpdateMode
             from azure.identity import DefaultAzureCredential
             svc = TableServiceClient(
