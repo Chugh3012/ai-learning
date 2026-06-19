@@ -1,7 +1,9 @@
 // Chugh Vibes — interactions: form (double opt-in), reveal, cursor-lens field,
 // glow, magnetic buttons, count-up, selection funnel. Vanilla, no libs.
 
-const API = "https://fn-ai-scout-fb.azurewebsites.net/api/subscribe";
+const API_BASE = (window.APP_CONFIG && window.APP_CONFIG.apiBase) ||
+  "https://fn-ai-scout-fb.azurewebsites.net/api";
+const API = API_BASE + "/subscribe";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const css = getComputedStyle(document.documentElement);
