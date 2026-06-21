@@ -27,7 +27,7 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'builder-radar') )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Resolve acted item ids
         id: ids
@@ -52,7 +52,7 @@ jobs:
 
       - name: Azure login (OIDC, passwordless)
         if: steps.ids.outputs.acted != ''
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
