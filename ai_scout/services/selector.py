@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from ai_scout.domain.item import ScoredItem
+from ai_scout.domain.item import PickReason, ScoredItem
 from ai_scout.lib.config import config_json
 from ai_scout.lib.vectors import match_bonus
 from ai_scout.repositories.knowledge import KnowledgeBase
@@ -25,6 +25,32 @@ class Selector:
         self.kb = kb
 
     @staticmethod
+    def _pick_reasons(relevance: float, affinity: float, interest_bonus: float,
+                      topic: str | None, category: str | None) -> tuple[PickReason, ...]:
+        reasons: list[PickReason] = []
+        if relevance >= 80:
+            reasons.append(PickReason(code="relevance", text="Strong ranking signal"))
+        elif relevance >= 60:
+            reasons.append(PickReason(code="quality", text="Cleared the quality bar"))
+        else:
+            reasons.append(PickReason(code="ranked", text="Selected from the ranked pool"))
+        if interest_bonus >= 2.0:
+            reasons.append(PickReason(code="interest", text="Matches your stated interests"))
+        if affinity >= 2.0:
+            reasons.append(PickReason(code="affinity", text="Boosted by your past feedback"))
+        if topic:
+            reasons.append(PickReason(code="topic", text=f"Covers {topic}"))
+        elif category:
+            reasons.append(PickReason(code="category", text=f"Adds {category} coverage"))
+        return tuple(reasons[:3])
+
+    @staticmethod
+    def _append_reason(item: ScoredItem, reason: PickReason) -> ScoredItem:
+        if any(r.code == reason.code for r in item.reasons):
+            return item
+        return item.model_copy(update={"reasons": (*item.reasons, reason)})
+
+    @staticmethod
     def _weighted_sample(items: list[ScoredItem], k: int, rng: random.Random) -> list[ScoredItem]:
         pool = list(items)
         weights = [max(float(d.score), 1.0) for d in pool]
@@ -44,7 +70,13 @@ class Selector:
         if n_explore <= 0:
             return items[:top]
         n_exploit = top - n_explore
-        chosen = items[:n_exploit] + self._weighted_sample(items[n_exploit:], n_explore, rng)
+        explore_reason = PickReason(
+            code="exploration",
+            text="Exploration slot to keep your edition varied",
+        )
+        explored = [self._append_reason(it, explore_reason)
+                    for it in self._weighted_sample(items[n_exploit:], n_explore, rng)]
+        chosen = items[:n_exploit] + explored
         chosen.sort(key=lambda d: d.score, reverse=True)
         return chosen
 
@@ -58,11 +90,15 @@ class Selector:
         bonus = match_bonus(interest_vec, vecs, weight)
         pool: list[ScoredItem] = []
         for iid, title, url, summary, source_id, topic, rel, aff, _vec, category in rows:
-            score = rel + aff + bonus.get(iid, 0.0)
+            interest_bonus = bonus.get(iid, 0.0)
+            score = rel + aff + interest_bonus
             if score >= min_score:
                 pool.append(ScoredItem(id=iid, title=title, url=url, summary=summary,
                                        source_id=source_id, topic=topic, category=category,
-                                       score=score))
+                                       score=score,
+                                       reasons=self._pick_reasons(
+                                           float(rel), float(aff), float(interest_bonus),
+                                           topic, category)))
         pool.sort(key=lambda d: d.score, reverse=True)
         gated = curation.drop_seen(curation.dedup(pool), self.kb.sent_titles(lens))
         window = curation.diversify(gated, max(top * 3, top + 6))

@@ -15,7 +15,10 @@ class DeliverySink(Sink):
         feedback_url = ctx.settings.feedback_url
         tokens = ctx.feedback_store.mint_tokens(p.lens, rows) if feedback_url else {}
         unsub = self._unsubscribe_url(ctx)
-        plain, body_html = BriefBuilder.render(ctx.items, brief, feedback_url, tokens, unsub)
+        pref = self._preference_url(ctx)
+        saved = self._saved_url(ctx)
+        plain, body_html = BriefBuilder.render(
+            ctx.items, brief, feedback_url, tokens, unsub, pref, saved)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         header = (f"# ai-scout — {p.label} — {today}\n\n"
                   f"_{len(rows)} items from the shared ranking, reordered by this profile's "
@@ -29,6 +32,30 @@ class DeliverySink(Sink):
         base = getattr(ctx.settings, "unsubscribe_url", "")
         token = getattr(ctx.profile, "unsubscribe_token", "")
         return f"{base}?t={token}" if (base and token) else ""
+
+    @staticmethod
+    def _preference_url(ctx: DeliveryContext) -> str:
+        base = getattr(ctx.settings, "preference_url", "")
+        token = getattr(ctx.profile, "unsubscribe_token", "")
+        profile_id = getattr(ctx.profile, "id", "")
+        if not (base and token):
+            return ""
+        suffix = f"?t={token}"
+        if profile_id:
+            suffix += f"&p={profile_id}"
+        return base + suffix
+
+    @staticmethod
+    def _saved_url(ctx: DeliveryContext) -> str:
+        base = getattr(ctx.settings, "saved_url", "")
+        token = getattr(ctx.profile, "unsubscribe_token", "")
+        profile_id = getattr(ctx.profile, "id", "")
+        if not (base and token):
+            return ""
+        suffix = f"?t={token}"
+        if profile_id:
+            suffix += f"&p={profile_id}"
+        return base + suffix
 
     def _write_digest(self, ctx: DeliveryContext, name: str, md: str) -> None:
         if ctx.blob is not None and ctx.blob.enabled:

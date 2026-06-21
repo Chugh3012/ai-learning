@@ -3,6 +3,8 @@
 {% endif %}
 {%- for r in rows %}
 {{ r.idx }}. {{ r.title }}
+{% if r.reasons %}   Why: {{ r.reasons | join("; ") }}
+{% endif %}
 {% if r.lesson %}   💡 {{ r.lesson }}
 {% endif %}
 {%- if r.try_it %}   🔧 Try: {{ r.try_it }}
@@ -13,6 +15,12 @@
 {% if r.fb %}   feedback: 👍 {{ r.up }}  |  👎 {{ r.down }}  |  ⭐ {{ r.save }}
 {% endif %}
 {% endfor %}
+{% if saved %}
+Saved library: {{ saved }}
+{% endif %}
+{% if preferences %}
+Preferences: {{ preferences }}
+{% endif %}
 {% if unsubscribe %}
 Unsubscribe: {{ unsubscribe }}
 {% endif %}

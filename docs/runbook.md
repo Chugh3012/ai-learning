@@ -31,6 +31,24 @@ curl.exe -s -o NUL -w "%{http_code}" "https://fn-ai-scout-fb.azurewebsites.net/a
 The website API origin lives in `web/config.js` (`window.APP_CONFIG.apiBase`) — change that one
 file for a staging/preview host or custom domain; no code edit needed.
 
+## Source quality dashboard
+
+Every `ai_scout.cli.sync` run refreshes `source-quality.md` — uploaded to the KB Blob container
+when storage is configured, else written to `.scratch/source-quality.md` for local runs. Use it to
+spot sources with low quality-ranked rate, weak engagement, or high skips before pruning
+`config/sources.opml`.
+
+## Preference center
+
+Edition footers include `/api/preferences?t=<token>&p=<profile_id>`. The Function validates the
+subscriber token, updates that user's `profiles` row, and the next pipeline run reads the new
+`cadence`, `top`, `min_score`, and `interest` values automatically.
+
+## Saved library
+
+Edition footers include `/api/saved?t=<token>&p=<profile_id>`. Save clicks write item title and URL
+into `feedbackevents`; the saved-library page reads only events for that token's profile lens.
+
 ## Enable alerts
 
 Alert rules are opt-in so the default template costs `$0`. To turn them on, pass an operator email:

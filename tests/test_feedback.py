@@ -129,6 +129,8 @@ class TestTokenTTL(unittest.TestCase):
         self.assertTrue(self.table.rows)
         for row in self.table.rows.values():
             self.assertGreater(int(row["expiresTs"]), int(row["ts"]))
+            self.assertEqual(row["title"], "t")
+            self.assertEqual(row["url"], "http://x")
 
     def test_purge_removes_only_expired(self):
         now = int(time.time())
