@@ -344,7 +344,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   kind: 'web'
   properties: {
     Application_Type: 'web'
-    RetentionInDays: 90
+    RetentionInDays: 30
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
   }
@@ -605,7 +605,12 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     sku: {
       name: 'PerGB2018'
     }
-    retentionInDays: 90
+    // Stay in the free retention window (31 days) and cap daily ingestion so a runaway
+    // log loop or endpoint abuse can't drive a surprise bill. Normal volume is < 0.01 GB/day.
+    retentionInDays: 30
+    workspaceCapping: {
+      dailyQuotaGb: json('0.5')
+    }
     features: {
       disableLocalAuth: true
     }
@@ -627,8 +632,8 @@ resource metricsTable 'Microsoft.OperationalInsights/workspaces/tables@2023-09-0
         { name: 'Channel', type: 'string' }
       ]
     }
-    retentionInDays: 90
-    totalRetentionInDays: 90
+    retentionInDays: 30
+    totalRetentionInDays: 30
     plan: 'Analytics'
   }
 }
