@@ -4,12 +4,12 @@
 # default and may ONLY open a DRAFT pull request (safe-output). It never merges; a human marks
 # ready/merges — which is also the strongest feedback signal. Compile with: gh aw compile.
 on:
-  # Trigger right after kb-sync finishes — so the agent runs on EACH fresh digest, not a
-  # separate cron that drifts out of sync with when the KB/digest is actually produced.
-  workflow_run:
-    workflows: ["kb-sync"]
-    types: [completed]
-    branches: [main]
+  # Cost-conscious cadence: run twice a week (Mon + Thu) rather than after every daily
+  # kb-sync — genuinely actionable items are rare, and each run spends Copilot premium
+  # requests. kb-sync runs ~01:30 UTC daily, so by 06:00 the day's builder digest is already
+  # in Blob. Manual dispatch stays available for on-demand runs.
+  schedule:
+    - cron: "0 6 * * 1,4"
   workflow_dispatch: {}
 
 # The builder is a USER: it READS its digest that kb-sync already produced and published to Blob
