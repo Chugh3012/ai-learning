@@ -8,6 +8,7 @@
 {% for r in rows %}
 <div style="margin:0 0 22px;padding:0 0 16px;border-bottom:1px solid #ececec">
   <div style="font-weight:600;font-size:16px;color:#111;line-height:1.35"><span style="color:#0a66c2">{{ r.idx }}.</span> {{ r.title }}</div>
+  {% if r.reasons %}<div style="color:#5f6b7a;font-size:12px;line-height:1.45;margin:6px 0 0"><b>Why:</b> {{ r.reasons | join("; ") }}</div>{% endif %}
   {% if r.lesson %}<div style="color:#333;font-size:14px;line-height:1.55;margin:8px 0">💡 {{ r.lesson }}</div>{% endif %}
   {% if r.try_it %}<div style="background:#eef4ff;border-left:3px solid #0a66c2;padding:8px 12px;margin:8px 0;font-size:13px;color:#0a3d6e;border-radius:3px">🔧 <b>Try:</b> {{ r.try_it }}</div>{% endif %}
   <div style="margin:8px 0 0;font-size:13px"><a href="{{ r.src }}" style="color:#0a66c2;text-decoration:none;font-weight:600">Read the source →</a></div>
@@ -15,5 +16,5 @@
   {% if r.fb %}<div style="margin-top:10px;font-size:13px"><a href="{{ r.up }}" style="text-decoration:none;margin-right:16px">👍 more</a><a href="{{ r.down }}" style="text-decoration:none;margin-right:16px">👎 less</a><a href="{{ r.save }}" style="text-decoration:none">⭐ save</a></div>{% endif %}
 </div>
 {% endfor %}
-<p style="color:#999;font-size:12px">ai-scout &middot; daily learning brief{% if unsubscribe %} &middot; <a href="{{ unsubscribe }}" style="color:#999">unsubscribe</a>{% endif %}</p>
+<p style="color:#999;font-size:12px">ai-scout &middot; daily learning brief{% if saved %} &middot; <a href="{{ saved }}" style="color:#999">saved</a>{% endif %}{% if preferences %} &middot; <a href="{{ preferences }}" style="color:#999">preferences</a>{% endif %}{% if unsubscribe %} &middot; <a href="{{ unsubscribe }}" style="color:#999">unsubscribe</a>{% endif %}</p>
 </div>

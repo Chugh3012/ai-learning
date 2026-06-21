@@ -230,3 +230,39 @@ class KnowledgeBase:
             "clicks": c(f"fb_click:{lens}"),
             "skips": c(f"fb_skip:{lens}"),
         }
+
+    def source_quality(self, quality_floor: float = 65.0) -> list[dict]:
+        rows = self.con.execute(
+            "WITH rel AS ("
+            "  SELECT item_id, MAX(value) AS value FROM signal "
+            "  WHERE kind='relevance' GROUP BY item_id"
+            ") "
+            "SELECT src.id, COALESCE(src.title, ''), COALESCE(src.url, ''), "
+            "  COALESCE(src.category, ''), "
+            "  COUNT(i.id) AS items_total, "
+            "  COUNT(rel.item_id) AS ranked_total, "
+            "  SUM(CASE WHEN rel.value >= ? THEN 1 ELSE 0 END) AS quality_ranked_total, "
+            "  (SELECT COUNT(*) FROM signal s JOIN item ii ON ii.id=s.item_id "
+            "   WHERE ii.source_id=src.id AND s.kind LIKE 'sent:%') AS delivered_total, "
+            "  (SELECT COUNT(*) FROM signal s JOIN item ii ON ii.id=s.item_id "
+            "   WHERE ii.source_id=src.id AND s.kind LIKE 'fb_save:%') AS saves_total, "
+            "  (SELECT COUNT(*) FROM signal s JOIN item ii ON ii.id=s.item_id "
+            "   WHERE ii.source_id=src.id AND s.kind LIKE 'fb_click:%') AS clicks_total, "
+            "  (SELECT COUNT(*) FROM signal s JOIN item ii ON ii.id=s.item_id "
+            "   WHERE ii.source_id=src.id AND s.kind LIKE 'fb_vote:%' AND s.value > 0) "
+            "   AS positive_votes_total, "
+            "  (SELECT COUNT(*) FROM signal s JOIN item ii ON ii.id=s.item_id "
+            "   WHERE ii.source_id=src.id AND s.kind LIKE 'fb_skip:%') AS skips_total "
+            "FROM source src "
+            "LEFT JOIN item i ON i.source_id=src.id "
+            "LEFT JOIN rel ON rel.item_id=i.id "
+            "GROUP BY src.id "
+            "ORDER BY src.title",
+            (quality_floor,),
+        ).fetchall()
+        keys = (
+            "source_id", "title", "url", "category", "items_total", "ranked_total",
+            "quality_ranked_total", "delivered_total", "saves_total", "clicks_total",
+            "positive_votes_total", "skips_total",
+        )
+        return [dict(zip(keys, row)) for row in rows]

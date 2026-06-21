@@ -6,14 +6,20 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ai_scout.domain.brief import Brief, Card
-from ai_scout.domain.item import ScoredItem
+from ai_scout.domain.item import PickReason, ScoredItem
 from ai_scout.lib import vectors
 from ai_scout.repositories.knowledge import KnowledgeBase
 from ai_scout.services.brief_builder import BriefBuilder
 
 class TestRenderBrief(unittest.TestCase):
     def test_cards_throughline_and_connection_in_output(self):
-        items = [ScoredItem(id=1, title="Drop your system prompt", url="http://x/1")]
+        items = [ScoredItem(
+            id=1,
+            title="Drop your system prompt",
+            url="http://x/1",
+            reasons=(PickReason(code="relevance", text="Strong ranking signal"),
+                     PickReason(code="interest", text="Matches your stated interests")),
+        )]
         brief = Brief(theme="Less instruction, more reliability",
                       cards={1: Card(lesson="Deleting the system prompt improved reliability.",
                                      try_it="Remove your system message and compare 5 outputs.")},
@@ -22,16 +28,29 @@ class TestRenderBrief(unittest.TestCase):
         self.assertIn("Less instruction, more reliability", plain)
         self.assertIn("Less instruction, more reliability", html_out)
         self.assertIn("Deleting the system prompt", plain)
+        self.assertIn("Why: Strong ranking signal; Matches your stated interests", plain)
         self.assertIn("Try:", plain)
         self.assertIn("Related: Last week: prompt-as-questions", plain)
         self.assertIn("Try:", html_out)
+        self.assertIn("<b>Why:</b> Strong ranking signal; Matches your stated interests", html_out)
         self.assertIn("Read the source", html_out)
 
     def test_unsubscribe_footer_rendered_when_url_given(self):
         items = [ScoredItem(id=1, title="A pick", url="http://x/1")]
         brief = Brief(theme="", cards={}, connections={})
         url = "https://fn.example.net/api/unsubscribe?t=abc123"
-        plain, html_out = BriefBuilder.render(items, brief, unsubscribe_url=url)
+        pref = "https://fn.example.net/api/preferences?t=abc123&p=prf_daily"
+        saved = "https://fn.example.net/api/saved?t=abc123&p=prf_daily"
+        plain, html_out = BriefBuilder.render(items, brief, unsubscribe_url=url,
+                                              preference_url=pref, saved_url=saved)
+        self.assertIn(saved, plain)
+        self.assertIn("Saved library", plain)
+        self.assertIn(saved.replace("&", "&amp;"), html_out)
+        self.assertIn(">saved<", html_out)
+        self.assertIn(pref, plain)
+        self.assertIn("Preferences", plain)
+        self.assertIn(pref.replace("&", "&amp;"), html_out)
+        self.assertIn(">preferences<", html_out)
         self.assertIn(url, plain)
         self.assertIn("Unsubscribe", plain)
         self.assertIn(url, html_out)
@@ -42,7 +61,11 @@ class TestRenderBrief(unittest.TestCase):
         brief = Brief(theme="", cards={}, connections={})
         plain, html_out = BriefBuilder.render(items, brief)
         self.assertNotIn("Unsubscribe", plain)
+        self.assertNotIn("Preferences", plain)
+        self.assertNotIn("Saved library", plain)
         self.assertNotIn(">unsubscribe<", html_out)
+        self.assertNotIn(">preferences<", html_out)
+        self.assertNotIn(">saved<", html_out)
 
 class TestConnections(unittest.TestCase):
     def _kb(self):

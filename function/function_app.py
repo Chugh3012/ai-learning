@@ -8,6 +8,8 @@ import os
 import re
 import secrets
 import time
+from datetime import datetime, timezone
+from urllib.parse import urlencode, parse_qs
 
 import azure.functions as func
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
@@ -66,6 +68,26 @@ def _page(message: str, ok: bool = True) -> func.HttpResponse:
         '<p style="font-family:Fraunces,Georgia,serif;font-size:1.05rem;margin-top:2rem">'
         'chugh<span style="color:#2438e0">·</span>vibes</p>'
         '</div></body></html>'
+    )
+    return func.HttpResponse(body, mimetype="text/html", status_code=200)
+
+def _html_page(title: str, body_inner: str, ok: bool = True) -> func.HttpResponse:
+    accent = "#2438e0" if ok else "#6b6357"
+    body = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f'<title>{html.escape(title)}</title>'
+        '<link rel="preconnect" href="https://fonts.googleapis.com">'
+        '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+        '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">'
+        '</head><body style="margin:0;background:#f3efe4;color:#1a1712;'
+        "font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;"
+        'align-items:center;justify-content:center">'
+        '<main style="width:min(92vw,34rem);padding:2rem">'
+        f'<p style="font-family:Fraunces,Georgia,serif;font-size:1.05rem;margin:0 0 1.25rem">'
+        f'chugh<span style="color:{accent}">·</span>vibes</p>'
+        f'{body_inner}'
+        '</main></body></html>'
     )
     return func.HttpResponse(body, mimetype="text/html", status_code=200)
 
@@ -187,6 +209,142 @@ def _api_base(req: func.HttpRequest) -> str:
     parts = urlsplit(req.url)
     return f"https://{parts.netloc}/api"
 
+def _active_subscriber(token: str) -> dict | None:
+    rows = list(_subscribers().query_entities(
+        "PartitionKey eq 'sub' and token eq @tok",
+        parameters={"tok": token},
+    ))
+    for row in rows:
+        if str(row.get("status", "")) == "active":
+            return dict(row)
+    return None
+
+def _profile_for_user(user_id: str, profile_id: str = "") -> dict | None:
+    if not user_id:
+        return None
+    table = _profiles()
+    rows = list(table.query_entities("PartitionKey eq @uid", parameters={"uid": user_id}))
+    if not rows:
+        _ensure_default_profile(user_id)
+        rows = list(table.query_entities("PartitionKey eq @uid", parameters={"uid": user_id}))
+    if not rows:
+        return None
+    if profile_id:
+        return next((dict(r) for r in rows if str(r.get("RowKey", "")) == profile_id), None)
+    return dict(next((r for r in rows if str(r.get("RowKey", "")) == "prf_daily"), rows[0]))
+
+def _request_fields(req: func.HttpRequest) -> dict:
+    try:
+        data = req.get_json()
+        if isinstance(data, dict):
+            return data
+    except ValueError:
+        pass
+    body = req.get_body().decode("utf-8", "replace") if hasattr(req, "get_body") else ""
+    parsed = parse_qs(body, keep_blank_values=True)
+    return {k: v[-1] if v else "" for k, v in parsed.items()}
+
+def _int_between(value, default: int, low: int, high: int) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        n = default
+    return max(low, min(high, n))
+
+def _float_between(value, default: float, low: float, high: float) -> float:
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        n = default
+    return max(low, min(high, n))
+
+def _preference_update(raw: dict, current: dict) -> dict:
+    cadence = str(raw.get("cadence") or current.get("cadence") or "daily").strip().lower()
+    if cadence not in {"daily", "weekly"}:
+        cadence = "daily"
+    return {
+        "cadence": cadence,
+        "top": _int_between(raw.get("top"), int(current.get("top", 5)), 1, 10),
+        "min_score": _float_between(raw.get("min_score"), float(current.get("min_score", 55)), 0, 100),
+        "interest": str(raw.get("interest", current.get("interest", ""))).strip()[:500],
+    }
+
+def _preferences_page(token: str, profile: dict, saved: bool = False) -> func.HttpResponse:
+    pid = str(profile.get("RowKey", ""))
+    action = f"/api/preferences?{urlencode({'t': token, 'p': pid})}"
+    cadence = str(profile.get("cadence", "daily")).lower()
+    top = html.escape(str(profile.get("top", 5)), quote=True)
+    min_score = html.escape(str(profile.get("min_score", 55)), quote=True)
+    interest = html.escape(str(profile.get("interest", "")))
+    daily = " selected" if cadence == "daily" else ""
+    weekly = " selected" if cadence == "weekly" else ""
+    note = ('<p style="background:#e8f0ff;color:#18267a;padding:.75rem 1rem;'
+            'border-radius:4px;margin:0 0 1rem">Preferences saved.</p>') if saved else ""
+    body = (
+        '<h1 style="font-family:Fraunces,Georgia,serif;font-weight:500;'
+        'font-size:2rem;margin:0 0 .5rem">Tune your edition</h1>'
+        '<p style="color:#6b6357;line-height:1.5;margin:0 0 1.5rem">'
+        'Adjust what your next Chugh Vibes brief optimizes for.</p>'
+        f'{note}'
+        f'<form method="post" action="{html.escape(action, quote=True)}" '
+        'style="display:grid;gap:1rem">'
+        '<label style="display:grid;gap:.35rem;font-weight:600">Cadence'
+        '<select name="cadence" style="font:inherit;padding:.75rem;border:1px solid #cfc7b8;'
+        f'background:white"><option value="daily"{daily}>Daily</option>'
+        f'<option value="weekly"{weekly}>Weekly</option></select></label>'
+        '<label style="display:grid;gap:.35rem;font-weight:600">Edition size'
+        f'<input name="top" type="number" min="1" max="10" value="{top}" '
+        'style="font:inherit;padding:.75rem;border:1px solid #cfc7b8"></label>'
+        '<label style="display:grid;gap:.35rem;font-weight:600">Quality floor'
+        f'<input name="min_score" type="number" min="0" max="100" step="1" value="{min_score}" '
+        'style="font:inherit;padding:.75rem;border:1px solid #cfc7b8"></label>'
+        '<label style="display:grid;gap:.35rem;font-weight:600">Interests'
+        f'<textarea name="interest" rows="5" maxlength="500" '
+        'style="font:inherit;padding:.75rem;border:1px solid #cfc7b8;resize:vertical">'
+        f'{interest}</textarea></label>'
+        '<button type="submit" style="font:inherit;font-weight:600;background:#2438e0;color:white;'
+        'border:0;padding:.9rem 1rem;border-radius:2px">Save preferences</button>'
+        '</form>'
+    )
+    return _html_page("Chugh Vibes preferences", body)
+
+def _saved_page(items: list[dict]) -> func.HttpResponse:
+    if not items:
+        body = (
+            '<h1 style="font-family:Fraunces,Georgia,serif;font-weight:500;'
+            'font-size:2rem;margin:0 0 .5rem">Saved library</h1>'
+            '<p style="color:#6b6357;line-height:1.5;margin:0">'
+            'Saved items will collect here after you tap save in an edition.</p>'
+        )
+        return _html_page("Chugh Vibes saved library", body)
+    rows = []
+    for item in items:
+        title = html.escape(str(item.get("title") or f"Saved item {item.get('PartitionKey', '')}"))
+        url = str(item.get("url") or "")
+        try:
+            ts = datetime.fromtimestamp(int(item.get("ts")), tz=timezone.utc).strftime("%b %d, %Y")
+        except (TypeError, ValueError):
+            ts = ""
+        if url.startswith(("http://", "https://")):
+            safe_url = html.escape(url, quote=True)
+            title_html = f'<a href="{safe_url}" style="color:#2438e0;text-decoration:none">{title}</a>'
+        else:
+            title_html = title
+        rows.append(
+            '<li style="padding:1rem 0;border-top:1px solid #d8d0c1">'
+            f'<div style="font-weight:600;line-height:1.4">{title_html}</div>'
+            f'<div style="color:#6b6357;font-size:.85rem;margin-top:.35rem">{ts}</div>'
+            '</li>'
+        )
+    body = (
+        '<h1 style="font-family:Fraunces,Georgia,serif;font-weight:500;'
+        'font-size:2rem;margin:0 0 .5rem">Saved library</h1>'
+        '<p style="color:#6b6357;line-height:1.5;margin:0 0 1.5rem">'
+        'Your saved Chugh Vibes items, newest first.</p>'
+        f'<ol style="list-style:none;margin:0;padding:0">{"".join(rows)}</ol>'
+    )
+    return _html_page("Chugh Vibes saved library", body)
+
 def _confirm_email_html(hello: str, confirm_url: str) -> str:
     safe = html.escape(confirm_url, quote=True)
     return (
@@ -244,7 +402,7 @@ def _send_confirmation(to: str, name: str, confirm_url: str) -> bool:
     return _acs_send(to, "Confirm your Chugh Vibes subscription", plain,
                      _confirm_email_html(html.escape(hello), confirm_url))
 
-def _send_welcome(to: str, unsubscribe_url: str = "") -> bool:
+def _send_welcome(to: str, unsubscribe_url: str = "", preference_url: str = "") -> bool:
     # Fire the new user's first edition the moment they confirm, using the generic top-5
     # the pipeline cached. No cache yet (cold start) -> skip; they'll get the next daily run.
     try:
@@ -258,16 +416,23 @@ def _send_welcome(to: str, unsubscribe_url: str = "") -> bool:
     if not body_html:
         return False
     headers = None
+    footer_links: list[str] = []
+    if preference_url:
+        safe_pref = html.escape(preference_url, quote=True)
+        plain += f"\n\nPreferences: {preference_url}\n"
+        footer_links.append(f'<a href="{safe_pref}" style="color:#999">preferences</a>')
     if unsubscribe_url:
         safe = html.escape(unsubscribe_url, quote=True)
         plain += f"\n\nUnsubscribe: {unsubscribe_url}\n"
-        body_html += (
-            '<p style="color:#999;font-size:12px;font-family:Inter,Arial,sans-serif">'
-            f'<a href="{safe}" style="color:#999">Unsubscribe</a></p>')
+        footer_links.append(f'<a href="{safe}" style="color:#999">unsubscribe</a>')
         headers = {
             "List-Unsubscribe": f"<{unsubscribe_url}>",
             "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
         }
+    if footer_links:
+        body_html += (
+            '<p style="color:#999;font-size:12px;font-family:Inter,Arial,sans-serif">'
+            + ' &middot; '.join(footer_links) + '</p>')
     return _acs_send(to, subject, plain, body_html, headers)
 
 @app.route(route="f", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -297,6 +462,8 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     if not lens:
         return func.HttpResponse("This feedback link is not valid.", status_code=404)
     row_key, value = _ACTIONS[action]
+    url = str(entity.get("url", ""))
+    title = str(entity.get("title", ""))
 
     try:
         events = _tables().get_table_client("feedbackevents")
@@ -307,6 +474,8 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
                 "lens": lens,
                 "value": value,
                 "action": action,
+                "title": title,
+                "url": url,
                 "ts": int(time.time()),
             },
             mode=UpdateMode.REPLACE,
@@ -316,7 +485,6 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Temporary error, please try again.", status_code=503)
 
     if action == "click":
-        url = str(entity.get("url", ""))
         if url.startswith(("http://", "https://")):
             return func.HttpResponse(status_code=302, headers={"Location": url})
         return _page("Thanks — noted.")
@@ -324,6 +492,88 @@ def feedback(req: func.HttpRequest) -> func.HttpResponse:
     messages = {"up": "Thanks — more like this 👍", "down": "Got it — less like this 👎",
                 "save": "Saved to learn from ⭐"}
     return _page(messages.get(action, "Thanks — noted."))
+
+@app.route(route="preferences", methods=["GET", "POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def preferences(req: func.HttpRequest) -> func.HttpResponse:
+    token = (req.params.get("t") or "").strip()
+    if not token:
+        return _page("This preference link is missing its token.", ok=False)
+    try:
+        sub = _active_subscriber(token)
+    except Exception:
+        logging.exception("preferences: subscriber lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+    if not sub:
+        return _page("This preference link is invalid or inactive.", ok=False)
+
+    user_id = str(sub.get("userId", ""))
+    profile_id = str(req.params.get("p") or "")
+    try:
+        profile = _profile_for_user(user_id, profile_id)
+    except Exception:
+        logging.exception("preferences: profile lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+    if not profile:
+        return _page("This edition profile could not be found.", ok=False)
+
+    if req.method == "POST":
+        update = _preference_update(_request_fields(req), profile)
+        profile.update(update)
+        try:
+            _profiles().update_entity(
+                {
+                    "PartitionKey": user_id,
+                    "RowKey": str(profile["RowKey"]),
+                    **update,
+                    "updatedTs": int(time.time()),
+                },
+                mode=UpdateMode.MERGE,
+            )
+            logging.info("preferences_saved")
+        except Exception:
+            logging.exception("preferences: update failed")
+            return _page("Temporary error, please try again.", ok=False)
+        return _preferences_page(token, profile, saved=True)
+
+    return _preferences_page(token, profile)
+
+@app.route(route="saved", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def saved(req: func.HttpRequest) -> func.HttpResponse:
+    token = (req.params.get("t") or "").strip()
+    if not token:
+        return _page("This saved-library link is missing its token.", ok=False)
+    try:
+        sub = _active_subscriber(token)
+    except Exception:
+        logging.exception("saved: subscriber lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+    if not sub:
+        return _page("This saved-library link is invalid or inactive.", ok=False)
+
+    user_id = str(sub.get("userId", ""))
+    profile_id = str(req.params.get("p") or "")
+    try:
+        profile = _profile_for_user(user_id, profile_id)
+    except Exception:
+        logging.exception("saved: profile lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+    if not profile:
+        return _page("This edition profile could not be found.", ok=False)
+
+    lens = f"{user_id}:{profile['RowKey']}"
+    try:
+        events = _tables().get_table_client("feedbackevents")
+        # ponytail: cross-partition scan of feedbackevents (no PartitionKey filter). Fine at
+        # one-user/low-volume scale; if saves grow, mirror saves into a per-user saved table.
+        rows = list(events.query_entities(
+            "lens eq @lens and action eq 'save'",
+            parameters={"lens": lens},
+        ))
+    except Exception:
+        logging.exception("saved: event lookup failed")
+        return _page("Temporary error, please try again.", ok=False)
+    rows.sort(key=lambda r: int(r.get("ts", 0) or 0), reverse=True)
+    return _saved_page(rows)
 
 
 @app.route(route="subscribe", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -441,8 +691,10 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     _ensure_default_profile(user_id)
 
     # Trigger this new user's first edition right away (graceful if no cache yet).
-    unsubscribe_url = f"{_api_base(req)}/unsubscribe?t={token}"
-    if _send_welcome(email, unsubscribe_url):
+    base = _api_base(req)
+    unsubscribe_url = f"{base}/unsubscribe?t={token}"
+    preference_url = f"{base}/preferences?{urlencode({'t': token, 'p': 'prf_daily'})}"
+    if _send_welcome(email, unsubscribe_url, preference_url):
         return _page("You're in. Your first edition is on its way to your inbox.", ok=True)
     return _page("You're in. Your first edition lands tomorrow morning.", ok=True)
 

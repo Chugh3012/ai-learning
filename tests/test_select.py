@@ -1,10 +1,12 @@
 import os
+import random
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ai_scout.domain.item import ScoredItem
 from ai_scout.lib import vectors
 from ai_scout.repositories.knowledge import KnowledgeBase
 from ai_scout.services.selector import Selector
@@ -50,7 +52,9 @@ class TestSelect(unittest.TestCase):
         _add(kb, 1, 10, "item", 50)
         kb.con.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'affinity:builder',12,0)")
         kb.con.commit()
-        self.assertEqual(Selector(kb).select("builder", top=5, min_score=0)[0].score, 62)
+        out = Selector(kb).select("builder", top=5, min_score=0)
+        self.assertEqual(out[0].score, 62)
+        self.assertIn("affinity", [r.code for r in out[0].reasons])
 
     def test_interest_lifts_a_match_over_higher_relevance_nonmatch(self):
         kb = _kb()
@@ -60,6 +64,7 @@ class TestSelect(unittest.TestCase):
         interest = vectors.normalize([1.0] + [0.0] * 255)
         out = Selector(kb).select("builder", top=2, min_score=0, interest_vec=interest, weight=15)
         self.assertEqual(out[0].id, 2)
+        self.assertIn("interest", [r.code for r in out[0].reasons])
 
     def test_unembedded_scored_item_still_selectable_under_interest(self):
         kb = _kb()
@@ -69,6 +74,14 @@ class TestSelect(unittest.TestCase):
         interest = vectors.normalize([1.0] + [0.0] * 255)
         out = Selector(kb).select("builder", top=5, min_score=0, interest_vec=interest, weight=15)
         self.assertIn(2, [d.id for d in out])
+
+    def test_explore_slot_gets_reason(self):
+        items = [ScoredItem(id=i, score=float(100 - i)) for i in range(1, 6)]
+        out = Selector(None)._explore_exploit(items, top=3, ratio=0.34,
+                                              rng=random.Random(0))
+        codes = [r.code for it in out for r in it.reasons]
+        self.assertIn("exploration", codes)
+
 
 if __name__ == "__main__":
     unittest.main()

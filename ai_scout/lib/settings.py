@@ -32,6 +32,20 @@ class Settings(BaseSettings):
             return ""
         return self.feedback_url.rsplit("/", 1)[0] + "/unsubscribe"
 
+    @property
+    def preference_url(self) -> str:
+        # Same Function host as the feedback route, different path (/api/preferences).
+        if not self.feedback_url:
+            return ""
+        return self.feedback_url.rsplit("/", 1)[0] + "/preferences"
+
+    @property
+    def saved_url(self) -> str:
+        # Same Function host as the feedback route, different path (/api/saved).
+        if not self.feedback_url:
+            return ""
+        return self.feedback_url.rsplit("/", 1)[0] + "/saved"
+
     def email_address(self, var_name: str | None) -> str:
         if not var_name or var_name.upper() == "EMAIL_TO":
             return self.email_to

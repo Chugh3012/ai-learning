@@ -17,6 +17,7 @@ from ai_scout.services.feedback_service import FeedbackService
 from ai_scout.services.ingest import Ingestor
 from ai_scout.services.ranker import Ranker
 from ai_scout.services.selector import Selector
+from ai_scout.services.source_quality import SourceQualityDashboard
 from ai_scout.services.delivery.orchestrator import Orchestrator
 
 def _parse_args(argv=None) -> argparse.Namespace:
@@ -103,6 +104,16 @@ def main(argv=None) -> int:
         reached = eng["votes"] + eng["saves"] + eng["clicks"]
         if eng["sent"]:
             metrics.add("keep_rate", reached / eng["sent"], lens=lens)
+    try:
+        dash = SourceQualityDashboard(kb)
+        md = dash.render(dash.rows())
+        if use_blob and blob.enabled:
+            blob.put_text("source-quality.md", md)
+            print("source-quality: wrote source-quality.md to Blob")
+        else:
+            print(f"source-quality: wrote {dash.write()}")
+    except Exception as e:
+        print(f"source-quality: skipped ({e})")
 
     kb.close()
     print(f"sync: +{new_items} new, {total} total items")

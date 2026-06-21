@@ -105,5 +105,25 @@ class TestBlobLedger(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(len(blob.writes), 1)
 
+    def test_preference_url_includes_profile_id(self):
+        prof = Profile(user_id="usr_a", id="prf_main", channel="email",
+                       cadence=Cadence.DAILY, unsubscribe_token="tok")
+        s = SimpleNamespace(feedback_url="", preference_url="https://fn/api/preferences")
+        ctx = self._ctx(prof, _FakeBlob(enabled=False), s)
+        self.assertEqual(
+            dsink.DeliverySink._preference_url(ctx),
+            "https://fn/api/preferences?t=tok&p=prf_main",
+        )
+
+    def test_saved_url_includes_profile_id(self):
+        prof = Profile(user_id="usr_a", id="prf_main", channel="email",
+                       cadence=Cadence.DAILY, unsubscribe_token="tok")
+        s = SimpleNamespace(feedback_url="", saved_url="https://fn/api/saved")
+        ctx = self._ctx(prof, _FakeBlob(enabled=False), s)
+        self.assertEqual(
+            dsink.DeliverySink._saved_url(ctx),
+            "https://fn/api/saved?t=tok&p=prf_main",
+        )
+
 if __name__ == "__main__":
     unittest.main()

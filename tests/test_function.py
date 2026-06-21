@@ -45,6 +45,16 @@ if "azure.functions" not in sys.modules:
                 raise ValueError("no body")
             return json.loads(self._body) if isinstance(self._body, str) else self._body
 
+        def get_body(self):
+            if self._body is None:
+                return b""
+            if isinstance(self._body, bytes):
+                return self._body
+            if isinstance(self._body, str):
+                return self._body.encode()
+            import json
+            return json.dumps(self._body).encode()
+
     fmod.AuthLevel = AuthLevel
     fmod.FunctionApp = FunctionApp
     fmod.HttpResponse = HttpResponse
@@ -173,6 +183,9 @@ class TestConfirm(FunctionRouteTest):
         self.assertEqual(str(rows[("sub", key)]["status"]), "active")
         self.assertNotIn(("pending", key), rows)
         fa._send_welcome.assert_called_once()
+        args = fa._send_welcome.call_args.args
+        self.assertIn("/unsubscribe?t=tok123", args[1])
+        self.assertIn("/preferences?", args[2])
 
     def test_expired_confirm_link_deletes_and_rejects(self):
         key = self._seed_pending("old@u.com", "tokOld", int(time.time()) - fa._CONFIRM_TTL - 10)
@@ -209,6 +222,87 @@ class TestUnsubscribe(FunctionRouteTest):
         self.assertIn(b"missing", r.get_body().lower())
 
 
+class TestPreferences(FunctionRouteTest):
+    def _seed_active_profile(self, token="ptok"):
+        key = _emailhash("pref@u.com")
+        self.svc.get_table_client("subscribers").upsert_entity({
+            "PartitionKey": "sub", "RowKey": key, "email": "pref@u.com", "token": token,
+            "userId": "usr_pref", "kind": "subscriber", "status": "active",
+        })
+        self.svc.get_table_client("profiles").upsert_entity({
+            "PartitionKey": "usr_pref", "RowKey": "prf_daily",
+            "name": "Daily edition", "channel": "email", "cadence": "daily",
+            "top": 5, "min_score": 55, "interest": "agents",
+        })
+
+    def test_preferences_get_renders_current_profile(self):
+        self._seed_active_profile()
+        r = fa.preferences(HttpRequest(method="GET", params={"t": "ptok", "p": "prf_daily"}))
+        body = r.get_body().decode()
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Tune your edition", body)
+        self.assertIn("agents", body)
+
+    def test_preferences_post_updates_profile_with_bounds(self):
+        self._seed_active_profile()
+        r = fa.preferences(HttpRequest(
+            method="POST",
+            params={"t": "ptok", "p": "prf_daily"},
+            body="cadence=weekly&top=99&min_score=-5&interest=rag",
+        ))
+        self.assertEqual(r.status_code, 200)
+        row = self.svc.tables["profiles"].rows[("usr_pref", "prf_daily")]
+        self.assertEqual(row["cadence"], "weekly")
+        self.assertEqual(row["top"], 10)
+        self.assertEqual(row["min_score"], 0)
+        self.assertEqual(row["interest"], "rag")
+        self.assertIn(b"Preferences saved", r.get_body())
+
+    def test_preferences_rejects_inactive_token(self):
+        r = fa.preferences(HttpRequest(method="GET", params={"t": "missing"}))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b"invalid or inactive", r.get_body())
+
+
+class TestSavedLibrary(FunctionRouteTest):
+    def _seed_active_profile(self, token="stok"):
+        key = _emailhash("saved@u.com")
+        self.svc.get_table_client("subscribers").upsert_entity({
+            "PartitionKey": "sub", "RowKey": key, "email": "saved@u.com", "token": token,
+            "userId": "usr_saved", "kind": "subscriber", "status": "active",
+        })
+        self.svc.get_table_client("profiles").upsert_entity({
+            "PartitionKey": "usr_saved", "RowKey": "prf_daily",
+            "name": "Daily edition", "channel": "email", "cadence": "daily",
+            "top": 5, "min_score": 55, "interest": "",
+        })
+
+    def test_saved_library_lists_only_this_profile_saves(self):
+        self._seed_active_profile()
+        events = self.svc.get_table_client("feedbackevents")
+        events.upsert_entity({
+            "PartitionKey": "7", "RowKey": "usr_saved:prf_daily:save",
+            "lens": "usr_saved:prf_daily", "action": "save", "value": 1,
+            "title": "A saved item", "url": "https://example.com/a", "ts": 2,
+        })
+        events.upsert_entity({
+            "PartitionKey": "8", "RowKey": "usr_other:prf_daily:save",
+            "lens": "usr_other:prf_daily", "action": "save", "value": 1,
+            "title": "Someone else's item", "url": "https://example.com/b", "ts": 3,
+        })
+        r = fa.saved(HttpRequest(method="GET", params={"t": "stok", "p": "prf_daily"}))
+        body = r.get_body().decode()
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("A saved item", body)
+        self.assertNotIn("Someone else's item", body)
+
+    def test_saved_library_empty_state(self):
+        self._seed_active_profile()
+        r = fa.saved(HttpRequest(method="GET", params={"t": "stok", "p": "prf_daily"}))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b"Saved items will collect here", r.get_body())
+
+
 class TestFeedbackExpiry(FunctionRouteTest):
     def test_expired_feedback_token_returns_410(self):
         self.svc.get_table_client("feedbacktokens").upsert_entity({
@@ -226,6 +320,18 @@ class TestFeedbackExpiry(FunctionRouteTest):
         r = fa.feedback(HttpRequest(method="GET", params={"t": "ok"}))
         self.assertEqual(r.status_code, 200)
         self.assertIn(("7", "usr_x:prf:vote"), self.svc.tables["feedbackevents"].rows)
+
+    def test_save_feedback_records_saved_item_metadata(self):
+        self.svc.get_table_client("feedbacktokens").upsert_entity({
+            "PartitionKey": "tok", "RowKey": "save", "action": "save", "itemId": 9,
+            "lens": "usr_x:prf", "title": "Saved title", "url": "https://example.com/s",
+            "ts": int(time.time()), "expiresTs": int(time.time()) + 99,
+        })
+        r = fa.feedback(HttpRequest(method="GET", params={"t": "save"}))
+        self.assertEqual(r.status_code, 200)
+        row = self.svc.tables["feedbackevents"].rows[("9", "usr_x:prf:save")]
+        self.assertEqual(row["title"], "Saved title")
+        self.assertEqual(row["url"], "https://example.com/s")
 
 
 if __name__ == "__main__":

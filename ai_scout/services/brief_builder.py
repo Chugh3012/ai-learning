@@ -109,7 +109,8 @@ class BriefBuilder:
     @staticmethod
     def render(items: list, brief: Brief, feedback_url: str = "",
                tokens: dict[int, dict[str, str]] | None = None,
-               unsubscribe_url: str = "") -> tuple[str, str]:
+               unsubscribe_url: str = "", preference_url: str = "",
+               saved_url: str = "") -> tuple[str, str]:
         tokens = tokens or {}
         fb = bool(feedback_url and tokens)
         rows = []
@@ -117,14 +118,23 @@ class BriefBuilder:
             card = brief.cards.get(it.id)
             links = ({a: f"{feedback_url}?t={tokens[it.id][a]}"
                       for a in ("up", "down", "save", "click")} if fb else {})
+            reasons = [str(getattr(r, "text", "")).strip()
+                       for r in getattr(it, "reasons", ()) if getattr(r, "text", "")]
             rows.append({
                 "idx": idx, "title": it.title, "url": it.url,
                 "lesson": card.lesson if card else "",
                 "try_it": card.try_it if card else "",
                 "conn": brief.connections.get(it.id),
+                "reasons": reasons,
                 "src": links.get("click", it.url) if fb else it.url,
                 "up": links.get("up"), "down": links.get("down"), "save": links.get("save"),
                 "fb": fb,
             })
-        ctx = {"theme": brief.theme, "rows": rows, "unsubscribe": unsubscribe_url}
+        ctx = {
+            "theme": brief.theme,
+            "rows": rows,
+            "unsubscribe": unsubscribe_url,
+            "preferences": preference_url,
+            "saved": saved_url,
+        }
         return _TXT_TMPL.render(**ctx).strip() + "\n", _HTML_TMPL.render(**ctx)

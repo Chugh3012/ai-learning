@@ -37,13 +37,14 @@ class FeedbackStore:
         now = int(time.time())
         expires = now + _TOKEN_TTL
         try:
-            for item_id, _title, url in items:
+            for item_id, title, url in items:
                 per: dict[str, str] = {}
                 for action in _ACTIONS:
                     tok = secrets.token_urlsafe(16)
                     table.upsert_entity(
                         {"PartitionKey": "tok", "RowKey": tok, "lens": lens,
-                         "itemId": int(item_id), "action": action, "url": url,
+                         "itemId": int(item_id), "action": action, "title": str(title),
+                         "url": url,
                          "ts": now, "expiresTs": expires},
                         mode=UpdateMode.REPLACE,
                     )
