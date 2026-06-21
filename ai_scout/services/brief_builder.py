@@ -19,7 +19,8 @@ _TXT_TMPL = Environment(loader=FileSystemLoader(str(_TEMPLATES)), autoescape=Fal
 
 _ACTIONS = ("up", "down", "save", "click")
 _LESSON_SYSTEM = (
-    "You are the editor of a daily LEARNING brief for a reader who wants to use AI/LLMs better. "
+    "You are the editor of a daily LEARNING brief for a practising AI/ML engineer who builds "
+    "with LLMs. Assume technical depth; skip introductory preamble about why AI matters. "
     "Turn the items into cards that TEACH, not summaries.\n"
     "First write THEME: one short line (<=14 words) naming the throughline across today's items — "
     "the pattern a curious reader should notice (no hype, only what the items show).\n"
