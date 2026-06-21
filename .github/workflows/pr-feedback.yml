@@ -20,9 +20,11 @@ permissions:
 
 jobs:
   record:
-    # Only MERGED builder-radar PRs (the gh-aw agentic workflow's title prefix / label).
+    # Only MERGED builder-radar PRs (the gh-aw agentic workflow's title prefix / label), and
+    # only from THIS repo — a fork PR must never reach the Azure login step below.
     if: >
       github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       ( startsWith(github.event.pull_request.title, '[builder-radar]') ||
         contains(github.event.pull_request.labels.*.name, 'builder-radar') )
     runs-on: ubuntu-latest
