@@ -49,6 +49,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Azure login (OIDC, passwordless)
+        if: github.actor != 'dependabot[bot]'
         uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -56,6 +57,7 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Ranking quality gate
+        if: github.actor != 'dependabot[bot]'
         env:
           FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
           FOUNDRY_MODEL_NAME: ${{ vars.FOUNDRY_MODEL_NAME }}

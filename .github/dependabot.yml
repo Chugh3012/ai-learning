@@ -1,0 +1,36 @@
+updates:
+- commit-message:
+    prefix: deps
+  directory: /
+  groups:
+    python:
+      patterns:
+      - "*"
+  open-pull-requests-limit: 5
+  package-ecosystem: pip
+  schedule:
+    interval: weekly
+- commit-message:
+    prefix: deps(function)
+  directory: /function
+  groups:
+    function:
+      patterns:
+      - "*"
+  open-pull-requests-limit: 5
+  package-ecosystem: pip
+  schedule:
+    interval: weekly
+- commit-message:
+    prefix: ci
+  directory: /
+  groups:
+    actions:
+      patterns:
+      - "*"
+  ignore:
+  - dependency-name: "github/gh-aw-actions" # Managed by gh aw compile. Version-locked to the gh-aw compiler; do not bump.
+  package-ecosystem: github-actions
+  schedule:
+    interval: weekly
+version: 2

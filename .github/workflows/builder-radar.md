@@ -9,6 +9,7 @@ on:
   workflow_run:
     workflows: ["kb-sync"]
     types: [completed]
+    branches: [main]
   workflow_dispatch: {}
 
 # The builder is a USER: it READS its digest that kb-sync already produced and published to Blob
@@ -77,19 +78,24 @@ A deterministic pre-step has generated today's **builder digest** at `digests/*.
 external AI/SDK/agent/eval news ranked for engineering relevance to THIS codebase and reordered
 by past builder feedback. Each item has a numeric id; the file ends with `<!-- items: <ids> -->`.
 
-## Your job — be highly selective
-1. Read the digest. **Decide which items (if any) are genuinely worth acting on** for this repo:
-   a dependency upgrade, a breaking SDK change to adapt to, a concrete agent/eval/RAG technique
-   we should adopt. Most items will NOT warrant action — ignoring them is the right call.
-2. If one or more are worth it, make **ONE focused, minimal change** and open a **single draft
-   pull request** (safe-output). Respect every principle in copilot-instructions.md: passwordless
-   Entra, IaC-first (edit `infra/main.bicep` if infra changes), config-over-code, sleek/no-bloat.
-   The `pr-gate` workflow (compile + ranking eval) must stay green — it runs on your PR.
+## Your job — selective, but act when there's a real win
+1. Read the digest. **Decide which items (if any) are genuinely worth acting on** for this repo.
+   You are looking for a *concrete, minimal* improvement you can land today, such as:
+   a breaking SDK change to adapt to; a ranking/eval/RAG/agent technique from an item that you can
+   apply to our `Ranker`, `RankEvaluator`, `Selector`, or prompts; a small config tune
+   (`config/*.json`, `sources.opml`); or a focused fix. Routine dependency/action version bumps are
+   handled automatically by Dependabot — don't open those.
+2. If one is worth it, make **ONE focused, minimal change** and open a **single draft pull
+   request** (safe-output). Respect every principle in copilot-instructions.md: passwordless
+   Entra, IaC-first (edit `infra/main.bicep` if infra changes), config-over-code, sleek/no-bloat,
+   and the Ponytail "least code" rules. The `pr-gate` workflow (compile + ranking eval) must stay
+   green — it runs on your PR.
 3. In the PR body include a line `items: <comma-separated ids you acted on>` (from the digest
    footer) so the feedback loop can learn which sources were worth it. Your selection IS the
    feedback — acting on an item is a positive signal; leaving it is negative.
-4. **If nothing is worth acting on, do nothing** (no PR, no issue). A quiet, no-op run is a
-   perfectly good outcome — never open a low-value PR. Quality over quantity; noise erodes trust.
+4. **Be selective: quality over quantity.** If truly nothing maps to a concrete change, do nothing
+   (no PR, no issue) — a quiet run is fine. But don't hide behind "nothing actionable" when an item
+   clearly suggests a small, safe improvement; a genuinely useful draft PR is the whole point.
 
 You never merge — a human reviews the draft and decides. Be concise, surgical, and honest about
 trade-offs in the PR description, and disclose that you are an automated assistant (🤖).
