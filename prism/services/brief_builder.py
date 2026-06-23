@@ -63,7 +63,7 @@ class BriefBuilder:
                 messages=[{"role": "system", "content": _LESSON_SYSTEM},
                           {"role": "user", "content": listing}],
                 temperature=0.3, response_format={"type": "json_object"}, max_tokens=1800)
-            foundry.log_usage("email", resp)
+            foundry.log_usage("email", resp, self.model)
             data = json.loads(resp.choices[0].message.content)
             cards = {int(c["id"]): Card(lesson=str(c.get("lesson", "")).strip(),
                                         try_it=str(c.get("try", "")).strip())

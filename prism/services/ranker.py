@@ -39,7 +39,7 @@ class Ranker:
             response_format={"type": "json_object"},
             max_tokens=900,
         )
-        foundry.log_usage("rank", resp)
+        foundry.log_usage("rank", resp, self.model)
         data = json.loads(resp.choices[0].message.content)
         out: dict[int, int] = {}
         for r in data.get("scores", []):

@@ -6,6 +6,7 @@ import sys
 from prism.lib.settings import Settings
 from prism.lib.metrics import Metrics
 from prism.lib import foundry
+from prism.lib.gateway import ModelGateway
 from prism.repositories.blob import BlobStore
 from prism.repositories.feedback import FeedbackStore
 from prism.repositories.knowledge import KnowledgeBase
@@ -52,8 +53,8 @@ def main(argv=None) -> int:
     args = _parse_args(argv)
     s = Settings()
     endpoint = s.foundry_project_endpoint
-    model = s.foundry_model_name
-    embed_model = s.foundry_embed_name
+    gateway = ModelGateway(endpoint, s.foundry_model_name)
+    embed_model = gateway.model_for("embed")
 
     blob = BlobStore(s.storage_account, s.blob_container)
     use_blob = not args.no_upload and blob.enabled
@@ -68,7 +69,7 @@ def main(argv=None) -> int:
     metrics.add("feeds_failed", ingestor.feeds_failed)
 
     if args.rank:
-        metrics.add("ranked", Ranker(kb, endpoint, model).score_unscored(args.days, args.rank_max))
+        metrics.add("ranked", Ranker(kb, endpoint, gateway.model_for("rank")).score_unscored(args.days, args.rank_max))
         metrics.add("embedded", Embedder(kb, endpoint, embed_model).embed_unembedded(args.embed_max))
 
     # The subscribers table is the single registry of audiences (admin + subscribers +
@@ -90,7 +91,7 @@ def main(argv=None) -> int:
     if args.deliver or args.produce:
         orchestrator = Orchestrator(
             kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb, ThompsonExplorer(kb)),
-            BriefBuilder(kb, endpoint, model),
+            BriefBuilder(kb, endpoint, gateway.model_for("brief")),
             feedback_store, blob if use_blob else None, s, metrics, TasteModel(kb))
         if args.deliver:
             orchestrator.run()
@@ -103,7 +104,7 @@ def main(argv=None) -> int:
     if args.synthesis:
         from datetime import datetime, timezone
         from prism.lib.config import SCRATCH_DIR
-        syn = WeeklySynthesis(kb, endpoint, model)
+        syn = WeeklySynthesis(kb, endpoint, gateway.model_for("synthesis"))
         date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         for user in registry.users:
             for p in user.profiles:
@@ -149,7 +150,7 @@ def main(argv=None) -> int:
     metrics.add("tokens_total", u["total"])
     metrics.add("tokens_prompt", u["prompt"])
     metrics.add("tokens_completion", u["completion"])
-    metrics.add("cost_usd", foundry.cost_usd())
+    metrics.add("cost_usd", gateway.cost_usd())
     metrics.flush()
 
     if use_blob:

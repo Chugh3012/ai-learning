@@ -1,0 +1,4 @@
+{
+  "tasks": { "rank": "mini", "brief": "mini", "synthesis": "mini", "embed": "embed" },
+  "pricing": { "mini": { "in": 0.40, "out": 1.60 } }
+}
