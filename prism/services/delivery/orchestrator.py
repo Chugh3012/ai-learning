@@ -23,7 +23,7 @@ def make_sink(channel: str) -> Sink:
 class Orchestrator:
     def __init__(self, kb: KnowledgeBase, registry: UserRegistry, embedder: Embedder,
                  selector: Selector, brief_builder: BriefBuilder,
-                 feedback_store: FeedbackStore, blob, settings, metrics=None):
+                 feedback_store: FeedbackStore, blob, settings, metrics=None, taste=None):
         self.kb = kb
         self.registry = registry
         self.embedder = embedder
@@ -33,6 +33,7 @@ class Orchestrator:
         self.blob = blob
         self.settings = settings
         self.metrics = metrics
+        self.taste = taste
 
     def run(self, targets: set[str] | None = None) -> int:
         weight = interest_weight()
@@ -47,7 +48,8 @@ class Orchestrator:
                     continue
                 sink = make_sink(p.channel)
                 interest_vec = self.embedder.embed_interest(p.interest)
-                items = self.selector.select(p.lens, p.top, p.min_score, interest_vec, weight,
+                user_vec = self.taste.user_vector(p.lens, interest_vec) if self.taste else interest_vec
+                items = self.selector.select(p.lens, p.top, p.min_score, user_vec, weight,
                                              topic_id=p.topic_id)
                 if not items:
                     if self.metrics is not None:

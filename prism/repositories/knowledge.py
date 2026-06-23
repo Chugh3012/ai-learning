@@ -128,6 +128,37 @@ class KnowledgeBase:
         row = self.con.execute("SELECT vec FROM embedding WHERE item_id=?", (item_id,)).fetchone()
         return row[0] if row and row[0] else None
 
+    def engaged_with_embeddings(self, lens: str) -> list[tuple]:
+        # Items the reader gave a positive gesture (vote/save/click), with their embedding and
+        # the time they were delivered (recency anchor for taste weighting).
+        return self.con.execute(
+            "SELECT e.item_id, e.vec, "
+            "  (SELECT s.value FROM signal s WHERE s.item_id=e.item_id AND s.kind=?) AS vote, "
+            "  (SELECT s.value FROM signal s WHERE s.item_id=e.item_id AND s.kind=?) AS save, "
+            "  (SELECT s.value FROM signal s WHERE s.item_id=e.item_id AND s.kind=?) AS click, "
+            "  (SELECT MAX(s.ts) FROM signal s WHERE s.item_id=e.item_id AND s.kind=?) AS sent_ts "
+            "FROM embedding e "
+            "WHERE e.vec IS NOT NULL AND EXISTS "
+            "  (SELECT 1 FROM signal s WHERE s.item_id=e.item_id "
+            "   AND s.kind IN (?,?,?) AND s.value > 0)",
+            (f"fb_vote:{lens}", f"fb_save:{lens}", f"fb_click:{lens}", f"sent:{lens}",
+             f"fb_vote:{lens}", f"fb_save:{lens}", f"fb_click:{lens}"),
+        ).fetchall()
+
+    def source_feedback_counts(self, lens: str) -> dict[int, tuple[float, float]]:
+        # Per-source Bernoulli arm tallies for the lens: (keeps, skips). Keeps = positive
+        # gestures (vote/save/click); skips = aged fb_skip. Used by Thompson-sampling exploration.
+        rows = self.con.execute(
+            "SELECT i.source_id, "
+            "  SUM(CASE WHEN s.kind IN (?,?,?) AND s.value > 0 THEN 1 ELSE 0 END) AS succ, "
+            "  SUM(CASE WHEN s.kind=? THEN 1 ELSE 0 END) AS fail "
+            "FROM signal s JOIN item i ON i.id=s.item_id "
+            "WHERE s.kind IN (?,?,?,?) GROUP BY i.source_id",
+            (f"fb_vote:{lens}", f"fb_save:{lens}", f"fb_click:{lens}", f"fb_skip:{lens}",
+             f"fb_vote:{lens}", f"fb_save:{lens}", f"fb_click:{lens}", f"fb_skip:{lens}"),
+        ).fetchall()
+        return {sid: (float(succ or 0), float(fail or 0)) for sid, succ, fail in rows}
+
     def sent_with_embeddings(self, lens: str, exclude: set[int]) -> list[tuple]:
         rows = self.con.execute(
             "SELECT e.item_id, i.title, i.url, e.vec FROM embedding e "
