@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.item import ScoredItem
-from ai_scout.services.selector import Selector
+from prism.domain.item import ScoredItem
+from prism.services.selector import Selector
 
 SEL = Selector(None)
 

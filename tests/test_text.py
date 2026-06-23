@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib import text
+from prism.lib import text
 
 
 def _resolves_to(*ips):

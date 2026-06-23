@@ -1,0 +1,5 @@
+{
+  "samples": 3,
+  "min": { "spearman": 0.6, "ndcg5": 0.65, "prec5": 0.8 },
+  "max": { "nonai_leak": 30 }
+}

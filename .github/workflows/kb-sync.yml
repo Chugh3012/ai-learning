@@ -53,4 +53,4 @@ jobs:
           METRICS_DCE: ${{ vars.METRICS_DCE }}
           METRICS_DCR_RULE_ID: ${{ vars.METRICS_DCR_RULE_ID }}
           METRICS_STREAM: ${{ vars.METRICS_STREAM }}
-        run: python -m ai_scout.cli.sync --days 7 --rank --feedback --deliver --discover
+        run: python -m prism.cli.sync --days 7 --rank --feedback --deliver --discover

@@ -38,7 +38,7 @@ jobs:
         run: |
           python - <<'PY'
           import pathlib, py_compile
-          files = [*pathlib.Path('ai_scout').rglob('*.py'), *pathlib.Path('builder').glob('*.py'),
+          files = [*pathlib.Path('prism').rglob('*.py'), *pathlib.Path('builder').glob('*.py'),
                    pathlib.Path('function/function_app.py')]
           for f in files:
               py_compile.compile(str(f), doraise=True)
@@ -67,4 +67,4 @@ jobs:
           METRICS_DCE: ${{ vars.METRICS_DCE }}
           METRICS_DCR_RULE_ID: ${{ vars.METRICS_DCR_RULE_ID }}
           METRICS_STREAM: ${{ vars.METRICS_STREAM }}
-        run: python -m ai_scout.cli.evaluate
+        run: python -m prism.cli.evaluate

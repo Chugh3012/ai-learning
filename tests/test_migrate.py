@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories.knowledge import KnowledgeBase
+from prism.repositories.knowledge import KnowledgeBase
 
 class TestSchemaReconcile(unittest.TestCase):
     def test_adds_missing_columns_to_a_preexisting_table(self):

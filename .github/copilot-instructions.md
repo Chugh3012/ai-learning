@@ -13,8 +13,9 @@ to building/operating it.
   labeled golden set (plus a compile check and the offline unit tests in `tests/`) on EVERY PR and
   is the **merge authority** — a PR auto-merges only when this gate is green. Don't regress it.
 - **Config over code.** Growth = add a row to a JSON/OPML/YAML config, not a new code path.
-  Sources → `config/sources.opml`. Tags → `config/tags.json`. Users (admin, subscribers, and the
-  builder automation feed) live in the `subscribers` Table — never in git (no PII in the repo).
+  Each topic is a self-contained pack in `topics/<id>/` (rubric, sources, tags, eval) — adding a
+  topic (or a source/tag within one) is config, never a new code path. Users (admin, subscribers,
+  and the builder automation feed) live in the `subscribers` Table — never in git (no PII in the repo).
 - **Sleek, no bloat.** Revise files in place; don't append duplicate logic or scaffold unused
   abstractions. Don't add markdown docs or code comments unless asked. One focused PR per change.
 - **Every stage is optional + graceful.** Ranking/draft/email/feedback each no-op (never crash

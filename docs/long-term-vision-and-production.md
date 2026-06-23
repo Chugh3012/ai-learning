@@ -48,7 +48,7 @@ Today:
 
 - Public brand: **Chugh Vibes**
 - Current vertical: AI/LLM signal brief
-- Internal package: `ai_scout`
+- Internal package: `prism`
 - Core loop: ingest, rank, embed, select, brief, deliver, feedback
 
 Long term:
@@ -1007,7 +1007,7 @@ A feature is production-ready only when:
 
 ## Immediate Decisions To Make
 
-1. Decide whether the reusable engine will remain named `ai_scout` internally until the second
+1. Decide whether the reusable engine will remain named `prism` internally until the second
    topic exists, or whether to rename early to a topic-neutral package.
 2. Decide the first non-AI topic candidate before designing topic packs too abstractly.
 3. Decide whether the product is primarily a personal publication, a reusable library, or a future

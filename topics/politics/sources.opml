@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Politics &amp; Policy sources</title>
+  </head>
+  <body>
+    <outline text="News (center)">
+      <outline text="NPR Politics" type="rss" xmlUrl="https://feeds.npr.org/1014/rss.xml"/>
+      <outline text="BBC Politics" type="rss" xmlUrl="https://feeds.bbci.co.uk/news/politics/rss.xml"/>
+      <outline text="The Hill" type="rss" xmlUrl="https://thehill.com/homenews/feed/"/>
+      <outline text="Politico" type="rss" xmlUrl="https://rss.politico.com/politics-news.xml"/>
+    </outline>
+    <outline text="News (left)">
+      <outline text="NYT Politics" type="rss" xmlUrl="https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml"/>
+      <outline text="Guardian US Politics" type="rss" xmlUrl="https://www.theguardian.com/us-news/us-politics/rss"/>
+    </outline>
+    <outline text="News (right)">
+      <outline text="Fox News Politics" type="rss" xmlUrl="https://moxie.foxnews.com/google-publisher/politics.xml"/>
+      <outline text="National Review" type="rss" xmlUrl="https://www.nationalreview.com/feed/"/>
+      <outline text="Reason" type="rss" xmlUrl="https://reason.com/feed/"/>
+    </outline>
+    <outline text="Primary source">
+      <outline text="SCOTUSblog" type="rss" xmlUrl="https://www.scotusblog.com/feed/"/>
+      <outline text="Ballotpedia News" type="rss" xmlUrl="https://news.ballotpedia.org/feed/"/>
+      <outline text="Pew Research" type="rss" xmlUrl="https://www.pewresearch.org/feed/"/>
+    </outline>
+    <outline text="Analysis">
+      <outline text="The Conversation Politics" type="rss" xmlUrl="https://theconversation.com/us/politics/articles.atom"/>
+    </outline>
+  </body>
+</opml>

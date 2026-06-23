@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories import blob as blobmod
+from prism.repositories import blob as blobmod
 
 
 class _Snap:

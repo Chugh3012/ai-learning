@@ -6,15 +6,15 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.cadence import Cadence
-from ai_scout.domain.profile import Profile
-from ai_scout.domain.user import User
-from ai_scout.repositories.registry import UserRegistry
-from ai_scout.services.delivery import orchestrator as orch
-from ai_scout.services.delivery import delivery_sink as dsink
-from ai_scout.services.delivery.sink import DeliveryContext
-from ai_scout.services.delivery.email_sink import EmailSink
-from ai_scout.services.delivery.digest_sink import DigestSink
+from prism.domain.cadence import Cadence
+from prism.domain.profile import Profile
+from prism.domain.user import User
+from prism.repositories.registry import UserRegistry
+from prism.services.delivery import orchestrator as orch
+from prism.services.delivery import delivery_sink as dsink
+from prism.services.delivery.sink import DeliveryContext
+from prism.services.delivery.email_sink import EmailSink
+from prism.services.delivery.digest_sink import DigestSink
 
 def _registry():
     user = User(id="usr_a", role="owner", profiles=[

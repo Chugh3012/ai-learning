@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ brand }} — signal, minus the noise</title>
+  <meta name="description" content="One short daily read per beat. {{ brand }} scans each world, ranks it like an editor, and sends only what's worth your attention." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="hub">
+  <div class="cursor-glow" id="glow" aria-hidden="true"></div>
+  <header class="site">
+    <a class="wordmark" href="/">chugh<span class="dot">·</span>vibes</a>
+    <a class="nav-cta" href="#beats">Pick a beat</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <canvas class="field" id="field" aria-hidden="true"></canvas>
+      <div class="hero-inner">
+        <p class="eyebrow">Signal, minus the noise</p>
+        <h1 class="display">One sharp read.<br /><em>Your beat.</em></h1>
+        <p class="lede">
+          Each edition reads a firehose, ranks it like an editor, and sends you
+          <strong>one short daily read</strong>. Pick a beat to begin.
+        </p>
+      </div>
+    </section>
+
+    <section id="beats" class="pub-grid-wrap">
+      <p class="kicker center">The beats</p>
+      <div class="pub-grid">
+        {% for t in topics %}
+        <a class="pub-card reveal" href="/{{ t.id }}">
+          <span class="pub-name">{{ t.name }}</span>
+          <span class="pub-tag">{{ t.tagline }}</span>
+          <span class="pub-go">Read the daily drop →</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-foot">
+    <span class="wordmark sm">chugh<span class="dot">·</span>vibes</span>
+    <span class="foot-meta">Curated by a machine. Edited by taste. © 2026</span>
+  </footer>
+
+  <script src="/config.js"></script>
+  <script src="/main.js"></script>
+</body>
+</html>

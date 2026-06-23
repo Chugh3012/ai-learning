@@ -23,7 +23,7 @@ def parse_digest(text: str) -> list[tuple[int, str, str]]:
 def _resolve_profile(role: str):
     try:
         sys.path.insert(0, str(ROOT))
-        from ai_scout.repositories.registry import UserRegistry
+        from prism.repositories.registry import UserRegistry
         reg = UserRegistry.from_subscribers(os.environ.get("FEEDBACK_STORAGE", ""))
         return reg.profile_for_role(role)
     except Exception as e:
@@ -36,7 +36,7 @@ def judge(endpoint: str, model: str, interest: str,
         return {}
     try:
         sys.path.insert(0, str(ROOT))
-        from ai_scout.lib.foundry import openai_client, log_usage
+        from prism.lib.foundry import openai_client, log_usage
         client = openai_client(endpoint)
     except Exception as e:
         print(f"review: client unavailable ({e})")

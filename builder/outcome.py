@@ -12,7 +12,7 @@ def record_votes(account: str, lens: str, item_ids: list[int], value: float) -> 
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from ai_scout.repositories.feedback import FeedbackStore
+    from prism.repositories.feedback import FeedbackStore
     return FeedbackStore(account).record_votes(lens, [int(i) for i in item_ids], value)
 
 def _resolve_lens(role: str) -> str:
@@ -20,7 +20,7 @@ def _resolve_lens(role: str) -> str:
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from ai_scout.repositories.registry import UserRegistry
+    from prism.repositories.registry import UserRegistry
     reg = UserRegistry.from_subscribers(os.environ.get("FEEDBACK_STORAGE", ""))
     prof = reg.profile_for_role(role)
     return prof.lens if prof else ""

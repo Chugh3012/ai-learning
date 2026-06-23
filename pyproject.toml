@@ -1,15 +1,20 @@
 [project]
-name = "ai-scout"
+name = "prism"
 version = "0.1.0"
-description = "Owned, passwordless, cost-efficient AI/LLM scanning + ranking + personalized delivery pipeline."
+description = "Owned, passwordless, pluggable intelligence engine: scan sources, rank for signal, personalize, and deliver — one topic pack at a time."
 requires-python = ">=3.13"
 dynamic = ["dependencies"]
 
+[project.scripts]
+prism-sync = "prism.cli.sync:main"
+prism-evaluate = "prism.cli.evaluate:main"
+prism-restore = "prism.cli.restore:main"
+
 [tool.setuptools.packages.find]
-include = ["ai_scout*"]
+include = ["prism*"]
 
 [tool.setuptools.package-data]
-"ai_scout.services" = ["templates/*.j2"]
+"prism.services" = ["templates/*.j2"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
