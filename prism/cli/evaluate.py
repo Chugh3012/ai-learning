@@ -8,6 +8,7 @@ from prism.lib.config import FOUNDRY_DIR
 from prism.lib.metrics import Metrics
 from prism.lib.settings import Settings
 from prism.lib import foundry
+from prism.lib.gateway import ModelGateway
 from prism.services.evaluator import RankEvaluator
 from prism.services.ranker import Ranker
 
@@ -32,12 +33,13 @@ def required_config_missing(s: Settings) -> list[str]:
 
 def main() -> int:
     s = Settings()
+    gateway = ModelGateway(s.foundry_project_endpoint, s.foundry_model_name)
     if _in_ci():
         missing = required_config_missing(s)
         if missing:
             print("EVAL GATE FAILED: missing required config in CI: " + ", ".join(missing))
             return 1
-    code = RankEvaluator(Ranker(None, s.foundry_project_endpoint, s.foundry_model_name)).run()
+    code = RankEvaluator(Ranker(None, s.foundry_project_endpoint, gateway.model_for("rank"))).run()
     metrics = Metrics(s.metrics_dce, s.metrics_dcr_rule_id, s.metrics_stream)
     try:
         from prism.lib.topics import list_topics
@@ -49,7 +51,7 @@ def main() -> int:
             for k, v in data.get("metrics", {}).items():
                 metrics.add(f"eval_{k}", v, topic=topic_id)
         metrics.add("eval_pass", 1 if code == 0 else 0)
-        metrics.add("eval_cost_usd", foundry.cost_usd())
+        metrics.add("eval_cost_usd", gateway.cost_usd())
         metrics.flush()
     except Exception:
         pass

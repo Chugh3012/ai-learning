@@ -20,14 +20,18 @@ def embed(endpoint: str, deployment: str, texts: list[str], dims: int = 256) -> 
     return [d.embedding for d in resp.data]
 
 _USAGE = {"prompt": 0, "completion": 0, "total": 0, "calls": 0}
+_BY_MODEL: dict[str, dict[str, int]] = {}
 
-def log_usage(stage: str, resp) -> None:
+def log_usage(stage: str, resp, model: str = "") -> None:
     try:
         u = resp.usage
         _USAGE["prompt"] += int(u.prompt_tokens)
         _USAGE["completion"] += int(u.completion_tokens)
         _USAGE["total"] += int(u.total_tokens)
         _USAGE["calls"] += 1
+        m = _BY_MODEL.setdefault(model or "default", {"prompt": 0, "completion": 0})
+        m["prompt"] += int(u.prompt_tokens)
+        m["completion"] += int(u.completion_tokens)
         print(f"{stage}: tokens prompt={u.prompt_tokens} completion={u.completion_tokens} "
               f"total={u.total_tokens}")
     except Exception:
@@ -39,6 +43,14 @@ def usage_snapshot() -> dict:
 _PRICE_IN_PER_M = 0.40
 _PRICE_OUT_PER_M = 1.60
 
-def cost_usd() -> float:
-    return (_USAGE["prompt"] / 1e6 * _PRICE_IN_PER_M
-            + _USAGE["completion"] / 1e6 * _PRICE_OUT_PER_M)
+def cost_usd(pricing: dict | None = None) -> float:
+    pricing = pricing or {}
+    if not _BY_MODEL:
+        return (_USAGE["prompt"] / 1e6 * _PRICE_IN_PER_M
+                + _USAGE["completion"] / 1e6 * _PRICE_OUT_PER_M)
+    total = 0.0
+    for model, u in _BY_MODEL.items():
+        p = pricing.get(model, {})
+        total += (u["prompt"] / 1e6 * float(p.get("in", _PRICE_IN_PER_M))
+                  + u["completion"] / 1e6 * float(p.get("out", _PRICE_OUT_PER_M)))
+    return total

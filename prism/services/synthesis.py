@@ -36,7 +36,7 @@ class WeeklySynthesis:
                 temperature=0.3,
                 max_tokens=200,
             )
-            foundry.log_usage("synthesis", resp)
+            foundry.log_usage("synthesis", resp, self.model)
             return resp.choices[0].message.content.strip()
         except Exception as e:
             print(f"synthesis: skipped ({e})")
