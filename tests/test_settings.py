@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib.settings import Settings
+from prism.lib.settings import Settings
 
 class TestSettingsUrls(unittest.TestCase):
     def test_function_route_urls_derive_from_feedback_url(self):

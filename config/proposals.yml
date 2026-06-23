@@ -1,6 +1,6 @@
 # ai-scout — discovery inbox (the "Jarvis" self-growth seam).
 #
-# ai_scout/services/discoverer.py (sync --discover) WRITES proposed sources here: external domains
+# prism/services/discoverer.py (sync --discover) WRITES proposed sources here: external domains
 # that KB item links keep pointing to but we don't yet ingest, with an auto-discovered RSS/Atom feed.
 # Nothing here is live. You review, then approved entries are MERGED into sources.opml and REMOVED
 # from here (revise, don't append).

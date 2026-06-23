@@ -183,7 +183,7 @@ def _profiles():
         pass
     return svc.get_table_client("profiles")
 
-def _ensure_default_profile(user_id: str) -> None:
+def _ensure_default_profile(user_id: str, topic: str = "ai") -> None:
     # Give a newly-confirmed subscriber their own profile row (one user -> many profiles).
     # No-op if they already have profiles (e.g. admin/builder seeded with curated feeds).
     if not user_id:
@@ -197,6 +197,7 @@ def _ensure_default_profile(user_id: str) -> None:
             "PartitionKey": user_id, "RowKey": "prf_daily",
             "name": "Daily edition", "channel": "email", "cadence": "daily",
             "top": 5, "min_score": 55, "interest": "", "self_review": False,
+            "topic_id": topic,
         }, mode=UpdateMode.REPLACE)
     except Exception:
         logging.exception("confirm: default profile create failed")
@@ -586,6 +587,7 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
     email = str(data.get("email", "")).strip().lower()
     name = str(data.get("name", "")).strip()[:80]
     trap = str(data.get("company", "")).strip()
+    topic = re.sub(r"[^a-z0-9-]", "", str(data.get("topic", "ai")).strip().lower()) or "ai"
     # honeypot: real users never fill the hidden field — pretend success, store nothing
     if trap:
         return _json(200, True, "Almost there — check your inbox to confirm.")
@@ -617,7 +619,7 @@ def subscribe(req: func.HttpRequest) -> func.HttpResponse:
             {
                 "PartitionKey": "pending", "RowKey": key,
                 "email": email, "name": name, "token": token, "userId": user_id,
-                "kind": "subscriber",
+                "kind": "subscriber", "topic": topic,
                 "createdTs": now, "status": "pending",
             },
             mode=UpdateMode.REPLACE,
@@ -673,12 +675,13 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
     name = str(ent.get("name", ""))
     user_id = str(ent.get("userId") or _new_user_id())
     kind = str(ent.get("kind") or "subscriber")
+    topic = str(ent.get("topic") or "ai")
     try:
         table.upsert_entity(
             {
                 "PartitionKey": "sub", "RowKey": key,
                 "email": email, "name": name, "token": token, "userId": user_id,
-                "kind": kind,
+                "kind": kind, "topic": topic,
                 "status": "active", "confirmedTs": int(time.time()),
             },
             mode=UpdateMode.REPLACE,
@@ -688,7 +691,7 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
         logging.exception("confirm: activate failed")
         return _page("Temporary error, please try again.", ok=False)
 
-    _ensure_default_profile(user_id)
+    _ensure_default_profile(user_id, topic)
 
     # Trigger this new user's first edition right away (graceful if no cache yet).
     base = _api_base(req)

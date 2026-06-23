@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.cadence import Cadence
-from ai_scout.repositories.registry import UserRegistry
+from prism.domain.cadence import Cadence
+from prism.repositories.registry import UserRegistry
 
 def _sample_registry() -> UserRegistry:
     # Mirrors what SubscriberStore.confirmed() yields from the table: the admin (curated

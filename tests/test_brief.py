@@ -5,11 +5,11 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.brief import Brief, Card
-from ai_scout.domain.item import PickReason, ScoredItem
-from ai_scout.lib import vectors
-from ai_scout.repositories.knowledge import KnowledgeBase
-from ai_scout.services.brief_builder import BriefBuilder
+from prism.domain.brief import Brief, Card
+from prism.domain.item import PickReason, ScoredItem
+from prism.lib import vectors
+from prism.repositories.knowledge import KnowledgeBase
+from prism.services.brief_builder import BriefBuilder
 
 class TestRenderBrief(unittest.TestCase):
     def test_cards_throughline_and_connection_in_output(self):

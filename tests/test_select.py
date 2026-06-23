@@ -6,10 +6,10 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.item import ScoredItem
-from ai_scout.lib import vectors
-from ai_scout.repositories.knowledge import KnowledgeBase
-from ai_scout.services.selector import Selector
+from prism.domain.item import ScoredItem
+from prism.lib import vectors
+from prism.repositories.knowledge import KnowledgeBase
+from prism.services.selector import Selector
 
 def _kb():
     fd, path = tempfile.mkstemp(suffix=".sqlite")

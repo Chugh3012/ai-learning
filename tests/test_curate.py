@@ -3,8 +3,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.domain.item import ScoredItem
-from ai_scout.services import curation
+from prism.domain.item import ScoredItem
+from prism.services import curation
 
 def _it(id=0, title="", score=0.0, source_id=None, topic=None, category=None):
     return ScoredItem(id=id, title=title, score=score, source_id=source_id,

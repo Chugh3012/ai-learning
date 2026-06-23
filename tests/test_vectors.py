@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib import vectors
+from prism.lib import vectors
 
 class TestVectorMath(unittest.TestCase):
     def test_pack_unpack_l2_normalizes(self):

@@ -1,0 +1,14 @@
+{
+  "topics": {
+    "elections": ["election", "primary", "ballot", "voter", "campaign", "polling", "candidate", "turnout"],
+    "courts": ["court", "supreme court", "scotus", "judge", "ruling", "lawsuit", "appeals", "justice"],
+    "congress": ["senate", "house", "congress", "bill", "legislation", "filibuster", "speaker", "committee"],
+    "executive": ["president", "white house", "executive order", "administration", "cabinet", "veto", "agency"],
+    "economy": ["budget", "tax", "tariff", "deficit", "spending", "inflation", "fiscal", "shutdown"],
+    "foreign-policy": ["foreign", "diplomacy", "treaty", "sanctions", "nato", "ukraine", "china", "iran", "war"],
+    "immigration": ["immigration", "border", "asylum", "visa", "deportation", "migrant"],
+    "healthcare": ["health", "medicare", "medicaid", "insurance", "abortion", "drug pricing"],
+    "civil-rights": ["rights", "discrimination", "free speech", "privacy", "surveillance", "protest"],
+    "state-local": ["governor", "statehouse", "county", "mayor", "legislature", "ballot measure"]
+  }
+}

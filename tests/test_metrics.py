@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.lib.metrics import Metrics
+from prism.lib.metrics import Metrics
 
 class TestMetrics(unittest.TestCase):
     def test_add_accumulates_rows_with_dimensions(self):

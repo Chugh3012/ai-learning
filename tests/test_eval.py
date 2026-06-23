@@ -4,8 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.services import evaluator
-from ai_scout.cli import evaluate
+from prism.services import evaluator
+from prism.cli import evaluate
 
 class TestMedian(unittest.TestCase):
     def test_odd_count_picks_middle(self):

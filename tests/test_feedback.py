@@ -7,9 +7,9 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories.feedback import FeedbackStore
-from ai_scout.repositories.knowledge import KnowledgeBase
-from ai_scout.services.feedback_service import FeedbackService
+from prism.repositories.feedback import FeedbackStore
+from prism.repositories.knowledge import KnowledgeBase
+from prism.services.feedback_service import FeedbackService
 
 LENS = "usr_x:prf_main"
 

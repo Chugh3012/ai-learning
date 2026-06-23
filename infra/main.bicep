@@ -630,6 +630,7 @@ resource metricsTable 'Microsoft.OperationalInsights/workspaces/tables@2023-09-0
         { name: 'Value', type: 'real' }
         { name: 'Lens', type: 'string' }
         { name: 'Channel', type: 'string' }
+        { name: 'Topic', type: 'string' }
       ]
     }
     retentionInDays: 30
@@ -665,6 +666,7 @@ resource metricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
           { name: 'Value', type: 'real' }
           { name: 'Lens', type: 'string' }
           { name: 'Channel', type: 'string' }
+          { name: 'Topic', type: 'string' }
         ]
       }
     }

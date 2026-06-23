@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from ai_scout.repositories.knowledge import KnowledgeBase
-from ai_scout.services import discoverer as disc
+from prism.repositories.knowledge import KnowledgeBase
+from prism.services import discoverer as disc
 
 def _kb(urls):
     fd, path = tempfile.mkstemp(suffix=".sqlite")

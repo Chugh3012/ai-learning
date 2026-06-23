@@ -13,7 +13,7 @@ data/kb/
 
 # Regenerable eval/training exports (golden set is kept; these are derived on demand)
 .foundry/datasets/feedback_*.jsonl
-.foundry/results/gate_latest.json
+.foundry/results/gate_*.json
 
 # gh-aw local audit logs (downloaded on demand via `gh aw audit`)
 .github/aw/logs/
@@ -21,3 +21,6 @@ data/kb/
 # OS / editor noise
 .DS_Store
 Thumbs.db
+
+# generated multi-topic site (built from topic packs by web/build.py)
+web/public/
