@@ -14,6 +14,7 @@ class TestTopicPacks(unittest.TestCase):
         self.assertTrue(p.rubric.strip())
         self.assertTrue(p.golden.exists())
         self.assertIn("min", p.thresholds)
+        self.assertTrue(p.rubric_version)
 
     def test_list_topics_includes_both(self):
         ts = topics.list_topics()

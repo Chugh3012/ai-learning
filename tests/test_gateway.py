@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import prism.lib.foundry as foundry
+from prism.lib import flags
 from prism.lib.gateway import ModelGateway
 
 class TestModelGateway(unittest.TestCase):
@@ -37,6 +38,15 @@ class TestPerModelCost(unittest.TestCase):
 
     def test_empty_is_zero(self):
         self.assertEqual(foundry.cost_usd({}), 0.0)
+
+class TestFlags(unittest.TestCase):
+    def test_known_flag_from_config(self):
+        self.assertTrue(flags.enabled("thompson"))
+        self.assertTrue(flags.enabled("taste"))
+
+    def test_unknown_uses_default(self):
+        self.assertTrue(flags.enabled("no-such-flag", default=True))
+        self.assertFalse(flags.enabled("no-such-flag", default=False))
 
 if __name__ == "__main__":
     unittest.main()
