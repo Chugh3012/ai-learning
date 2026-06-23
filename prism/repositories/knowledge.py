@@ -201,6 +201,31 @@ class KnowledgeBase:
             tuple(params),
         ).fetchall()
 
+    def embedded_candidates(self, lens: str, limit: int, topic_id: str | None = None) -> list[tuple]:
+        # Same shape as candidates() but ordered by recency over ranked, embedded, unsent items
+        # (low and high relevance alike) -- the pool the interest/taste tower retrieves from.
+        topic_clause = "AND i.topic_id=? " if topic_id else ""
+        params: list = [f"affinity:{lens}", f"sent:{lens}"]
+        if topic_id:
+            params.append(topic_id)
+        params.append(limit)
+        return self.con.execute(
+            "SELECT i.id, i.title, i.url, i.summary, i.source_id, "
+            "  (SELECT t.topic FROM tag t WHERE t.item_id=i.id LIMIT 1) AS topic, "
+            "  s.value AS rel, "
+            "  COALESCE((SELECT a.value FROM signal a WHERE a.item_id=i.id AND a.kind=?), 0) AS aff, "
+            "  e.vec AS vec, "
+            "  (SELECT src.category FROM source src WHERE src.id=i.source_id) AS category "
+            "FROM item i "
+            "JOIN signal s ON s.item_id=i.id AND s.kind='relevance' "
+            "JOIN embedding e ON e.item_id=i.id "
+            "WHERE NOT EXISTS (SELECT 1 FROM signal x WHERE x.item_id=i.id AND x.kind=?) "
+            + topic_clause +
+            "GROUP BY i.id "
+            "ORDER BY i.published DESC LIMIT ?",
+            tuple(params),
+        ).fetchall()
+
     def sent_titles(self, lens: str) -> list[str]:
         return [r[0] for r in self.con.execute(
             "SELECT i.title FROM item i JOIN signal s ON s.item_id=i.id AND s.kind=?",
