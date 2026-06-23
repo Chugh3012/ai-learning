@@ -16,5 +16,6 @@
   {% if r.fb %}<div style="margin-top:10px;font-size:13px"><a href="{{ r.up }}" style="text-decoration:none;margin-right:16px">👍 more</a><a href="{{ r.down }}" style="text-decoration:none;margin-right:16px">👎 less</a><a href="{{ r.save }}" style="text-decoration:none">⭐ save</a></div>{% endif %}
 </div>
 {% endfor %}
+{% if learned %}<p style="color:#888;font-size:12px;margin:0 0 8px">What we've learned you like: {{ learned }}.{% if preferences %} <a href="{{ preferences }}" style="color:#888">Refine →</a>{% endif %}</p>{% endif %}
 <p style="color:#999;font-size:12px">ai-scout &middot; daily learning brief{% if saved %} &middot; <a href="{{ saved }}" style="color:#999">saved</a>{% endif %}{% if preferences %} &middot; <a href="{{ preferences }}" style="color:#999">preferences</a>{% endif %}{% if unsubscribe %} &middot; <a href="{{ unsubscribe }}" style="color:#999">unsubscribe</a>{% endif %}</p>
 </div>

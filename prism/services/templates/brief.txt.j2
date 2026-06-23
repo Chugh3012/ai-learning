@@ -15,6 +15,9 @@
 {% if r.fb %}   feedback: 👍 {{ r.up }}  |  👎 {{ r.down }}  |  ⭐ {{ r.save }}
 {% endif %}
 {% endfor %}
+{% if learned %}
+What we've learned you like: {{ learned }}.{% if preferences %} Refine: {{ preferences }}{% endif %}
+{% endif %}
 {% if saved %}
 Saved library: {{ saved }}
 {% endif %}

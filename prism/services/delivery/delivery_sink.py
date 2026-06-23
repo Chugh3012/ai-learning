@@ -17,8 +17,12 @@ class DeliverySink(Sink):
         unsub = self._unsubscribe_url(ctx)
         pref = self._preference_url(ctx)
         saved = self._saved_url(ctx)
+        try:
+            learned = ", ".join(ctx.brief_builder.kb.taste_summary(p.lens))
+        except Exception:
+            learned = ""
         plain, body_html = BriefBuilder.render(
-            ctx.items, brief, feedback_url, tokens, unsub, pref, saved)
+            ctx.items, brief, feedback_url, tokens, unsub, pref, saved, learned)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         header = (f"# ai-scout — {p.label} — {today}\n\n"
                   f"_{len(rows)} items from the shared ranking, reordered by this profile's "

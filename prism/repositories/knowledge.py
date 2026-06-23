@@ -159,6 +159,17 @@ class KnowledgeBase:
         ).fetchall()
         return {sid: (float(succ or 0), float(fail or 0)) for sid, succ, fail in rows}
 
+    def taste_summary(self, lens: str, limit: int = 3) -> list[str]:
+        # The sources this lens has positively engaged with most -- the "what we've learned" view.
+        rows = self.con.execute(
+            "SELECT src.title, SUM(CASE WHEN s.value > 0 THEN 1 ELSE 0 END) AS keeps "
+            "FROM signal s JOIN item i ON i.id=s.item_id JOIN source src ON src.id=i.source_id "
+            "WHERE s.kind IN (?,?,?) GROUP BY src.id "
+            "HAVING keeps > 0 ORDER BY keeps DESC, src.title LIMIT ?",
+            (f"fb_vote:{lens}", f"fb_save:{lens}", f"fb_click:{lens}", limit),
+        ).fetchall()
+        return [t for t, _k in rows if t]
+
     def sent_with_embeddings(self, lens: str, exclude: set[int]) -> list[tuple]:
         rows = self.con.execute(
             "SELECT e.item_id, i.title, i.url, e.vec FROM embedding e "
@@ -194,6 +205,13 @@ class KnowledgeBase:
         return [r[0] for r in self.con.execute(
             "SELECT i.title FROM item i JOIN signal s ON s.item_id=i.id AND s.kind=?",
             (f"sent:{lens}",)).fetchall()]
+
+    def recent_sent_titles(self, lens: str, days: int = 7) -> list[str]:
+        cutoff = int(time.time()) - days * 86400
+        return [r[0] for r in self.con.execute(
+            "SELECT i.title FROM item i JOIN signal s ON s.item_id=i.id "
+            "WHERE s.kind=? AND s.ts >= ? ORDER BY s.ts DESC",
+            (f"sent:{lens}", cutoff)).fetchall() if r[0]]
 
     def mark_sent(self, lens: str, item_ids: list[int]) -> None:
         now = int(time.time())
