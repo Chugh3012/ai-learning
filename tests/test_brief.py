@@ -95,5 +95,24 @@ class TestConnections(unittest.TestCase):
         out = BriefBuilder(kb, "", "")._connections("primary", [ScoredItem(id=1)], min_cos=0.5)
         self.assertEqual(out, {})
 
+class TestLearnedLine(unittest.TestCase):
+    def test_learned_line_rendered_with_refine_link(self):
+        items = [ScoredItem(id=1, title="A pick", url="http://x/1")]
+        brief = Brief(theme="", cards={}, connections={})
+        pref = "https://fn.example.net/api/preferences?t=abc&p=prf_daily"
+        plain, html_out = BriefBuilder.render(items, brief, preference_url=pref,
+                                              learned="NPR Politics, Pew Research")
+        self.assertIn("What we've learned you like", plain)
+        self.assertIn("NPR Politics, Pew Research", plain)
+        self.assertIn("NPR Politics, Pew Research", html_out)
+        self.assertIn("Refine", html_out)
+
+    def test_no_learned_line_when_empty(self):
+        items = [ScoredItem(id=1, title="A pick", url="http://x/1")]
+        brief = Brief(theme="", cards={}, connections={})
+        plain, html_out = BriefBuilder.render(items, brief)
+        self.assertNotIn("What we've learned", plain)
+        self.assertNotIn("What we've learned", html_out)
+
 if __name__ == "__main__":
     unittest.main()

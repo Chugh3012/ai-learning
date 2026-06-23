@@ -110,7 +110,7 @@ class BriefBuilder:
     def render(items: list, brief: Brief, feedback_url: str = "",
                tokens: dict[int, dict[str, str]] | None = None,
                unsubscribe_url: str = "", preference_url: str = "",
-               saved_url: str = "") -> tuple[str, str]:
+               saved_url: str = "", learned: str = "") -> tuple[str, str]:
         tokens = tokens or {}
         fb = bool(feedback_url and tokens)
         rows = []
@@ -136,5 +136,6 @@ class BriefBuilder:
             "unsubscribe": unsubscribe_url,
             "preferences": preference_url,
             "saved": saved_url,
+            "learned": learned,
         }
         return _TXT_TMPL.render(**ctx).strip() + "\n", _HTML_TMPL.render(**ctx)

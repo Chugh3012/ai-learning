@@ -20,6 +20,7 @@ from prism.services.selector import Selector
 from prism.services.source_quality import SourceQualityDashboard
 from prism.services.personalization.taste import TasteModel
 from prism.services.personalization.explorer import ThompsonExplorer
+from prism.services.synthesis import WeeklySynthesis
 from prism.services.delivery.orchestrator import Orchestrator
 
 def _parse_args(argv=None) -> argparse.Namespace:
@@ -37,6 +38,8 @@ def _parse_args(argv=None) -> argparse.Namespace:
                     help="ingest per-lens feedback events and recompute affinity")
     ap.add_argument("--discover", action="store_true",
                     help="propose new feeds into config/proposals.yml from recurring item links")
+    ap.add_argument("--synthesis", action="store_true",
+                    help="write a per-lens weekly recap of the week's reads to Blob")
     return ap.parse_args(argv)
 
 def main(argv=None) -> int:
@@ -96,6 +99,26 @@ def main(argv=None) -> int:
 
     if args.discover:
         SourceDiscoverer(kb).discover()
+
+    if args.synthesis:
+        from datetime import datetime, timezone
+        from prism.lib.config import SCRATCH_DIR
+        syn = WeeklySynthesis(kb, endpoint, model)
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        for user in registry.users:
+            for p in user.profiles:
+                text = syn.recap(p.lens)
+                if not text:
+                    continue
+                fname = f"{p.filesafe_lens}-{date}.md"
+                if use_blob and blob.enabled:
+                    blob.put_text(f"synthesis/{fname}", text)
+                    print(f"synthesis: wrote synthesis/{fname} to Blob")
+                else:
+                    d = SCRATCH_DIR / "synthesis"
+                    d.mkdir(parents=True, exist_ok=True)
+                    (d / fname).write_text(text, encoding="utf-8")
+                    print(f"synthesis: wrote .scratch/synthesis/{fname}")
 
     for k, v in kb.metrics_snapshot().items():
         metrics.add(k, v)

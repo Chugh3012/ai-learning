@@ -96,5 +96,30 @@ class TestNovelty(unittest.TestCase):
         self.assertEqual(novelty_penalties([vectors.pack([1.0, 0.0])], one, 0.0), {})
         self.assertEqual(novelty_penalties([], one, 6.0), {})
 
+class TestTasteSummary(unittest.TestCase):
+    def _kb(self):
+        fd, path = tempfile.mkstemp(suffix=".sqlite")
+        os.close(fd)
+        kb = KnowledgeBase.open(path)
+        self.addCleanup(kb.close)
+        return kb
+
+    def test_top_liked_sources_first(self):
+        kb = self._kb()
+        c = kb.con
+        c.execute("INSERT INTO source(id,title,topic_id) VALUES(1,'NPR Politics','ai')")
+        c.execute("INSERT INTO source(id,title,topic_id) VALUES(2,'Quiet Source','ai')")
+        c.execute("INSERT INTO item(id,source_id,title,topic_id) VALUES(1,1,'a','ai')")
+        c.execute("INSERT INTO item(id,source_id,title,topic_id) VALUES(2,1,'b','ai')")
+        c.execute("INSERT INTO item(id,source_id,title,topic_id) VALUES(3,2,'c','ai')")
+        c.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(1,'fb_save:L',1,0)")
+        c.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(2,'fb_vote:L',1,0)")
+        c.execute("INSERT INTO signal(item_id,kind,value,ts) VALUES(3,'fb_click:L',1,0)")
+        c.commit()
+        self.assertEqual(kb.taste_summary("L", limit=3)[0], "NPR Politics")
+
+    def test_empty_when_no_feedback(self):
+        self.assertEqual(self._kb().taste_summary("L"), [])
+
 if __name__ == "__main__":
     unittest.main()
