@@ -49,7 +49,9 @@ jobs:
         with:
           python-version: "3.13"
 
-      - run: pip install azure-data-tables azure-identity
+      # outcome.py imports the prism package (registry -> pydantic, feedback store), so install
+      # the full requirements -- not just the azure libs -- or the record step ImportErrors.
+      - run: pip install -r requirements.txt
         if: steps.ids.outputs.acted != ''
 
       - name: Azure login (OIDC, passwordless)
