@@ -937,6 +937,15 @@ Exit criteria:
 
 ### Phase 4: Intelligence Platform
 
+**Status: Core done (2026-06).** Shipped: a model gateway (per-task model selection + per-model
+cost, so models can be swapped or rolled out gradually in config), versioned prompt/rubric
+contracts (each topic pack declares a `rubric_version` recorded in eval results), and feature
+flags (config kill-switches, the canary seam). `prism` is already a pluggable library (Phase 2),
+so the reusable-layers exit criterion is substantially met. Deliberately deferred until a concrete
+second surface or audience exists: a standalone policy/safety service, an event schema + pipeline,
+internal admin tools, full canary infrastructure, and the A/B experiment service (which needs
+subscriber traffic to measure lift).
+
 Goal: make the intelligence layer reusable across surfaces.
 
 Deliver:
