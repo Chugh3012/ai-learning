@@ -82,6 +82,38 @@ class TestSelect(unittest.TestCase):
         codes = [r.code for it in out for r in it.reasons]
         self.assertIn("exploration", codes)
 
+class _EmbKB:
+    def __init__(self, emb):
+        self._emb = emb
+
+    def embedded_candidates(self, lens, limit, topic_id=None):
+        return self._emb
+
+class TestInterestRetrieval(unittest.TestCase):
+    @staticmethod
+    def _row(iid, vec, rel=20.0):
+        return (iid, f"t{iid}", "u", "", iid, None, rel, 0.0, vectors.pack(vec), "c")
+
+    def test_interest_pulls_matching_item_into_pool(self):
+        # item 3 is not in the relevance pool but matches the interest -> retrieval adds it.
+        rel_rows = [self._row(1, [1.0, 0.0, 0.0, 0.0], rel=90)]
+        pool = [self._row(2, [1.0, 0.0, 0.0, 0.0]), self._row(3, [0.0, 1.0, 0.0, 0.0])]
+        out = Selector(_EmbKB(pool))._add_interest_candidates(
+            rel_rows, "L", vectors.normalize([0.0, 1.0, 0.0, 0.0]), 50, None)
+        self.assertIn(3, [r[0] for r in out])
+
+    def test_different_interests_pull_different_items(self):
+        pool = [self._row(2, [1.0, 0.0, 0.0, 0.0]), self._row(3, [0.0, 1.0, 0.0, 0.0])]
+        sel = Selector(_EmbKB(pool))
+        a = sel._add_interest_candidates([], "L", vectors.normalize([1.0, 0.0, 0.0, 0.0]), 1, None)
+        b = sel._add_interest_candidates([], "L", vectors.normalize([0.0, 1.0, 0.0, 0.0]), 1, None)
+        self.assertEqual([r[0] for r in a], [2])
+        self.assertEqual([r[0] for r in b], [3])
+
+    def test_no_interest_is_a_noop(self):
+        pool = [self._row(2, [1.0, 0.0, 0.0, 0.0])]
+        self.assertEqual(Selector(_EmbKB(pool))._add_interest_candidates([], "L", None, 5, None), [])
+
 
 if __name__ == "__main__":
     unittest.main()

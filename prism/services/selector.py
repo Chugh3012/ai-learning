@@ -39,10 +39,33 @@ class Selector:
             reasons.append(PickReason(code="category", text=f"Adds {category} coverage"))
         return tuple(reasons[:3])
 
+    def _add_interest_candidates(self, rows: list[tuple], lens: str,
+                                 interest_vec: list[float] | None, k: int,
+                                 topic_id: str | None) -> list[tuple]:
+        # Two-tower retrieval: also pull the items most similar to the reader's interest/taste
+        # vector, so a stated interest surfaces matching items even when their shared relevance is
+        # mid -- the interest lens drives retrieval, not just re-ranking. No-op without an interest
+        # vector (most users), so default behaviour is unchanged.
+        # ponytail: O(n) cosine over a recency window (~1500). Swap to an ANN index if the embedded
+        # KB ever grows past tens of thousands of items.
+        if not interest_vec:
+            return rows
+        emb = self.kb.embedded_candidates(lens, 1500, topic_id)
+        if not emb:
+            return rows
+        sims = match_bonus(interest_vec, {r[0]: r[8] for r in emb if r[8]}, 1.0)
+        if not sims:
+            return rows
+        top_ids = set(sorted(sims, key=sims.get, reverse=True)[:k])
+        have = {r[0] for r in rows}
+        return rows + [r for r in emb if r[0] in top_ids and r[0] not in have]
+
     def select(self, lens: str, top: int, min_score: float = 0.0,
                interest_vec: list[float] | None = None, weight: float = 0.0,
                explore_ratio: float | None = None, topic_id: str | None = None) -> list[ScoredItem]:
-        rows = self.kb.candidates(lens, max(top * 20, 200), topic_id)
+        k = max(top * 20, 200)
+        rows = self.kb.candidates(lens, k, topic_id)
+        rows = self._add_interest_candidates(rows, lens, interest_vec, k, topic_id)
         if not rows:
             return []
         vecs = {r[0]: r[8] for r in rows if r[8]}
