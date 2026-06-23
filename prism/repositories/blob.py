@@ -74,6 +74,16 @@ class BlobStore:
             text.encode("utf-8"), overwrite=True)
         return True
 
+    def put_file(self, path: str, local_path, content_type: str = "") -> bool:
+        if not self.enabled:
+            return False
+        from azure.storage.blob import ContentSettings
+        cs = ContentSettings(content_type=content_type) if content_type else None
+        with open(local_path, "rb") as f:
+            self._service().get_blob_client(self.container, path).upload_blob(
+                f, overwrite=True, content_settings=cs)
+        return True
+
     def download_digest(self, name: str) -> bytes | None:
         if not self.enabled:
             return None

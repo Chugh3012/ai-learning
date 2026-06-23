@@ -35,3 +35,7 @@ sqlmodel>=0.0.38
 # azure-monitor-ingestion: ship pipeline metrics to a Log Analytics custom table (passwordless,
 # via a Data Collection Rule) for the Grafana dashboard. Optional at runtime (no-op if unset).
 azure-monitor-ingestion>=1.1.0
+# Pillow + imageio-ffmpeg: render the vertical "AI radar" update video (title cards -> mp4).
+# imageio-ffmpeg bundles a static ffmpeg binary so it works locally and in CI with no system install.
+Pillow>=11.0.0
+imageio-ffmpeg>=0.6.0
