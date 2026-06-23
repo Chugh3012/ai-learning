@@ -26,8 +26,8 @@
       <outline type="rss" text="The Pragmatic Engineer" title="The Pragmatic Engineer" xmlUrl="https://blog.pragmaticengineer.com/rss/" htmlUrl="https://blog.pragmaticengineer.com/"/>
     </outline>
     <outline text="Research (arXiv)" title="Research (arXiv)">
-      <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="http://export.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
-      <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="http://export.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
+      <outline type="rss" text="arXiv cs.AI" title="arXiv cs.AI" xmlUrl="https://rss.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
+      <outline type="rss" text="arXiv cs.CL (NLP/LLMs)" title="arXiv cs.CL (NLP/LLMs)" xmlUrl="https://rss.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
     </outline>
     <outline text="AI News &amp; Aggregators" title="AI News &amp; Aggregators">
       <outline type="rss" text="aifeed.dev" title="aifeed.dev" xmlUrl="https://aifeed.dev/feed.xml" htmlUrl="https://aifeed.dev/"/>
