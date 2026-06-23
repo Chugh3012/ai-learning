@@ -838,6 +838,8 @@ For this project, the equivalent moat is:
 
 ### Phase 0: Production Hardening
 
+**Status: Done (2026-06).** Shipped and deployed; verified live end-to-end.
+
 Goal: safe, reliable single-topic public product.
 
 Deliver:
@@ -862,6 +864,9 @@ Exit criteria:
 
 ### Phase 1: Better Reader Value
 
+**Status: Done (2026-06).** Exit criteria met (reason codes, saved library, preference center,
+source-quality dashboard).
+
 Goal: make every edition feel useful and memorable.
 
 Deliver:
@@ -882,6 +887,9 @@ Exit criteria:
 
 ### Phase 2: Multi-Topic Engine
 
+**Status: Done (2026-06).** Package renamed to `prism` and made a pluggable library; AI and
+Politics topic packs live; one site serves `/<topic>` paths; metrics segment by topic; deployed.
+
 Goal: support more topics without cloning the app.
 
 Deliver:
@@ -901,6 +909,13 @@ Exit criteria:
 - Metrics can segment by topic.
 
 ### Phase 3: Advanced Personalization
+
+**Status: Done (2026-06), except the experiment queue / A/B harness, which is deferred until there
+is enough subscriber traffic to measure lift. Shipped: behaviour-learned taste vectors,
+recency-weighted feedback, novelty scoring, contextual exploration (Thompson sampling), weekly
+synthesis, and profile explanation (with correction via the preference center).** No new
+dependency was added: off-the-shelf recommender libraries are collaborative-filtering / GPU /
+online-streaming tools that do not fit a few-user batch system.
 
 Goal: turn feedback into a real learning system.
 
