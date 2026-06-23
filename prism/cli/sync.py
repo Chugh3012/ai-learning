@@ -6,6 +6,7 @@ import sys
 from prism.lib.settings import Settings
 from prism.lib.metrics import Metrics
 from prism.lib import foundry
+from prism.lib import flags
 from prism.lib.gateway import ModelGateway
 from prism.repositories.blob import BlobStore
 from prism.repositories.feedback import FeedbackStore
@@ -20,7 +21,7 @@ from prism.services.ranker import Ranker
 from prism.services.selector import Selector
 from prism.services.source_quality import SourceQualityDashboard
 from prism.services.personalization.taste import TasteModel
-from prism.services.personalization.explorer import ThompsonExplorer
+from prism.services.personalization.explorer import ThompsonExplorer, EpsilonExplorer
 from prism.services.synthesis import WeeklySynthesis
 from prism.services.delivery.orchestrator import Orchestrator
 
@@ -89,10 +90,12 @@ def main(argv=None) -> int:
             print(f"cleanup: purged {purged_tok} expired tokens, {purged_pend} stale pending signups")
 
     if args.deliver or args.produce:
+        explorer = ThompsonExplorer(kb) if flags.enabled("thompson") else EpsilonExplorer()
+        taste = TasteModel(kb) if flags.enabled("taste") else None
         orchestrator = Orchestrator(
-            kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb, ThompsonExplorer(kb)),
+            kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb, explorer),
             BriefBuilder(kb, endpoint, gateway.model_for("brief")),
-            feedback_store, blob if use_blob else None, s, metrics, TasteModel(kb))
+            feedback_store, blob if use_blob else None, s, metrics, taste)
         if args.deliver:
             orchestrator.run()
         if args.produce:

@@ -75,7 +75,8 @@ class RankEvaluator:
             "nonai_leak": max((it["score"] for it in scored if it.get("is_nonai")), default=0),
         }
         _RESULTS.mkdir(parents=True, exist_ok=True)
-        payload = {"topic": topic_id, "model": self.ranker.model, "ts": int(time.time()),
+        payload = {"topic": topic_id, "rubric_version": pack.rubric_version,
+                   "model": self.ranker.model, "ts": int(time.time()),
                    "samples": samples, "metrics": metrics}
         (_RESULTS / f"gate_{topic_id}.json").write_text(json.dumps(payload, indent=2),
                                                         encoding="utf-8")

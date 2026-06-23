@@ -3,6 +3,7 @@
   "name": "Politics & Policy",
   "brand": "Civic Signal",
   "tagline": "Policy substance over political theater.",
+  "rubric_version": "v1",
   "settings": {
     "site": { "noun": "politics", "noun_title": "Politics" }
   }

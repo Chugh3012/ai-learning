@@ -16,6 +16,7 @@ class TopicPack:
     brand: str
     tagline: str
     rubric: str
+    rubric_version: str
     tags: dict
     sources_opml: Path
     golden: Path
@@ -45,6 +46,7 @@ def load_pack(topic_id: str) -> TopicPack:
         brand=str(meta.get("brand", "")),
         tagline=str(meta.get("tagline", "")),
         rubric=_read_text(d / "rubric.txt"),
+        rubric_version=str(meta.get("rubric_version", "v1")),
         tags=_read_json(d / "tags.json").get("topics", {}),
         sources_opml=d / "sources.opml",
         golden=d / "eval" / "golden.jsonl",
