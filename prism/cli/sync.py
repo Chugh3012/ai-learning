@@ -18,6 +18,8 @@ from prism.services.ingest import Ingestor
 from prism.services.ranker import Ranker
 from prism.services.selector import Selector
 from prism.services.source_quality import SourceQualityDashboard
+from prism.services.personalization.taste import TasteModel
+from prism.services.personalization.explorer import ThompsonExplorer
 from prism.services.delivery.orchestrator import Orchestrator
 
 def _parse_args(argv=None) -> argparse.Namespace:
@@ -84,9 +86,9 @@ def main(argv=None) -> int:
 
     if args.deliver or args.produce:
         orchestrator = Orchestrator(
-            kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb),
+            kb, registry, Embedder(kb, endpoint, embed_model), Selector(kb, ThompsonExplorer(kb)),
             BriefBuilder(kb, endpoint, model),
-            feedback_store, blob if use_blob else None, s, metrics)
+            feedback_store, blob if use_blob else None, s, metrics, TasteModel(kb))
         if args.deliver:
             orchestrator.run()
         if args.produce:

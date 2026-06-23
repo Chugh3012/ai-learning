@@ -10,6 +10,7 @@ from prism.domain.item import ScoredItem
 from prism.lib import vectors
 from prism.repositories.knowledge import KnowledgeBase
 from prism.services.selector import Selector
+from prism.services.personalization.explorer import EpsilonExplorer
 
 def _kb():
     fd, path = tempfile.mkstemp(suffix=".sqlite")
@@ -77,8 +78,7 @@ class TestSelect(unittest.TestCase):
 
     def test_explore_slot_gets_reason(self):
         items = [ScoredItem(id=i, score=float(100 - i)) for i in range(1, 6)]
-        out = Selector(None)._explore_exploit(items, top=3, ratio=0.34,
-                                              rng=random.Random(0))
+        out = EpsilonExplorer(0.34, random.Random(0)).choose(items, top=3)
         codes = [r.code for it in out for r in it.reasons]
         self.assertIn("exploration", codes)
 
