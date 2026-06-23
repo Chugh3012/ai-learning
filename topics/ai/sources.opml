@@ -36,6 +36,7 @@
       <outline type="rss" text="The Gradient" title="The Gradient" xmlUrl="https://thegradient.pub/rss/" htmlUrl="https://thegradient.pub/"/>
       <outline type="rss" text="Last Week in AI" title="Last Week in AI" xmlUrl="https://lastweekin.ai/feed" htmlUrl="https://lastweekin.ai/"/>
       <outline type="rss" text="The Verge (AI)" title="The Verge (AI)" xmlUrl="https://www.theverge.com/rss/ai-artificial-intelligence/index.xml" htmlUrl="https://www.theverge.com/ai-artificial-intelligence"/>
+      <outline type="rss" text="The Register (AI/ML)" title="The Register (AI/ML)" xmlUrl="https://www.theregister.com/software/ai_ml/headlines.atom" htmlUrl="https://www.theregister.com/software/ai_ml/"/>
       <outline type="rss" text="AWS Machine Learning Blog" title="AWS Machine Learning Blog" xmlUrl="https://aws.amazon.com/blogs/machine-learning/feed/" htmlUrl="https://aws.amazon.com/blogs/machine-learning/"/>
       <outline type="rss" text="AI Weirdness (Janelle Shane)" title="AI Weirdness (Janelle Shane)" xmlUrl="http://aiweirdness.com/rss" htmlUrl="https://www.aiweirdness.com/"/>
     </outline>

@@ -13,10 +13,4 @@
 #     reason: <why proposed>
 #     status: proposed   # proposed -> approved -> merged (then delete) | rejected
 
-proposals:
-  - name: theregister.com
-    candidate_url: https://theregister.com/feed
-    kind: native
-    seen_count: 3
-    reason: linked by 3 KB items; feed auto-discovered
-    status: proposed
+proposals: []
