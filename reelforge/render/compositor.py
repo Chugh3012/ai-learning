@@ -15,8 +15,9 @@ from reelforge.render.backgrounds import gradient_bg
 from reelforge.render.captions import caption_clips
 from reelforge.render.fonts import resolve_font
 
-# A short beat of silence after the voice finishes so cuts don't feel clipped.
-_TAIL = 0.35
+# A tiny pad after the last spoken word so cuts don't feel clipped (the TTS trailing silence,
+# which otherwise reads as a dead gap at every cut, is removed).
+_TAIL = 0.12
 
 def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | None,
                 tmp: Path, idx: int, opened: list) -> CompositeVideoClip:
@@ -24,7 +25,13 @@ def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | N
     if tts is not None and scene.text.strip():
         speech = tts.synth(scene.text, tmp / f"vo{idx:03d}.wav")
 
-    seconds = (speech.duration + _TAIL) if speech else scene.seconds
+    # End the scene right after the LAST spoken word. Neural TTS wavs carry trailing silence that
+    # otherwise plays as dead air at every cut; trimming to the last word keeps momentum high.
+    if speech:
+        last_word_end = max((st + dr for _w, st, dr in speech.words), default=speech.duration)
+        seconds = min(speech.duration, last_word_end + _TAIL)
+    else:
+        seconds = scene.seconds
 
     broll = visuals.background(scene.query or scene.text, seconds, style, tmp) if visuals else None
     if broll is not None:
@@ -47,7 +54,7 @@ def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | N
     if speech:
         voice = AudioFileClip(str(speech.audio_path))
         opened.append(voice)
-        clip = clip.with_audio(voice)
+        clip = clip.with_audio(voice.subclipped(0, min(voice.duration, seconds)))
     return clip
 
 def render(storyboard: Storyboard, out_path: str | Path, tts: TTS | None = None,

@@ -1,8 +1,9 @@
-"""Generate the bundled ambient music bed for reelforge reels. Synthesized from scratch (sine pads
-+ slow swell + a soft pulse), so it is licence-free (CC0) and reproducible. Run:
+"""Generate the bundled music bed for reelforge reels: a light DRIVING electronic loop (a punchy
+kick, a sidechained bass, a soft minor-pentatonic arp, and quiet hats) at ~108 BPM. Synthesized from
+scratch so it is licence-free (CC0) and reproducible. Run:
     python reelforge/assets/music/generate_ambient.py
-Writes ambient.mp3 next to this file via the bundled ffmpeg. ponytail: a simple ambient bed under a
-voiceover; swap in any track by setting `music` in config/reel.json if you want something richer."""
+Writes ambient.mp3 next to this file via the bundled ffmpeg. ponytail: a simple synthesized bed for
+momentum; swap in any track by setting `music` in config/reel.json if you want something richer."""
 from __future__ import annotations
 
 import subprocess
@@ -16,27 +17,51 @@ SR = 44100
 DUR = 60.0
 HERE = Path(__file__).resolve().parent
 
-def _tone(freq, t, detune=0.0):
-    return np.sin(2 * np.pi * freq * t) + 0.5 * np.sin(2 * np.pi * (freq * (1 + detune)) * t)
+BPM = 108.0
+BEAT = 60.0 / BPM
+
+def _hit(t, period, decay):
+    # An exponential-decay envelope that re-triggers every `period` seconds.
+    return np.exp(-(t % period) / decay)
+
+def _kick(t):
+    p = t % BEAT
+    pitch = 110.0 * np.exp(-p / 0.03) + 45.0          # fast pitch drop -> punchy thump
+    return np.sin(2 * np.pi * pitch * p) * np.exp(-p / 0.16)
 
 def main() -> None:
     t = np.linspace(0, DUR, int(SR * DUR), endpoint=False)
-    # Am pad: A2 / E3 / A3 / C4, warm detuned sines.
-    pad = sum(_tone(f, t, 0.002) for f in (110.0, 164.81, 220.0, 261.63))
-    pad /= np.max(np.abs(pad))
-    swell = 0.55 + 0.45 * np.sin(2 * np.pi * 0.05 * t)            # slow breathing
-    shimmer = 0.06 * np.sin(2 * np.pi * 880.0 * t) * (0.5 + 0.5 * np.sin(2 * np.pi * 0.07 * t))
-    pulse_env = 0.5 * (1 + np.cos(2 * np.pi * (t % 0.6) / 0.6)) ** 4   # gentle ~100bpm pulse
-    sub = 0.12 * np.sin(2 * np.pi * 55.0 * t) * pulse_env
-    mix = pad * swell * 0.6 + shimmer + sub
-    # 2s fade in/out
+    bar = 4 * BEAT
+    step = BEAT / 2                                   # 8th notes
+    duck = 0.35 + 0.65 * (1 - np.exp(-(t % BEAT) / 0.12))   # sidechain pump off the kick
+
+    # Bassline: one root per bar, Am - F - C - G.
+    bass = np.zeros_like(t)
+    for i, f in enumerate((55.00, 43.65, 65.41, 49.00)):
+        m = ((t % (4 * bar)) >= i * bar) & ((t % (4 * bar)) < (i + 1) * bar)
+        bass += m * (np.sin(2 * np.pi * f * t) + 0.3 * np.sin(2 * np.pi * 2 * f * t))
+    bass *= 0.55 * duck
+
+    # Arp: A-minor pentatonic, 8th notes, soft triangle.
+    scale = [220.0, 261.63, 293.66, 329.63, 392.00, 523.25]
+    notes = np.array([scale[i % len(scale)] for i in range(int(DUR / step) + 2)])
+    freq = notes[(t // step).astype(int)]
+    tri = 1 - 2 * np.abs(2 * (t * freq % 1) - 1)
+    arp = 0.16 * tri * _hit(t, step, 0.10) * duck
+
+    # Hats: high-passed noise burst on each 8th, quiet.
+    noise = np.random.default_rng(7).standard_normal(t.shape)
+    hat = 0.05 * (noise - np.roll(noise, 1)) * _hit(t, step, 0.03) * duck
+
+    mix = 0.9 * _kick(t) + bass + arp + hat
+    # 1.5s fade in/out
     fade = np.ones_like(mix)
-    n = int(SR * 2)
+    n = int(SR * 1.5)
     fade[:n] = np.linspace(0, 1, n)
     fade[-n:] = np.linspace(1, 0, n)
     mix *= fade
     mix /= np.max(np.abs(mix))
-    mix *= 0.5                                                    # leave headroom; it gets ducked
+    mix *= 0.7                                        # headroom; it gets ducked under the voice
     pcm = (mix * 32767).astype("<i2")
     stereo = np.repeat(pcm[:, None], 2, axis=1).tobytes()
 
