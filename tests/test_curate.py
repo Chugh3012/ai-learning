@@ -6,9 +6,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from prism.domain.item import ScoredItem
 from prism.services import curation
 
-def _it(id=0, title="", score=0.0, source_id=None, topic=None, category=None):
+def _it(id=0, title="", score=0.0, source_id=None, topic=None, category=None, url=""):
     return ScoredItem(id=id, title=title, score=score, source_id=source_id,
-                      topic=topic, category=category)
+                      topic=topic, category=category, url=url)
 
 class TestDedup(unittest.TestCase):
     def test_collapses_near_duplicate_titles_keeping_first(self):
@@ -30,6 +30,16 @@ class TestDedup(unittest.TestCase):
     def test_empty_and_missing_titles_dont_crash(self):
         items = [_it(1, ""), _it(2, ""), _it(3, "Real headline here now")]
         self.assertEqual(len(curation.dedup(items)), 3)
+
+    def test_collapses_same_url_under_different_titles_keeping_first(self):
+        # Two feeds surfaced the SAME video under different headlines -> one reel, not twins.
+        items = [
+            _it(1, "The Most Insane iPhone AI Features", 90, url="https://www.youtube.com/shorts/AB12"),
+            _it(2, "Every New Apple AI Feature", 80, url="http://youtube.com/shorts/AB12/"),
+            _it(3, "A totally different AI story", 70, url="https://example.com/x"),
+        ]
+        out = curation.dedup(items)
+        self.assertEqual([d.id for d in out], [1, 3])
 
 class TestDropSeen(unittest.TestCase):
     def test_drops_resurfaced_story_from_other_source(self):
