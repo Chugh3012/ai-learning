@@ -11,10 +11,11 @@ prism-evaluate = "prism.cli.evaluate:main"
 prism-restore = "prism.cli.restore:main"
 
 [tool.setuptools.packages.find]
-include = ["prism*"]
+include = ["prism*", "reelforge*"]
 
 [tool.setuptools.package-data]
 "prism.services" = ["templates/*.j2"]
+"reelforge" = ["assets/fonts/*.ttf", "assets/fonts/*.txt"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
