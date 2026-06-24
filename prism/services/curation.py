@@ -20,6 +20,14 @@ def _tokens(title: str) -> set[str]:
     words = re.findall(r"[a-z0-9]+", (title or "").lower())
     return {w for w in words if w not in _STOP and len(w) > 2}
 
+def _norm_url(url: str) -> str:
+    # Collapse trivially-different URLs to one identity: drop scheme, 'www.', fragment, trailing
+    # slash. Keeps the path+query (a YouTube watch?v=ID or shorts/ID is its identity).
+    u = re.sub(r"#.*$", "", (url or "").strip().lower())
+    u = re.sub(r"^https?://", "", u)
+    u = re.sub(r"^www\.", "", u)
+    return u.rstrip("/")
+
 def _similar(a: set[str], b: set[str], thresh: float) -> bool:
     if not a or not b:
         return False
@@ -31,12 +39,18 @@ def dedup(items: list[ScoredItem]) -> list[ScoredItem]:
     thresh = float(_cfg().get("dedup_jaccard", 0.6))
     kept: list[ScoredItem] = []
     kept_tokens: list[set[str]] = []
+    seen_urls: set[str] = set()
     for it in items:
+        nu = _norm_url(it.url)
+        if nu and nu in seen_urls:
+            continue
         toks = _tokens(it.title)
         if any(_similar(toks, k, thresh) for k in kept_tokens):
             continue
         kept.append(it)
         kept_tokens.append(toks)
+        if nu:
+            seen_urls.add(nu)
     return kept
 
 def drop_seen(items: list[ScoredItem], seen_titles: list[str]) -> list[ScoredItem]:
