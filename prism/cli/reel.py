@@ -15,7 +15,8 @@ from prism.services.embedder import Embedder
 from prism.services.selector import Selector
 from prism.services.reel_script import ReelScripter
 from prism.services.reel_playbook import Playbook, load_playbook
-from reelforge import AzureSpeech, PexelsVisuals, Scene, Storyboard, Style, render
+from reelforge import (AzureSpeech, PexelsVisuals, Scene, Storyboard, Style, bundled_music,
+                       render)
 
 # A broadcast lens: the reel is a public "top AI updates" edition, not a personalized feed. Its
 # relevance is steered by config/reel.json (interest sentence) so it surfaces catchy, concrete
@@ -33,6 +34,7 @@ def _parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--upload", action="store_true", help="upload the mp4 to Blob digests/reels/")
     ap.add_argument("--no-voice", action="store_true", help="skip the Azure Speech voiceover")
     ap.add_argument("--no-broll", action="store_true", help="skip Pexels b-roll (branded gradient)")
+    ap.add_argument("--no-music", action="store_true", help="skip the background music bed")
     return ap.parse_args(argv)
 
 def main(argv=None) -> int:
@@ -67,18 +69,21 @@ def main(argv=None) -> int:
     tts = None
     if not args.no_voice and s.speech_resource_id:
         tts = AzureSpeech(resource_id=s.speech_resource_id, region=s.speech_region,
-                          voice=cfg.get("voice", "en-US-AvaMultilingualNeural"))
+                          voice=cfg.get("voice", "en-US-AvaMultilingualNeural"),
+                          style=cfg.get("voice_style", ""), rate=cfg.get("voice_rate", ""))
     visuals = None
     if not args.no_broll and s.pexels_api_key:
         visuals = PexelsVisuals(api_key=s.pexels_api_key)
+    music = "" if args.no_music else (cfg.get("music") or bundled_music())
 
     base_style = {"caption_y": 0.62, "words_per_chunk": int(cfg.get("words_per_chunk", 3))}
     style = Style(**{**base_style, **playbook.style})
     name = f"{dt.date.today().isoformat()}-{label}.mp4"
     out = SCRATCH_DIR / "reels" / name
-    render(Storyboard(style=style, scenes=scenes), out, tts=tts, visuals=visuals)
+    render(Storyboard(style=style, scenes=scenes, music=music), out, tts=tts, visuals=visuals)
     print(f"reel: wrote {out} ({out.stat().st_size} bytes, {len(scenes)} scenes, mode={label}, "
-          f"voice={'on' if tts else 'off'}, broll={'on' if visuals else 'off'})")
+          f"voice={'on' if tts else 'off'}, broll={'on' if visuals else 'off'}, "
+          f"music={'on' if music else 'off'})")
 
     uploaded = bool(args.upload and blob.put_file(f"digests/reels/{name}", out, "video/mp4"))
     print("\nDOWNLOAD:")
@@ -90,24 +95,23 @@ def main(argv=None) -> int:
     return 0
 
 def _roundup_scenes(rows: list, scripter: ReelScripter, pb: Playbook) -> list[Scene]:
+    # No top numbering (distracting); the opener is the hook phrase, then one card per story.
     hook, script = scripter.script([(r.id, r.title, r.summary) for r in rows], pb.roundup_system)
-    n = len(rows)
-    scenes = [Scene(kicker="AI RADAR", text=hook or "Today in AI", query=pb.intro_query)]
-    for i, r in enumerate(rows, 1):
+    scenes = [Scene(text=hook or "Today in AI", query=pb.intro_query)]
+    for r in rows:
         _headline, line, query = (script.get(r.id, ("", "", "")) + ("", "", ""))[:3]
-        scenes.append(Scene(kicker=f"{i:02d} / {n:02d}", text=line or r.title,
-                            query=query or "technology abstract"))
+        scenes.append(Scene(text=line or r.title, query=query or "technology abstract"))
     scenes.append(Scene(text=pb.cta, query=pb.outro_query))
     return scenes
 
 def _deep_scenes(row, scripter: ReelScripter, pb: Playbook) -> list[Scene]:
+    # Hook-first: the very first scene IS the spoken hook (beat 1) — no separate title card, no
+    # numbering — so a scroll-stopping line lands in the opening seconds.
     body = fulltext(row.url) or row.summary
-    hook, beats = scripter.script_deep(row.title, body, pb.deep_system)
-    scenes = [Scene(kicker="AI RADAR", text=hook or row.title, query=pb.intro_query)]
-    total = len(beats)
-    for i, (text, query) in enumerate(beats, 1):
-        scenes.append(Scene(kicker=f"{i:02d} / {total:02d}", text=text,
-                            query=query or "technology abstract"))
+    _hook, beats = scripter.script_deep(row.title, body, pb.deep_system)
+    if not beats:
+        beats = [(row.title, pb.intro_query)]
+    scenes = [Scene(text=text, query=query or "technology abstract") for text, query in beats]
     scenes.append(Scene(text=pb.cta, query=pb.outro_query))
     return scenes
 

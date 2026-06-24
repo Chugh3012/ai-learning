@@ -8,6 +8,8 @@ from reelforge.domain.storyboard import Scene, Storyboard
 from reelforge.domain.style import Style
 from reelforge.providers.tts.azure_speech import AzureSpeech
 from reelforge.providers.visuals.pexels import PexelsVisuals
+from reelforge.render.assets import bundled_music
 from reelforge.render.compositor import render
 
-__all__ = ["Scene", "Storyboard", "Style", "AzureSpeech", "PexelsVisuals", "render"]
+__all__ = ["Scene", "Storyboard", "Style", "AzureSpeech", "PexelsVisuals", "bundled_music",
+           "render"]

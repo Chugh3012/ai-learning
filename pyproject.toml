@@ -15,7 +15,7 @@ include = ["prism*", "reelforge*"]
 
 [tool.setuptools.package-data]
 "prism.services" = ["templates/*.j2"]
-"reelforge" = ["assets/fonts/*.ttf", "assets/fonts/*.txt"]
+"reelforge" = ["assets/fonts/*.ttf", "assets/fonts/*.txt", "assets/music/*.mp3"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

@@ -1,8 +1,11 @@
 {
-  "interest": "Exciting, concrete AI developments worth a short video: new models, tools, products, apps, demos, agents, coding assistants, robots, and major releases or capabilities people can use or see. Not dry academic theory, math-heavy proofs, or incremental research papers.",
-  "interest_weight": 28,
-  "voice": "en-US-AvaMultilingualNeural",
+  "interest": "Visually interesting AI stories a broad audience would stop to watch on Instagram: new AI models, apps, tools, gadgets, robots, demos, and creative or surprising uses people can see or try. Strongly prefer concrete, recent, and exciting over technical, academic, math-heavy, or incremental research.",
+  "interest_weight": 32,
+  "voice": "en-US-AriaNeural",
+  "voice_style": "excited",
+  "voice_rate": "+0%",
   "words_per_chunk": 3,
   "playbook": "explainer",
+  "music": "",
   "deep_max_chars": 4000
 }
