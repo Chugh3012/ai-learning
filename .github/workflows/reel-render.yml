@@ -52,5 +52,8 @@ jobs:
           FEEDBACK_STORAGE: ${{ vars.FEEDBACK_STORAGE }}
           SPEECH_RESOURCE_ID: ${{ vars.SPEECH_RESOURCE_ID }}
           SPEECH_REGION: ${{ vars.SPEECH_REGION }}
+          ACS_ENDPOINT: ${{ vars.ACS_ENDPOINT }}
+          EMAIL_SENDER: ${{ vars.EMAIL_SENDER }}
+          EMAIL_TO: ${{ vars.EMAIL_TO }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python -m prism.cli.reel --mode deep --from-digest --upload
