@@ -67,7 +67,11 @@ def main(argv=None) -> int:
     rendered: list[tuple[str, Path]] = []
     for feed in feeds:
         topic = feed.topic_id
-        creative = {**defaults, **load_pack(topic).settings.get("reel", {})}
+        reel_cfg = load_pack(topic).settings.get("reel", {})
+        if not reel_cfg.get("enabled", True):
+            print(f"reel[{topic}]: disabled in pack settings.reel — skipped")
+            continue
+        creative = {**defaults, **reel_cfg}
         playbook = load_playbook(args.playbook or creative.get("playbook", "explainer"))
 
         # Resolve the lens's items: its published Edition (act on what kb-sync decided), else a live
