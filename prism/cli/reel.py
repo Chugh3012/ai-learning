@@ -41,6 +41,20 @@ def _parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--no-music", action="store_true", help="skip the background music bed")
     return ap.parse_args(argv)
 
+def groundable(pool, want_n, min_body, body_of):
+    # Pick up to want_n ranked items whose grounding text is thick enough to TEACH from. A deep
+    # reel invents details when handed a near-empty source (a clickbait video short with a ~500
+    # char blurb -> a fabricated 'sound-wave health scanner'), so skip thin sources and drop to
+    # the next item in the ranked pool. body_of is injected so the policy is testable without IO.
+    out = []
+    for cand in pool:
+        if len(out) >= want_n:
+            break
+        body = body_of(cand)
+        if len(body) >= min_body:
+            out.append((cand, body))
+    return out
+
 def main(argv=None) -> int:
     args = _parse_args(argv)
     s = Settings()
@@ -105,11 +119,15 @@ def main(argv=None) -> int:
         # Build the scripts up front (one Foundry call each); deep = one reel per top story.
         jobs: list[tuple[str, list]] = []
         if args.mode == "deep":
-            n = min(args.reels or int(creative.get("reels", 2)), len(pool))
-            for k in range(n):
-                body = "\n\n".join(t for t in (pool[k].summary, fulltext(pool[k].url)) if t)
-                suffix = f"-{k + 1}" if n > 1 else ""
-                jobs.append((f"{date}-deep{suffix}.mp4", playbook.deep_scenes(pool[k].title, body, scripter)))
+            want_n = args.reels or int(creative.get("reels", 2))
+            min_body = int(creative.get("deep_min_body", 1000))
+            picks = groundable(pool, want_n, min_body,
+                               lambda c: "\n\n".join(t for t in (c.summary, fulltext(c.url)) if t))
+            if not picks:
+                print(f"reel[{topic}]: no source thick enough to teach from (min {min_body}c) \u2014 skipped")
+            for i, (cand, body) in enumerate(picks, 1):
+                suffix = f"-{i}" if want_n > 1 else ""
+                jobs.append((f"{date}-deep{suffix}.mp4", playbook.deep_scenes(cand.title, body, scripter)))
         else:
             jobs.append((f"{date}-roundup.mp4", playbook.roundup_scenes(pool[: args.count], scripter)))
 
