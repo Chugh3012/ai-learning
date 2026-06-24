@@ -40,6 +40,13 @@ def clean(text: str, limit: int = 900) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text[:limit]
 
+def digest_item_ids(md: str) -> list[int]:
+    # A delivered digest ends with a machine-readable footer of the items it featured, in rank
+    # order: "<!-- items: 12,7,30 -->" (see DeliverySink). Consumers (reel render) read this to
+    # act on exactly what kb-sync selected, instead of re-running selection. Empty if absent.
+    m = re.search(r"<!--\s*items:\s*([\d,\s]+?)\s*-->", md or "")
+    return [int(x) for x in m.group(1).split(",") if x.strip().isdigit()] if m else []
+
 def _ip_is_public(ip_str: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_str)

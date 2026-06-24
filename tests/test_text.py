@@ -138,5 +138,19 @@ class TestFetchPinning(unittest.TestCase):
             self.assertEqual(text._fetch_html("https://example.com/start"), "")
 
 
+class TestDigestItemIds(unittest.TestCase):
+    def test_parses_footer_in_order(self):
+        # The exact footer DeliverySink writes: "<!-- items: id,id,id -->" in rank order.
+        md = "# digest\n\n- a\n- b\n\n<!-- items: 12,7,30 -->\n"
+        self.assertEqual(text.digest_item_ids(md), [12, 7, 30])
+
+    def test_tolerates_spaces_and_blank(self):
+        self.assertEqual(text.digest_item_ids("x <!-- items: 5, 9 ,  2 --> y"), [5, 9, 2])
+        self.assertEqual(text.digest_item_ids(""), [])
+
+    def test_no_footer_returns_empty(self):
+        self.assertEqual(text.digest_item_ids("# just a digest, no footer"), [])
+
+
 if __name__ == "__main__":
     unittest.main()
