@@ -23,16 +23,17 @@ _SYSTEM = (
 )
 
 _DEEP_SYSTEM = (
-    "You are scripting a fast 30-40s vertical video that TEACHES one specific AI thing: the viewer "
-    "comes away knowing the NAME, ONE concrete fact (a number, a capability, or how it works), and "
-    "what they could DO with it -- not just that 'AI tools exist'. Write 7 to 9 short beats, each "
-    "ONE spoken line of 5-12 words, high momentum, no filler. Beat 1 = a HOOK with the most "
-    "surprising specific. Then NAME it, explain HOW it works, give PROOF (a number/example), say "
-    "what you could USE it for, and end on a one-line payoff. Be specific (names, numbers, verbs); "
-    "banned vague words: powerful, game-changing, revolutionary, cutting-edge, seamless. Accurate to "
-    "the source -- never invent a number or fact. For EACH beat give 'query': 2-4 filmable visual "
-    "keywords (no brand names, no on-screen text). Also give a 'hook' phrase (<=5 words). Return "
-    "ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
+    "You are writing a fun, fast 30-40s vertical video that explains ONE specific AI thing to a "
+    "smart friend who is NOT a techie. Talk like a real person out loud -- contractions, 'you', "
+    "warm and a little playful, never robotic. The viewer should get ONE concrete thing (what it is "
+    "and why they'd care) and feel a 'wait, that's real?' moment worth sharing. Write 7 to 9 short "
+    "spoken beats, each one line of 5-12 words. Beat 1 = a surprising, relatable HOOK. Then, in "
+    "plain words: what it is, the one wild thing it does, and why you'd care or what you could do "
+    "with it. End on a punchy line. NO jargon, NO bare acronyms, NO buzzwords (powerful, "
+    "game-changing, revolutionary); if a thing has a technical name, explain it plainly or skip it. "
+    "Specific and true to the source; never invent a number or fact. For EACH beat give 'query': "
+    "2-4 filmable visual keywords (no brand names, no on-screen text). Also give a 'hook' phrase "
+    "(<=5 words). Return ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
 )
 
 class ReelScripter:
