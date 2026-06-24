@@ -101,7 +101,8 @@ class BlobStore:
 
     def download_url(self, path: str, days: int = 7) -> str:
         # A time-limited, KEYLESS download link: a user-delegation SAS signed by the Entra identity
-        # at runtime (no account key, nothing stored). For emailing private reels to the admin.
+        # at runtime (no account key, nothing stored). content_disposition=attachment makes the
+        # browser DOWNLOAD the file (with a filename) instead of playing the mp4 inline.
         if not self.enabled:
             return ""
         from datetime import datetime, timedelta, timezone
@@ -109,7 +110,9 @@ class BlobStore:
         start = datetime.now(timezone.utc) - timedelta(minutes=5)
         expiry = datetime.now(timezone.utc) + timedelta(days=days)
         key = self._service().get_user_delegation_key(start, expiry)
+        filename = path.rsplit("/", 1)[-1]
         sas = generate_blob_sas(account_name=self.account, container_name=self.container,
                                 blob_name=path, user_delegation_key=key,
-                                permission=BlobSasPermissions(read=True), start=start, expiry=expiry)
+                                permission=BlobSasPermissions(read=True), start=start, expiry=expiry,
+                                content_disposition=f'attachment; filename="{filename}"')
         return f"https://{self.account}.blob.core.windows.net/{self.container}/{path}?{sas}"
