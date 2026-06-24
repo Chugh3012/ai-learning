@@ -83,32 +83,15 @@ class TestProvisioning(unittest.TestCase):
         self.assertEqual({f["topic_id"] for f in st.list_feeds("reel")}, {"politics"})
 
 
-class TestReconcile(unittest.TestCase):
-    def test_provision_preserves_db_interest_when_none(self):
-        # interest is db-owned: re-provisioning with interest=None must not clobber it.
+class TestProvisionPreservesInterest(unittest.TestCase):
+    def test_interest_is_db_owned_and_preserved_when_none(self):
+        # Re-provisioning without an interest must not clobber the db interest (never in repo).
         st = _store()
         st.provision_feed("reel", "ai", "keep me")
-        uid, _ = st.provision_feed("reel", "ai", None, cadence="weekly", top=3)
+        uid, _ = st.provision_feed("reel", "ai", None, cadence="weekly", top=6)
         p = st._profiles_for(uid)[0]
         self.assertEqual(p["interest"], "keep me")     # preserved
         self.assertEqual(p["cadence"], "weekly")        # config updated
-
-    def test_reconcile_ensures_enabled_and_removes_disabled(self):
-        st = _store()
-        st.provision_feed("reel", "politics", "pol")    # exists; will be disabled
-        lines = st.reconcile_reels([
-            {"topic": "ai", "enabled": True, "cadence": "daily", "reels": 2},
-            {"topic": "politics", "enabled": False},
-        ])
-        self.assertEqual({f["topic_id"] for f in st.list_feeds("reel")}, {"ai"})
-        self.assertEqual(len(lines), 2)
-
-    def test_reconcile_preserves_interest_on_ensure(self):
-        st = _store()
-        st.provision_feed("reel", "ai", "my interest")
-        st.reconcile_reels([{"topic": "ai", "enabled": True, "cadence": "daily", "reels": 2}])
-        uid = st.list_feeds("reel")[0]["user_id"]
-        self.assertEqual(st._profiles_for(uid)[0]["interest"], "my interest")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,8 @@ def main(argv=None) -> int:
     a = sub.add_parser("add", help="create/update a feed (idempotent by kind+topic+channel)")
     a.add_argument("--kind", required=True, help="feed kind, e.g. reel or builder")
     a.add_argument("--topic", required=True, help="topic pack id, e.g. ai or politics")
-    a.add_argument("--interest", required=True, help="the lens's selection interest (its source of truth)")
+    a.add_argument("--interest", default=None,
+                   help="the lens's selection interest (db-owned); omit to preserve the existing one")
     a.add_argument("--channel", default="digest")
     a.add_argument("--cadence", default="daily")
     a.add_argument("--top", type=int, default=6)
@@ -26,8 +27,6 @@ def main(argv=None) -> int:
     r = sub.add_parser("remove", help="remove a feed's topic profile")
     r.add_argument("--kind", required=True)
     r.add_argument("--topic", required=True)
-    sub.add_parser("reconcile", help="make reel feeds match each topic pack's settings.reel "
-                                     "(enabled/cadence/reels); interest stays db-owned")
     args = ap.parse_args(argv)
 
     s = Settings()
@@ -46,15 +45,6 @@ def main(argv=None) -> int:
                   f"({f['channel']}, {f['cadence']}) {f['interest'][:60]}")
     elif args.cmd == "remove":
         print(f"feeds: removed {store.remove_feed(args.kind, args.topic)} profile(s)")
-    elif args.cmd == "reconcile":
-        from prism.lib.topics import list_topics, load_pack
-        specs = []
-        for t in list_topics():
-            cfg = load_pack(t).settings.get("reel", {})
-            specs.append({"topic": t, "enabled": bool(cfg.get("enabled")),
-                          "cadence": str(cfg.get("cadence", "daily")), "reels": int(cfg.get("reels", 2))})
-        for line in store.reconcile_reels(specs):
-            print(line)
     return 0
 
 if __name__ == "__main__":
