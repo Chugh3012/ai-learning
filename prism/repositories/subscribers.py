@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+
 _PENDING_TTL = 7 * 24 * 3600  # un-confirmed signups are dropped after a week
 
 class SubscriberStore:
@@ -68,6 +70,65 @@ class SubscriberStore:
         except Exception as e:
             print(f"subscribers: read failed ({e})")
             return []
+
+    def _mint(self, prefix: str) -> str:
+        # The registry OWNS identity. Same opaque format the Function uses for people
+        # ("usr_"/"prf_" + 8 hex); resolution is always by kind + topic, never by a readable id.
+        return prefix + secrets.token_hex(4)
+
+    def provision_feed(self, kind: str, topic_id: str, interest: str, *, channel: str = "digest",
+                       cadence: str = "daily", top: int = 6, name: str = "") -> tuple[str, str]:
+        # Create/update an automation feed (a reel or builder lens) that the registry OWNS: one
+        # user per kind, one profile per topic under it. Idempotent by (kind, topic_id, channel).
+        # Consumers never call this and never see an id format — they only READ lenses.
+        from azure.data.tables import UpdateMode
+        subs = self._service().get_table_client("subscribers")
+        profs = self._service().get_table_client("profiles")
+        user = next((u for u in subs.query_entities(
+            "PartitionKey eq 'sub' and kind eq @k", parameters={"k": kind})), None)
+        uid = str(user["userId"]) if user else self._mint("usr_")
+        if not user:
+            subs.upsert_entity({
+                "PartitionKey": "sub", "RowKey": uid, "userId": uid, "kind": kind,
+                "status": "active", "name": name or f"{kind} feed", "email": "", "token": "",
+            }, mode=UpdateMode.REPLACE)
+        existing = next((p for p in profs.query_entities("PartitionKey eq @u", parameters={"u": uid})
+                         if str(p.get("topic_id")) == topic_id and str(p.get("channel")) == channel),
+                        None)
+        pid = str(existing["RowKey"]) if existing else self._mint("prf_")
+        profs.upsert_entity({
+            "PartitionKey": uid, "RowKey": pid, "name": name or f"{kind} {topic_id}",
+            "channel": channel, "cadence": cadence, "top": int(top), "min_score": 0.0,
+            "interest": interest, "self_review": False, "topic_id": topic_id,
+        }, mode=UpdateMode.REPLACE)
+        return uid, pid
+
+    def list_feeds(self, kind: str = "") -> list[dict]:
+        subs = self._service().get_table_client("subscribers")
+        profs = self._service().get_table_client("profiles")
+        out: list[dict] = []
+        for u in subs.query_entities("PartitionKey eq 'sub'"):
+            k = str(u.get("kind") or "")
+            if k in ("", "subscriber") or (kind and k != kind):
+                continue
+            uid = str(u.get("userId", ""))
+            for p in profs.query_entities("PartitionKey eq @u", parameters={"u": uid}):
+                out.append({"kind": k, "user_id": uid, "profile_id": str(p["RowKey"]),
+                            "topic_id": str(p.get("topic_id", "")), "channel": str(p.get("channel", "")),
+                            "cadence": str(p.get("cadence", "")), "interest": str(p.get("interest", ""))})
+        return out
+
+    def remove_feed(self, kind: str, topic_id: str) -> int:
+        subs = self._service().get_table_client("subscribers")
+        profs = self._service().get_table_client("profiles")
+        removed = 0
+        for u in subs.query_entities("PartitionKey eq 'sub' and kind eq @k", parameters={"k": kind}):
+            uid = str(u.get("userId", ""))
+            for p in list(profs.query_entities("PartitionKey eq @u", parameters={"u": uid})):
+                if str(p.get("topic_id")) == topic_id:
+                    profs.delete_entity(uid, str(p["RowKey"]))
+                    removed += 1
+        return removed
 
     def purge_stale_pending(self) -> int:
         # Drop un-confirmed signups whose confirmation window has lapsed. Best-effort.
