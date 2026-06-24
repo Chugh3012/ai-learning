@@ -42,7 +42,7 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Render 2 deep reels from the reel-lens digest
+      - name: Render reels for each topic's reel lens (from its Edition)
         env:
           STORAGE_ACCOUNT: ${{ vars.STORAGE_ACCOUNT }}
           BLOB_CONTAINER: ${{ vars.BLOB_CONTAINER }}
@@ -53,4 +53,4 @@ jobs:
           SPEECH_RESOURCE_ID: ${{ vars.SPEECH_RESOURCE_ID }}
           SPEECH_REGION: ${{ vars.SPEECH_REGION }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
-        run: python -m prism.cli.reel --mode deep --reels 2 --from-digest --upload
+        run: python -m prism.cli.reel --mode deep --from-digest --upload
