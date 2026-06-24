@@ -63,6 +63,8 @@ if "azure.functions" not in sys.modules:
 
 import function_app as fa  # noqa: E402
 from azure.core.exceptions import ResourceNotFoundError  # noqa: E402
+from prism.repositories.subscribers import SubscriberStore  # noqa: E402
+from prism.domain.profile import Profile  # noqa: E402
 HttpRequest = sys.modules["azure.functions"].HttpRequest
 
 
@@ -332,6 +334,21 @@ class TestFeedbackExpiry(FunctionRouteTest):
         row = self.svc.tables["feedbackevents"].rows[("9", "usr_x:prf:save")]
         self.assertEqual(row["title"], "Saved title")
         self.assertEqual(row["url"], "https://example.com/s")
+
+
+class TestRegistryContract(FunctionRouteTest):
+    # The Function WRITES profiles; the registry (a separate, standalone deploy that cannot import
+    # prism) READS them. Execute BOTH sides against the same fake tables so a field-name drift
+    # between writer and reader fails RED — this is the real guard, not a hand-pinned schema list.
+    def test_function_written_profile_reads_back_as_a_lens(self):
+        fa._ensure_default_profile("usr_contract", "ai")        # the Function's actual write path
+        store = SubscriberStore("acct")
+        store._svc = self.svc                                    # same data the Function just wrote
+        profs = store._profiles_for("usr_contract")              # the registry's actual read path
+        self.assertEqual(len(profs), 1)
+        p = Profile.from_dict("usr_contract", profs[0])
+        self.assertEqual(p.lens, "usr_contract:prf_daily")
+        self.assertEqual((p.channel, p.topic_id), ("email", "ai"))
 
 
 if __name__ == "__main__":
