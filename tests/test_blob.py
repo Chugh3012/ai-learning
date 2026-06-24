@@ -13,11 +13,14 @@ class TestDownloadUrl(unittest.TestCase):
         svc = mock.Mock()
         svc.get_user_delegation_key.return_value = "KEY"
         with mock.patch.object(b, "_service", return_value=svc), \
-             mock.patch("azure.storage.blob.generate_blob_sas", return_value="sig=abc"):
+             mock.patch("azure.storage.blob.generate_blob_sas", return_value="sig=abc") as gbs:
             url = b.download_url("digests/reels/ai/x.mp4", days=7)
         self.assertEqual(
             url, "https://acct.blob.core.windows.net/knowledge/digests/reels/ai/x.mp4?sig=abc")
         svc.get_user_delegation_key.assert_called_once()   # keyless: Entra-signed, no account key
+        # forces a download (not inline playback) with a clean filename
+        self.assertEqual(gbs.call_args.kwargs.get("content_disposition"),
+                         'attachment; filename="x.mp4"')
 
 
 if __name__ == "__main__":
