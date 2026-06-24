@@ -1,5 +1,5 @@
 {
-  "interest": "Scroll-stopping AI stories for a broad Instagram audience -- the kind a non-expert stops on, watches to the end, and sends to a friend. Strongly prefer concrete, recent, visually demonstrable AI you could film: new models, apps, tools, gadgets, robots, jaw-dropping demos, and creative or surprising uses people can SEE or try right now. Favor an emotional pull -- awe, curiosity, 'wait, that's real?', or obvious everyday usefulness -- and a clear visual. Avoid technical, academic, math-heavy, benchmark-only, or incremental research, and anything that needs jargon to land.",
+  "_comment": "GLOBAL reel creative DEFAULTS. Per-topic overrides live in topics/<id>/pack.json settings.reel. A lens's interest is NOT here — it lives on the reel profile (its single source of truth); interest_weight only steers the live-selection fallback.",
   "interest_weight": 32,
   "voice": "en-US-AriaNeural",
   "voice_style": "excited",
@@ -7,5 +7,6 @@
   "words_per_chunk": 3,
   "playbook": "explainer",
   "music": "",
+  "reels": 2,
   "deep_max_chars": 4000
 }
