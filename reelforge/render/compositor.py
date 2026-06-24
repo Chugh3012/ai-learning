@@ -77,6 +77,7 @@ def render(storyboard: Storyboard, out_path: str | Path, tts: TTS | None = None,
 
         has_audio = tts is not None or music is not None
         video.write_videofile(str(out_path), fps=style.fps, codec="libx264",
+                              bitrate=style.bitrate,
                               audio_codec="aac" if has_audio else None, audio=has_audio,
                               logger=None)
     finally:
