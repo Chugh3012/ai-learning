@@ -73,7 +73,7 @@ def render(storyboard: Storyboard, out_path: str | Path, tts: TTS | None = None,
 
         music = _music_bed(storyboard, video.duration, opened)
         if music is not None:
-            video = video.with_audio(_mix(video.audio, music))
+            video = video.with_audio(_mix(video.audio, music, style.music_volume))
 
         has_audio = tts is not None or music is not None
         video.write_videofile(str(out_path), fps=style.fps, codec="libx264",
@@ -101,8 +101,8 @@ def _music_bed(storyboard: Storyboard, duration: float, opened: list):
     opened.append(track)
     return track.subclipped(0, min(track.duration, duration))
 
-def _mix(voice, music):
-    # Duck music under the voiceover; if there's no voice (silent captions), music carries alone.
+def _mix(voice, music, volume: float):
+    # Duck music under the voiceover; if there's no voice (silent captions), let it sit louder.
     from moviepy import CompositeAudioClip
-    music = music.with_volume_scaled(0.18 if voice is not None else 0.6)
+    music = music.with_volume_scaled(volume if voice is not None else min(0.6, volume * 4))
     return CompositeAudioClip([music, voice]) if voice is not None else music

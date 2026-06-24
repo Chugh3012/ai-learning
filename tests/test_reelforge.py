@@ -49,6 +49,20 @@ class TestReelforge(unittest.TestCase):
         self.assertIsNotNone(font)
         self.assertTrue(font.endswith(".ttf"))
 
+    def test_bundled_music_exists(self):
+        from reelforge import bundled_music
+        m = bundled_music()
+        self.assertTrue(m.endswith(".mp3"))
+        self.assertTrue(Path(m).exists())
+
+    def test_azure_speech_ssml_wraps_style_and_prosody(self):
+        from reelforge import AzureSpeech
+        ssml = AzureSpeech("rid", "eastus2", voice="en-US-AriaNeural", style="excited",
+                           rate="+5%")._ssml("hi <there>")
+        self.assertIn("express-as style=\"excited\"", ssml)
+        self.assertIn("prosody rate=\"+5%\"", ssml)
+        self.assertIn("&lt;there&gt;", ssml)   # text is xml-escaped
+
     def test_caption_chunking(self):
         self.assertEqual(_chunks("a b c d e", 3), ["a b c", "d e"])
         self.assertEqual(_chunks("", 3), [""])
