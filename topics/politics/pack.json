@@ -5,7 +5,6 @@
   "tagline": "Policy substance over political theater.",
   "rubric_version": "v1",
   "settings": {
-    "site": { "noun": "politics", "noun_title": "Politics" },
-    "reel": { "enabled": true, "reels": 2, "cadence": "daily" }
+    "site": { "noun": "politics", "noun_title": "Politics" }
   }
 }

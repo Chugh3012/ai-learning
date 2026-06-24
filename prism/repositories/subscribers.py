@@ -107,24 +107,6 @@ class SubscriberStore:
         }, mode=UpdateMode.REPLACE)
         return uid, pid
 
-    def reconcile_reels(self, specs: list[dict]) -> list[str]:
-        # Make the reel feeds match each topic pack's settings.reel (specs computed from the packs):
-        # ensure a feed for every enabled topic (preserving its db interest), remove it for disabled.
-        # Config drives existence/cadence/count; the interest stays db-owned.
-        out: list[str] = []
-        for s in specs:
-            t = str(s.get("topic", ""))
-            if not t:
-                continue
-            if s.get("enabled"):
-                uid, pid = self.provision_feed("reel", t, None, cadence=str(s.get("cadence", "daily")),
-                                               top=int(s.get("reels", 2)))
-                out.append(f"reel/{t}: ensured {uid}:{pid} "
-                           f"(cadence={s.get('cadence', 'daily')}, reels={s.get('reels', 2)})")
-            else:
-                out.append(f"reel/{t}: disabled, removed {self.remove_feed('reel', t)} profile(s)")
-        return out
-
     def list_feeds(self, kind: str = "") -> list[dict]:
         subs = self._service().get_table_client("subscribers")
         profs = self._service().get_table_client("profiles")

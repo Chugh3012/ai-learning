@@ -9,7 +9,6 @@ from prism.lib.settings import Settings
 from prism.lib.config import SCRATCH_DIR, KB_PATH, config_json
 from prism.lib.gateway import ModelGateway
 from prism.lib.text import fulltext
-from prism.lib.topics import load_pack
 from prism.repositories.blob import BlobStore
 from prism.repositories.knowledge import KnowledgeBase
 from prism.repositories.registry import UserRegistry
@@ -67,11 +66,8 @@ def main(argv=None) -> int:
     rendered: list[tuple[str, Path]] = []
     for feed in feeds:
         topic = feed.topic_id
-        reel_cfg = load_pack(topic).settings.get("reel", {})
-        if not reel_cfg.get("enabled", True):
-            print(f"reel[{topic}]: disabled in pack settings.reel — skipped")
-            continue
-        creative = {**defaults, **reel_cfg}
+        # Reel config is the reel layer's OWN (config/reel.json) — never the producer's topic pack.
+        creative = defaults
         playbook = load_playbook(args.playbook or creative.get("playbook", "explainer"))
 
         # Resolve the lens's items: its published Edition (act on what kb-sync decided), else a live

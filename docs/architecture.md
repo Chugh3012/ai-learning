@@ -328,11 +328,11 @@ Pexels b-roll API key.
 ## 12. How to extend (the runbook)
 
 - **Add a topic** → create `topics/<id>/` (pack.json, sources.opml, rubric.txt, tags.json,
-  eval/golden.jsonl). Ingest/rank/eval pick it up automatically. For reels, set
-  `settings.reel` in its `pack.json` (`{ "enabled": true, "reels": 2, "cadence": "daily" }`) and
-  run `python -m prism.cli.feeds reconcile` — that provisions/updates the per-topic reel feed in the
-  registry (the **interest is set once in the db** via `feeds add --kind reel --topic <id>
-  --interest "…"`, never in the repo). **No code.**
+  eval/golden.jsonl) — the producer pack holds **no** consumer/reel config. Ingest/rank/eval pick it
+  up automatically. To **enable reels** for it, provision a reel feed:
+  `python -m prism.cli.feeds add --kind reel --topic <id> --interest "…"` — the interest, cadence,
+  and `top` (article-pool size) live on the db profile; the reel layer's own knobs (videos-per-run,
+  voice, playbook) live in `config/reel.json`. **No code.**
 - **Add a subscriber audience** → a `profiles` row (`channel`, `topic_id`, `interest`, `cadence`).
 - **Add a delivery channel** → a new `Sink` subclass + register it in the sink map. (Code, but
   isolated to one seam.)
