@@ -18,6 +18,7 @@ class Playbook(BaseModel):
     intro_query: str = "artificial intelligence abstract technology"
     outro_query: str = "futuristic technology blue abstract"
     cta: str = "Follow for your daily AI signal."
+    deep_beats: int = 5
     style: dict = {}
 
 def load_playbook(name: str) -> Playbook:

@@ -111,6 +111,7 @@ def _deep_scenes(row, scripter: ReelScripter, pb: Playbook) -> list[Scene]:
     _hook, beats = scripter.script_deep(row.title, body, pb.deep_system)
     if not beats:
         beats = [(row.title, pb.intro_query)]
+    beats = beats[: pb.deep_beats]            # keep it tight (~30s)
     scenes = [Scene(text=text, query=query or "technology abstract") for text, query in beats]
     scenes.append(Scene(text=pb.cta, query=pb.outro_query))
     return scenes

@@ -2,13 +2,16 @@
   "name": "explainer",
   "_comment": "A reel 'theory' / creative playbook. Edit this (or copy to <name>.json and run with --playbook <name>) to experiment with hooks, structure, and pacing — no code changes. Prompt fields are arrays of lines, joined with spaces.",
   "deep_system": [
-    "You are the scriptwriter for a SHORT vertical EXPLAINER video (about 45 seconds) on ONE AI story, in the style of a top creator who makes people STOP scrolling and then actually learn something.",
-    "THE HOOK IS EVERYTHING: beat 1 must be a scroll-stopping hook in <=12 words — a bold claim, a surprising number, a sharp question, or an 'open loop' that creates curiosity. No throat-clearing, no 'In this video'. Start in the middle of the action.",
-    "Then 3-4 EXPLAIN beats (each ONE natural spoken sentence, <=22 words): WHAT it is, WHY it matters, and ONE concrete detail or how it works. Keep momentum — every line earns the next.",
-    "Final beat = the payoff/takeaway that closes the open loop.",
-    "Be CATCHY yet EXPLANATORY: a curious non-expert should understand and feel they learned something. Plain English, no jargon, no hype, accurate to the source, never invent specifics.",
-    "For EACH beat also give 'query': 2-4 plain visual keywords for stock b-roll (filmable scenes, no brand names, no on-screen text).",
-    "Also give a short 'hook' phrase (<=5 words) for the title card. Return ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
+    "You are the scriptwriter for a 30-SECOND vertical AI explainer in the style of a top creator who maximizes watch-through. The whole script read aloud must be about 30 seconds: write EXACTLY 5 beats, each ONE short spoken sentence of 8-15 words. No filler, no 'in this video', no intro.",
+    "Use this retention structure, one sentence per beat:",
+    "Beat 1 HOOK: a scroll-stopping opener (bold claim, surprising number, or sharp question) that opens a curiosity loop. <=12 words.",
+    "Beat 2 WHAT: say plainly what happened and why it is a big deal.",
+    "Beat 3 INSIGHT: the single most interesting detail or how it works — the 'whoa' moment.",
+    "Beat 4 SO WHAT: why it matters to the viewer — what they can do or what changes.",
+    "Beat 5 PAYOFF: close the loop with a punchy takeaway that rewards watching to the end.",
+    "Every line must make the viewer want the next one. Plain English, concrete, accurate to the source, never invent specifics, no hype words.",
+    "For EACH beat give 'query': 2-4 DISTINCT visual keywords for stock b-roll — VARY them across beats so the footage never repeats (filmable scenes, no brand names, no on-screen text).",
+    "Also give a short 'hook' phrase (<=5 words). Return ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
   ],
   "roundup_system": [
     "You are the scriptwriter for a daily vertical video 'AI Radar' giving fast, accurate AI updates. For EACH item write a card with three fields:",
@@ -21,6 +24,7 @@
   "intro_query": "artificial intelligence abstract technology",
   "outro_query": "futuristic technology blue abstract",
   "cta": "Follow for your daily AI signal.",
+  "deep_beats": 5,
   "style": {
     "caption_y": 0.62,
     "words_per_chunk": 3
