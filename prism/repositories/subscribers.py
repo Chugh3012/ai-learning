@@ -76,10 +76,12 @@ class SubscriberStore:
         # ("usr_"/"prf_" + 8 hex); resolution is always by kind + topic, never by a readable id.
         return prefix + secrets.token_hex(4)
 
-    def provision_feed(self, kind: str, topic_id: str, interest: str, *, channel: str = "digest",
-                       cadence: str = "daily", top: int = 6, name: str = "") -> tuple[str, str]:
+    def provision_feed(self, kind: str, topic_id: str, interest: str | None = None, *,
+                       channel: str = "digest", cadence: str = "daily", top: int = 6,
+                       name: str = "") -> tuple[str, str]:
         # Create/update an automation feed (a reel or builder lens) that the registry OWNS: one
         # user per kind, one profile per topic under it. Idempotent by (kind, topic_id, channel).
+        # interest=None preserves the existing db interest (the interest is db-owned, never in repo).
         # Consumers never call this and never see an id format — they only READ lenses.
         from azure.data.tables import UpdateMode
         subs = self._service().get_table_client("subscribers")
@@ -96,12 +98,32 @@ class SubscriberStore:
                          if str(p.get("topic_id")) == topic_id and str(p.get("channel")) == channel),
                         None)
         pid = str(existing["RowKey"]) if existing else self._mint("prf_")
+        if interest is None:
+            interest = str(existing.get("interest", "")) if existing else ""
         profs.upsert_entity({
             "PartitionKey": uid, "RowKey": pid, "name": name or f"{kind} {topic_id}",
             "channel": channel, "cadence": cadence, "top": int(top), "min_score": 0.0,
             "interest": interest, "self_review": False, "topic_id": topic_id,
         }, mode=UpdateMode.REPLACE)
         return uid, pid
+
+    def reconcile_reels(self, specs: list[dict]) -> list[str]:
+        # Make the reel feeds match each topic pack's settings.reel (specs computed from the packs):
+        # ensure a feed for every enabled topic (preserving its db interest), remove it for disabled.
+        # Config drives existence/cadence/count; the interest stays db-owned.
+        out: list[str] = []
+        for s in specs:
+            t = str(s.get("topic", ""))
+            if not t:
+                continue
+            if s.get("enabled"):
+                uid, pid = self.provision_feed("reel", t, None, cadence=str(s.get("cadence", "daily")),
+                                               top=int(s.get("reels", 2)))
+                out.append(f"reel/{t}: ensured {uid}:{pid} "
+                           f"(cadence={s.get('cadence', 'daily')}, reels={s.get('reels', 2)})")
+            else:
+                out.append(f"reel/{t}: disabled, removed {self.remove_feed('reel', t)} profile(s)")
+        return out
 
     def list_feeds(self, kind: str = "") -> list[dict]:
         subs = self._service().get_table_client("subscribers")

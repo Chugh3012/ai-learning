@@ -6,6 +6,6 @@
   "rubric_version": "v1",
   "settings": {
     "site": { "noun": "AI", "noun_title": "AI" },
-    "reel": { "reels": 2 }
+    "reel": { "enabled": true, "reels": 2, "cadence": "daily" }
   }
 }
