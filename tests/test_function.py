@@ -341,13 +341,14 @@ class TestRegistryContract(FunctionRouteTest):
     # prism) READS them. Execute BOTH sides against the same fake tables so a field-name drift
     # between writer and reader fails RED — this is the real guard, not a hand-pinned schema list.
     def test_function_written_profile_reads_back_as_a_lens(self):
-        fa._ensure_default_profile("usr_contract", "ai")        # the Function's actual write path
+        pid = fa._ensure_default_profile("usr_contract", "ai")   # the Function's actual write path
+        self.assertTrue(pid.startswith("prf_") and len(pid) == 12)   # generated id, not a fixed one
         store = SubscriberStore("acct")
         store._svc = self.svc                                    # same data the Function just wrote
         profs = store._profiles_for("usr_contract")              # the registry's actual read path
         self.assertEqual(len(profs), 1)
         p = Profile.from_dict("usr_contract", profs[0])
-        self.assertEqual(p.lens, "usr_contract:prf_daily")
+        self.assertEqual(p.lens, f"usr_contract:{pid}")
         self.assertEqual((p.channel, p.topic_id), ("email", "ai"))
 
 
