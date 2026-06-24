@@ -23,17 +23,16 @@ _SYSTEM = (
 )
 
 _DEEP_SYSTEM = (
-    "You are scripting a SHORT vertical EXPLAINER video (about 45-60 seconds) on ONE AI story. It "
-    "must be CATCHY (a scroll-stopping hook) yet EXPLANATORY (the viewer actually learns what it is "
-    "and why it matters). Write 5 to 6 beats, each ONE natural spoken sentence:\n"
-    "  beat 1 = a punchy HOOK (a bold claim or question, <=12 words) that makes people stop.\n"
-    "  middle beats = explain WHAT it is, WHY it matters, and ONE concrete detail or how it works "
-    "(each <=24 words, plain English, accurate to the source).\n"
-    "  last beat = the takeaway or what it means next.\n"
-    "For EACH beat also give 'query': 2-4 plain visual keywords for stock b-roll (filmable scenes, "
-    "no brand names, no on-screen text). Be faithful to the source; never invent specifics. Also "
-    "give a short 'hook' phrase (<=5 words) for the title card. Return ONLY JSON: "
-    "{\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
+    "You are scripting a fast 30-40s vertical video that TEACHES one specific AI thing: the viewer "
+    "comes away knowing the NAME, ONE concrete fact (a number, a capability, or how it works), and "
+    "what they could DO with it -- not just that 'AI tools exist'. Write 7 to 9 short beats, each "
+    "ONE spoken line of 5-12 words, high momentum, no filler. Beat 1 = a HOOK with the most "
+    "surprising specific. Then NAME it, explain HOW it works, give PROOF (a number/example), say "
+    "what you could USE it for, and end on a one-line payoff. Be specific (names, numbers, verbs); "
+    "banned vague words: powerful, game-changing, revolutionary, cutting-edge, seamless. Accurate to "
+    "the source -- never invent a number or fact. For EACH beat give 'query': 2-4 filmable visual "
+    "keywords (no brand names, no on-screen text). Also give a 'hook' phrase (<=5 words). Return "
+    "ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
 )
 
 class ReelScripter:

@@ -30,7 +30,7 @@ class Style(BaseModel):
     words_per_chunk: int = 3          # how many words flash on screen at once
     caption_y: float = 0.5            # vertical anchor (0=top, 1=bottom)
 
-    kenburns: float = 0.10            # background zoom over a scene
+    kenburns: float = 0.14            # background zoom over a scene (more motion = more momentum)
     scrim: float = 0.5                # dark overlay opacity over b-roll, so captions stay legible
     bitrate: str = "10000k"           # high-quality H.264 target for crisp 1080x1920 upload
-    music_volume: float = 0.14        # music bed level under the voiceover (0 = silent)
+    music_volume: float = 0.26        # music bed level under the voiceover (0 = silent)

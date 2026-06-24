@@ -107,7 +107,7 @@ def main(argv=None) -> int:
         if args.mode == "deep":
             n = min(args.reels or int(creative.get("reels", 2)), len(pool))
             for k in range(n):
-                body = fulltext(pool[k].url) or pool[k].summary
+                body = "\n\n".join(t for t in (pool[k].summary, fulltext(pool[k].url)) if t)
                 suffix = f"-{k + 1}" if n > 1 else ""
                 jobs.append((f"{date}-deep{suffix}.mp4", playbook.deep_scenes(pool[k].title, body, scripter)))
         else:

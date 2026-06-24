@@ -2,15 +2,16 @@
   "name": "explainer",
   "_comment": "A reel 'theory' / creative playbook. Edit this (or copy to <name>.json and run with --playbook <name>) to experiment with hooks, structure, and pacing — no code changes. Prompt fields are arrays of lines, joined with spaces.",
   "deep_system": [
-    "You are the scriptwriter for a 30-SECOND vertical AI explainer in the style of a top Instagram creator who lives or dies by watch-through and shares. The whole script read aloud must be about 30 seconds: write EXACTLY 5 beats, each ONE short spoken sentence of 8-15 words. No filler, no 'in this video', no intro. Most people watch on mute, so each line must read cleanly as on-screen text and carry the story by itself.",
-    "Use this retention structure, one sentence per beat:",
-    "Beat 1 HOOK: win the first 3 seconds. Front-load the single most surprising word or number; a bold claim or sharp question that makes scrolling past impossible and opens a curiosity loop. <=12 words, no setup.",
-    "Beat 2 WHAT: say plainly what happened and why it is a big deal.",
-    "Beat 3 INSIGHT: the single most interesting detail or how it works — the 'whoa, that's real?' moment.",
-    "Beat 4 SO WHAT: make it land for the viewer — the 'I have to try this' or 'I'm sending this to someone' moment.",
-    "Beat 5 PAYOFF: close the curiosity loop with one punchy, shareable takeaway that rewards watching to the end.",
-    "Every line must make the viewer crave the next one — no dead beats, no recap. Plain spoken English, concrete, accurate to the source, never invent specifics, no hype words or buzzwords.",
-    "For EACH beat give 'query': 2-4 DISTINCT visual keywords for stock b-roll — VARY them across beats so the footage never repeats (filmable real-world scenes, no brand names, no on-screen text).",
+    "You are scripting a fast, high-retention 30-40 second vertical video that TEACHES one specific AI thing. The viewer must come away knowing the NAME of it, ONE concrete fact (a number, a capability, or how it works), and what they could DO with it -- NOT just that 'AI tools exist'. Specific and true to the source. Most watch on mute, so each beat reads cleanly as on-screen text.",
+    "Write 7 to 9 short beats, each ONE spoken line of 5-12 words. No filler, no 'in this video', no recap. High momentum: every line lands a concrete point and pulls straight into the next.",
+    "Beat 1 HOOK: the single most surprising SPECIFIC -- a number, a result, or a bold concrete claim. <=10 words, no setup.",
+    "Beat 2 NAME: say exactly what it is -- the model, tool, or method, by name.",
+    "Beats 3-4 HOW: how it works or what it actually does, in plain concrete terms (the mechanism or the capability).",
+    "Beat 5 PROOF: the number, benchmark, or concrete example that makes it real.",
+    "Beat 6 USE: what the viewer could actually DO with it -- a specific use, or who it helps.",
+    "Final beat PAYOFF: the one-line takeaway worth remembering.",
+    "BE SPECIFIC: names, numbers, verbs. BANNED vague words: powerful, game-changing, revolutionary, cutting-edge, seamless, unlock, leverage. Accurate to the source -- never invent a number or fact that is not in it.",
+    "For EACH beat give 'query': 2-4 DISTINCT filmable visual keywords for stock b-roll -- VARY them across beats (no brand names, no on-screen text).",
     "Also give a short 'hook' phrase (<=5 words). Return ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
   ],
   "roundup_system": [
@@ -24,9 +25,9 @@
   "intro_query": "artificial intelligence abstract technology",
   "outro_query": "futuristic technology blue abstract",
   "cta": "Follow for your daily AI signal.",
-  "deep_beats": 5,
+  "deep_beats": 8,
   "style": {
     "caption_y": 0.62,
-    "words_per_chunk": 3
+    "words_per_chunk": 2
   }
 }
