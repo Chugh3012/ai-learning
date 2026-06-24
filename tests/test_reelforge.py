@@ -83,5 +83,36 @@ class TestVoiceover(unittest.TestCase):
             self.assertIn("1080x1920", probe.stderr)
             self.assertIn("Audio:", probe.stderr)   # voiceover was muxed
 
+class _FakeVisuals:
+    """Offline b-roll stub: a flat color clip, so the b-roll + scrim path is testable without Pexels."""
+
+    def __init__(self):
+        self.closed = False
+
+    def background(self, query, seconds, style, tmp):
+        from moviepy import ColorClip
+        return ColorClip((style.width, style.height), color=(12, 40, 12)).with_duration(seconds)
+
+    def close(self):
+        self.closed = True
+
+class TestBroll(unittest.TestCase):
+    def test_render_with_broll_provider(self):
+        vis = _FakeVisuals()
+        sb = Storyboard(style=Style(fps=8), scenes=[
+            Scene(kicker="01", text="local models are good", seconds=0.6),
+        ])
+        with tempfile.TemporaryDirectory() as d:
+            out = render(sb, Path(d) / "r.mp4", visuals=vis)
+            probe = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-i", str(out)],
+                                   capture_output=True, text=True)
+            self.assertIn("1080x1920", probe.stderr)
+        self.assertTrue(vis.closed)   # provider was closed after render
+
+    def test_pexels_without_key_returns_none(self):
+        from reelforge.providers.visuals.pexels import PexelsVisuals
+        with tempfile.TemporaryDirectory() as d:
+            self.assertIsNone(PexelsVisuals("").background("ai", 2.0, Style(), Path(d)))
+
 if __name__ == "__main__":
     unittest.main()

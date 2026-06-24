@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     foundry_project_endpoint: str = ""
     foundry_model_name: str = "nano"
     foundry_embed_name: str = "embed"
+    pexels_api_key: str = ""
     storage_account: str = ""
     blob_container: str = "knowledge"
     acs_endpoint: str = ""
