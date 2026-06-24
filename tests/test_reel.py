@@ -1,5 +1,6 @@
 import unittest
 
+from prism.domain.cadence import Cadence
 from prism.services.reel_script import ReelScripter
 from prism.services.reel_playbook import load_playbook, Playbook
 
@@ -57,6 +58,13 @@ class TestPlaybookScenes(unittest.TestCase):
         scenes = pb.roundup_scenes([_Row(1), _Row(2)], _FakeScripter())
         self.assertEqual(scenes[0].text, "Today in AI")
         self.assertEqual(len(scenes), 4)                   # hook + 2 cards + cta
+
+
+class TestPauseSemantics(unittest.TestCase):
+    # A reel feed on the on_demand cadence is PAUSED: the renderer skips it (no auto-render/fallback).
+    def test_on_demand_is_paused_scheduled_is_active(self):
+        self.assertFalse(Cadence.from_name("on_demand").scheduled)
+        self.assertTrue(Cadence.from_name("daily").scheduled)
 
 
 if __name__ == "__main__":
