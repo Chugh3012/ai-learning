@@ -3,6 +3,6 @@
   "weights": { "vote": 1.0, "save": 0.5, "click": 0.25, "skip": -0.3 },
   "influence": { "source": 12, "topic": 8 },
   "skip_days": 2,
-  "interest_weight": 15,
+  "interest_weight": 35,
   "explore_ratio": 0.2
 }
