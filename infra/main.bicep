@@ -559,6 +559,28 @@ resource cognitiveServicesIdentityRole 'Microsoft.Authorization/roleAssignments@
   }
 }
 
+// Role Assignments - Cognitive Services Speech User (passwordless neural TTS for reelforge reels,
+// on the same AIServices account; least-privilege, separate from the OpenAI User role above).
+resource speechUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(cognitiveServices.id, userPrincipalId, 'f2dc8367-1007-4938-bd23-fe263f013447')
+  scope: cognitiveServices
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'f2dc8367-1007-4938-bd23-fe263f013447')
+    principalId: userPrincipalId
+    principalType: 'User'
+  }
+}
+
+resource speechIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(cognitiveServices.id, managedIdentity.id, 'f2dc8367-1007-4938-bd23-fe263f013447')
+  scope: cognitiveServices
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'f2dc8367-1007-4938-bd23-fe263f013447')
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Role Assignments - Communication and Email Service Owner
 resource communicationServiceUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(communicationService.id, userPrincipalId, '09976791-48a7-449e-bb21-39d1a415f350')

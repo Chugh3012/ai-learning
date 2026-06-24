@@ -42,3 +42,6 @@ imageio-ffmpeg>=0.6.0
 # moviepy: the compositor for the reelforge video sub-library (MIT). Layers b-roll + word-synced
 # captions + voiceover + music into a vertical mp4. Uses the bundled imageio-ffmpeg binary.
 moviepy>=2.1.1
+# Azure Speech SDK: neural TTS voiceover for reels, passwordless (AAD token) against the existing
+# AIServices account. Its word-boundary timestamps drive perfectly synced captions.
+azure-cognitiveservices-speech>=1.40.0
