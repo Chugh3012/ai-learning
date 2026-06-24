@@ -22,8 +22,9 @@ class PexelsVisuals:
         self.api_key = api_key
         self.rng = rng or random.Random()
         self._open: list = []
+        self._used: set = set()        # video ids already used this render, so clips don't repeat
 
-    def _search(self, query: str, per_page: int = 12) -> list[dict]:
+    def _search(self, query: str, per_page: int = 15) -> list[dict]:
         qs = urllib.parse.urlencode({"query": query, "orientation": "portrait",
                                      "per_page": per_page, "size": "medium"})
         req = urllib.request.Request(f"{_SEARCH}?{qs}",
@@ -44,7 +45,10 @@ class PexelsVisuals:
             videos = self._search(query) if self.api_key else []
             if not videos:
                 return None
-            video = self.rng.choice(videos[: min(6, len(videos))])
+            # Prefer clips we haven't used yet this render so footage doesn't repeat scene-to-scene.
+            fresh = [v for v in videos if v.get("id") not in self._used] or videos
+            video = self.rng.choice(fresh[: min(8, len(fresh))])
+            self._used.add(video.get("id"))
             vf = self._best_file(video, style.width)
             if not vf:
                 return None
