@@ -473,6 +473,29 @@ resource kbStorageBlobIdentityRole 'Microsoft.Authorization/roleAssignments@2022
   }
 }
 
+// Role Assignments - Storage Blob Delegator on KB Storage. Lets the identity mint a USER-DELEGATION
+// key at runtime (Entra-signed, no account key) so reel-render can email keyless, time-limited
+// download links for the private reel mp4s.
+resource kbStorageDelegatorUserRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(kbStorage.id, userPrincipalId, 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')
+  scope: kbStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')
+    principalId: userPrincipalId
+    principalType: 'User'
+  }
+}
+
+resource kbStorageDelegatorIdentityRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
+  name: guid(kbStorage.id, managedIdentity.id, 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')
+  scope: kbStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')
+    principalId: managedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Role Assignments - Storage Table Data Contributor on Function Storage
 resource fnStorageTableFunctionRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (assignRoles) {
   name: guid(fnStorage.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')

@@ -126,6 +126,20 @@ def main(argv=None) -> int:
         print(f"  local: {out.resolve()}")
         if args.upload and blob.enabled:
             print(f"  blob:  {s.storage_account}/{s.blob_container}/digests/reels/{name}")
+
+    # Email the day's reels as keyless, time-limited download links — no Azure trip to fetch them.
+    # Graceful: no upload / no email service configured -> skip.
+    if args.upload and rendered and blob.enabled and s.acs_endpoint and s.email_to:
+        from prism.services.delivery.email_sink import send_email
+        links = [(name, blob.download_url(f"digests/reels/{name}")) for name, _ in rendered]
+        plain = "Your reels are ready (links expire in 7 days):\n\n" + \
+                "\n\n".join(f"{n}\n{u}" for n, u in links)
+        html = ("<h2>Your reels are ready</h2><ul>" +
+                "".join(f'<li><strong>{n}</strong> &mdash; <a href="{u}">download</a></li>'
+                        for n, u in links) +
+                "</ul><p style='color:#888'>Links expire in 7 days.</p>")
+        if send_email(s, s.email_to, f"Your reels — {date} ({len(links)})", plain, html):
+            print(f"reel: emailed {len(links)} download link(s) to {s.email_to}")
     return 0
 
 if __name__ == "__main__":

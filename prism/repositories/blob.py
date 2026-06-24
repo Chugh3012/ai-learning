@@ -98,3 +98,18 @@ class BlobStore:
         from prism.domain.edition import Edition
         data = self.download_digest(f"{lens}-{date}.md")
         return Edition.from_markdown(lens, data.decode("utf-8", "replace")) if data else None
+
+    def download_url(self, path: str, days: int = 7) -> str:
+        # A time-limited, KEYLESS download link: a user-delegation SAS signed by the Entra identity
+        # at runtime (no account key, nothing stored). For emailing private reels to the admin.
+        if not self.enabled:
+            return ""
+        from datetime import datetime, timedelta, timezone
+        from azure.storage.blob import generate_blob_sas, BlobSasPermissions
+        start = datetime.now(timezone.utc) - timedelta(minutes=5)
+        expiry = datetime.now(timezone.utc) + timedelta(days=days)
+        key = self._service().get_user_delegation_key(start, expiry)
+        sas = generate_blob_sas(account_name=self.account, container_name=self.container,
+                                blob_name=path, user_delegation_key=key,
+                                permission=BlobSasPermissions(read=True), start=start, expiry=expiry)
+        return f"https://{self.account}.blob.core.windows.net/{self.container}/{path}?{sas}"
