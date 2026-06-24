@@ -53,6 +53,12 @@ class TestReelforge(unittest.TestCase):
         self.assertEqual(_chunks("a b c d e", 3), ["a b c", "d e"])
         self.assertEqual(_chunks("", 3), [""])
 
+    def test_clean_caption_strips_stray_punctuation(self):
+        from reelforge.render.captions import _clean_caption
+        self.assertEqual(_clean_caption(", from text"), "from text")
+        self.assertEqual(_clean_caption("AI's versatility ."), "AI's versatility")
+        self.assertEqual(_clean_caption("and developers ."), "and developers")
+
     def test_empty_storyboard_raises(self):
         with self.assertRaises(ValueError):
             render(Storyboard(scenes=[]), "x.mp4")

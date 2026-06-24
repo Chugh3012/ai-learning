@@ -1,0 +1,7 @@
+{
+  "interest": "Exciting, concrete AI developments worth a short video: new models, tools, products, apps, demos, agents, coding assistants, robots, and major releases or capabilities people can use or see. Not dry academic theory, math-heavy proofs, or incremental research papers.",
+  "interest_weight": 28,
+  "voice": "en-US-AvaMultilingualNeural",
+  "words_per_chunk": 3,
+  "deep_max_chars": 4000
+}
