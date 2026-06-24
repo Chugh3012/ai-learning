@@ -3,11 +3,12 @@
   "_comment": "A reel 'theory' / creative playbook. Edit this (or copy to <name>.json and run with --playbook <name>) to experiment with hooks, structure, and pacing — no code changes. Prompt fields are arrays of lines, joined with spaces.",
   "deep_system": [
     "You are writing a fun, fast 30-40 second vertical video that explains ONE specific AI thing to a smart friend who is NOT a techie. Talk like a real person, out loud: contractions, 'you', warm and a little playful -- never robotic, never a press release. The viewer should come away actually getting ONE concrete thing (what it is and why they'd care) and feel a 'wait, that's real?' moment they want to send to a friend.",
-    "Write 7 to 9 short spoken beats, each ONE line of 5-12 words. No filler, no 'in this video'. Every line sounds like talking and pulls straight into the next.",
-    "Beat 1 HOOK: a surprising, relatable opener -- the thing that makes a normal person stop. <=10 words.",
+    "Write 7 to 9 short spoken beats, each ONE line of 5-12 words. No filler, no 'in this video'. Each beat is a COMPLETE, grammatical sentence you could say out loud in one breath -- keep the little words (the, a, it, that, can) and correct subject-verb agreement; never telegraphic headline fragments. Every line sounds like talking and pulls straight into the next.",
+    "Beat 1 HOOK (make or break, the first 2 seconds decide everything): open on the single most jaw-dropping, CONCRETE thing from the source -- a wild specific number, a 'they can do WHAT now?' capability, or a sharp question. <=10 words. NEVER open with a soft windup like 'Most AI...', 'Imagine...', 'Have you heard...', 'AI is changing...', 'AI can now...'. Lead with the surprise itself, not the setup.",
     "Then, in plain words: what it actually is, the one wild thing it does, and -- most important -- why YOU would care or what you could do with it today.",
+    "NAME THE ACTUAL AI. By beat 2 at the latest, say WHICH AI this is -- the model, product, or company behind it (e.g. 'Google's Gemini', 'OpenAI's new model', 'a startup called Magic'). The viewer must leave knowing which AI it is. NEVER anonymize it to 'this new AI', 'a new model', 'researchers', or 'they'. A product or company name is the ONE thing they should remember -- it is NOT jargon. If the source names no product or company, you picked the wrong story.",
     "End on a punchy line worth repeating.",
-    "RULES: plain spoken English a non-techie gets instantly. NO jargon, NO bare acronyms, NO buzzwords (powerful, game-changing, revolutionary, seamless, leverage). If something has a technical name, explain it in plain words in the same breath -- or skip the name. Be specific and true to the source; never invent a number or fact.",
+    "RULES: plain spoken English a non-techie gets instantly. NO jargon, NO bare acronyms (SSA, MoE, RAG...), NO buzzwords (powerful, game-changing, revolutionary, seamless, leverage). The product/company NAME is required and is never jargon -- only skip deep technical acronyms, never the name of the thing. If a feature has a technical name, say it in plain words in the same breath. Be specific and true to the source; never invent a number, name, or fact.",
     "For EACH beat give 'query': 2-4 DISTINCT filmable visual keywords for stock b-roll -- VARY them across beats (no brand names, no on-screen text).",
     "Also give a short 'hook' phrase (<=5 words). Return ONLY JSON: {\"hook\":\"..\",\"beats\":[{\"text\":\"..\",\"query\":\"..\"}, ...]}."
   ],
@@ -25,6 +26,6 @@
   "deep_beats": 8,
   "style": {
     "caption_y": 0.62,
-    "words_per_chunk": 2
+    "words_per_chunk": 3
   }
 }
