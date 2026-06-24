@@ -167,6 +167,9 @@ def _rate_ok(req: func.HttpRequest) -> bool:
 def _new_user_id() -> str:
     return "usr_" + secrets.token_hex(4)
 
+def _new_profile_id() -> str:
+    return "prf_" + secrets.token_hex(4)
+
 def _subscribers():
     svc = _tables()
     try:
@@ -183,24 +186,28 @@ def _profiles():
         pass
     return svc.get_table_client("profiles")
 
-def _ensure_default_profile(user_id: str, topic: str = "ai") -> None:
-    # Give a newly-confirmed subscriber their own profile row (one user -> many profiles).
-    # No-op if they already have profiles (e.g. admin/builder seeded with curated feeds).
+def _ensure_default_profile(user_id: str, topic: str = "ai") -> str:
+    # Give a newly-confirmed subscriber their own GENERATED profile (one user -> many profiles, one
+    # per topic they subscribe to). Returns the profile id (existing or freshly minted). No-op create
+    # if the user already has profiles (admin/builder seeded with curated feeds).
     if not user_id:
-        return
+        return ""
     try:
         profs = _profiles()
         existing = list(profs.query_entities("PartitionKey eq @uid", parameters={"uid": user_id}))
         if existing:
-            return
+            return str(existing[0].get("RowKey", ""))
+        pid = _new_profile_id()
         profs.upsert_entity({
-            "PartitionKey": user_id, "RowKey": "prf_daily",
+            "PartitionKey": user_id, "RowKey": pid,
             "name": "Daily edition", "channel": "email", "cadence": "daily",
             "top": 5, "min_score": 55, "interest": "", "self_review": False,
             "topic_id": topic,
         }, mode=UpdateMode.REPLACE)
+        return pid
     except Exception:
         logging.exception("confirm: default profile create failed")
+        return ""
 
 def _api_base(req: func.HttpRequest) -> str:
     override = os.environ.get("SUBSCRIBE_API_BASE", "")
@@ -232,7 +239,7 @@ def _profile_for_user(user_id: str, profile_id: str = "") -> dict | None:
         return None
     if profile_id:
         return next((dict(r) for r in rows if str(r.get("RowKey", "")) == profile_id), None)
-    return dict(next((r for r in rows if str(r.get("RowKey", "")) == "prf_daily"), rows[0]))
+    return dict(rows[0])
 
 def _request_fields(req: func.HttpRequest) -> dict:
     try:
@@ -691,12 +698,12 @@ def confirm(req: func.HttpRequest) -> func.HttpResponse:
         logging.exception("confirm: activate failed")
         return _page("Temporary error, please try again.", ok=False)
 
-    _ensure_default_profile(user_id, topic)
+    profile_id = _ensure_default_profile(user_id, topic)
 
     # Trigger this new user's first edition right away (graceful if no cache yet).
     base = _api_base(req)
     unsubscribe_url = f"{base}/unsubscribe?t={token}"
-    preference_url = f"{base}/preferences?{urlencode({'t': token, 'p': 'prf_daily'})}"
+    preference_url = f"{base}/preferences?{urlencode({'t': token, 'p': profile_id})}"
     if _send_welcome(email, unsubscribe_url, preference_url):
         return _page("You're in. Your first edition is on its way to your inbox.", ok=True)
     return _page("You're in. Your first edition lands tomorrow morning.", ok=True)
