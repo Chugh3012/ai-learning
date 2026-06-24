@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from moviepy import TextClip
 
 from reelforge.domain.style import Style
@@ -7,6 +9,12 @@ from reelforge.domain.style import Style
 def _chunks(text: str, n: int) -> list[str]:
     words = text.split()
     return [" ".join(words[i:i + n]) for i in range(0, len(words), n)] or [""]
+
+def _clean_caption(s: str) -> str:
+    # Reel captions read better without stray punctuation: TTS word tokens can leave a leading
+    # comma or a floating " ." in a chunk. Drop space-before-punctuation and edge punctuation.
+    s = re.sub(r"\s+([,.;:!?])", r"\1", s)
+    return s.strip(" \t,.;:!?-–—\"'")
 
 def caption_clips(text: str, seconds: float, style: Style,
                   starts: list[tuple[str, float, float]] | None = None) -> list[TextClip]:
@@ -30,10 +38,11 @@ def caption_clips(text: str, seconds: float, style: Style,
     y_top = int(style.caption_y * style.height - box_h / 2)
     out: list[TextClip] = []
     for chunk, start, dur in starts:
-        if not chunk.strip():
+        display = _clean_caption(chunk)
+        if not display:
             continue
         out.append(
-            TextClip(text=chunk.upper(), font=style.font_path, font_size=size,
+            TextClip(text=display.upper(), font=style.font_path, font_size=size,
                      color=style.caption_color, stroke_color=style.caption_stroke,
                      stroke_width=style.caption_stroke_width, method="caption",
                      size=(box_w, box_h), text_align="center", horizontal_align="center",
