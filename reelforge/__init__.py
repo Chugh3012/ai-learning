@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from reelforge.domain.storyboard import Scene, Storyboard
 from reelforge.domain.style import Style
+from reelforge.providers.tts.azure_speech import AzureSpeech
 from reelforge.render.compositor import render
 
-__all__ = ["Scene", "Storyboard", "Style", "render"]
+__all__ = ["Scene", "Storyboard", "Style", "AzureSpeech", "render"]

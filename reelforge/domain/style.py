@@ -18,7 +18,7 @@ class Style(BaseModel):
     # palette (RGB)
     bg_top: RGB = (22, 28, 96)        # deep cobalt
     bg_bottom: RGB = (8, 8, 16)       # near-ink
-    accent: RGB = (124, 150, 255)     # light cobalt (kicker / highlight)
+    accent: RGB = (150, 176, 255)     # bright cobalt (kicker / highlight)
     caption_color: str = "white"
     caption_stroke: str = "#0a0a12"
     caption_stroke_width: int = 8
