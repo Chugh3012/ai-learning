@@ -39,3 +39,6 @@ azure-monitor-ingestion>=1.1.0
 # imageio-ffmpeg bundles a static ffmpeg binary so it works locally and in CI with no system install.
 Pillow>=11.0.0
 imageio-ffmpeg>=0.6.0
+# moviepy: the compositor for the reelforge video sub-library (MIT). Layers b-roll + word-synced
+# captions + voiceover + music into a vertical mp4. Uses the bundled imageio-ffmpeg binary.
+moviepy>=2.1.1
