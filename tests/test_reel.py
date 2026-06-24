@@ -1,5 +1,6 @@
 import unittest
 
+from prism.cli.reel import groundable
 from prism.domain.cadence import Cadence
 from prism.services.reel_script import ReelScripter
 from prism.services.reel_playbook import load_playbook, Playbook
@@ -65,6 +66,20 @@ class TestPauseSemantics(unittest.TestCase):
     def test_on_demand_is_paused_scheduled_is_active(self):
         self.assertFalse(Cadence.from_name("on_demand").scheduled)
         self.assertTrue(Cadence.from_name("daily").scheduled)
+
+
+class TestGroundable(unittest.TestCase):
+    # A deep reel invents details from a near-empty source, so thin clickbait sources are skipped
+    # and the next groundable ranked item is taken instead.
+    def test_skips_thin_sources_and_takes_next_groundable(self):
+        pool = ["a", "b", "c", "d"]
+        body = {"a": "x" * 400, "b": "x" * 50, "c": "x" * 1500, "d": "x" * 2000}
+        picks = groundable(pool, 2, 1000, lambda c: body[c])
+        self.assertEqual([c for c, _ in picks], ["c", "d"])      # a, b too thin -> skipped
+
+    def test_returns_fewer_when_nothing_is_thick_enough(self):
+        picks = groundable(["a", "b"], 2, 1000, lambda c: "x" * 100)
+        self.assertEqual(picks, [])
 
 
 if __name__ == "__main__":

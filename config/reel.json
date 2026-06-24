@@ -8,5 +8,6 @@
   "playbook": "explainer",
   "music": "",
   "reels": 2,
-  "deep_max_chars": 4000
+  "deep_max_chars": 4000,
+  "deep_min_body": 1000
 }
