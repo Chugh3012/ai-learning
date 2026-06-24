@@ -3,5 +3,6 @@
   "interest_weight": 28,
   "voice": "en-US-AvaMultilingualNeural",
   "words_per_chunk": 3,
+  "playbook": "explainer",
   "deep_max_chars": 4000
 }

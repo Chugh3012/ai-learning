@@ -38,7 +38,7 @@ def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | N
         layers.append(
             TextClip(text=scene.kicker.upper(), font=style.font_path,
                      font_size=style.kicker_size, color=hexrgb(style.accent), method="label",
-                     stroke_color=style.caption_stroke, stroke_width=2)
+                     stroke_color=style.caption_stroke, stroke_width=style.kicker_stroke_width)
             .with_position(("center", int(style.height * 0.18))).with_duration(seconds))
     starts = chunk_word_timings(speech.words, style.words_per_chunk) if speech else None
     layers += caption_clips(scene.text, seconds, style, starts=starts)

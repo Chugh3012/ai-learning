@@ -26,6 +26,7 @@ class Style(BaseModel):
     font_path: str = ""               # resolved at render time when empty
     caption_size: int = 104
     kicker_size: int = 44
+    kicker_stroke_width: int = 4      # heavier stroke keeps the kicker legible over bright b-roll
     words_per_chunk: int = 3          # how many words flash on screen at once
     caption_y: float = 0.5            # vertical anchor (0=top, 1=bottom)
 
