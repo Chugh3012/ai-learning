@@ -22,11 +22,12 @@ def caption_clips(text: str, seconds: float, style: Style,
         starts = [(c, i * span, span) for i, c in enumerate(chunks)]
 
     box_w = style.width - 160
+    box_h = int(style.height * 0.30)   # a fixed caption zone so chunks don't jump vertically
     # Shrink the font so the single longest word still fits the box. Anton is a condensed face,
     # so caps run ~0.46x the font size; prevents long words overflowing the frame.
     longest = max((len(w) for w in text.split()), default=1)
     size = max(40, min(style.caption_size, int(box_w / (0.46 * longest))))
-    y = int(style.caption_y * style.height)
+    y_top = int(style.caption_y * style.height - box_h / 2)
     out: list[TextClip] = []
     for chunk, start, dur in starts:
         if not chunk.strip():
@@ -35,6 +36,7 @@ def caption_clips(text: str, seconds: float, style: Style,
             TextClip(text=chunk.upper(), font=style.font_path, font_size=size,
                      color=style.caption_color, stroke_color=style.caption_stroke,
                      stroke_width=style.caption_stroke_width, method="caption",
-                     size=(box_w, None), text_align="center")
-            .with_position(("center", y)).with_start(start).with_duration(dur))
+                     size=(box_w, box_h), text_align="center", horizontal_align="center",
+                     vertical_align="center")
+            .with_position(("center", y_top)).with_start(start).with_duration(dur))
     return out
