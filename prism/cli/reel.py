@@ -58,8 +58,12 @@ def main(argv=None) -> int:
     feeds = UserRegistry.from_subscribers(account).profiles_for_role("reel") if account else []
     if args.topic:
         feeds = [f for f in feeds if f.topic_id == args.topic]
+    else:
+        # A reel feed parked on the on_demand cadence is PAUSED — don't render it, not even via the
+        # live-selection fallback. Render a paused topic only when it's explicitly named with --topic.
+        feeds = [f for f in feeds if f.cadence.scheduled]
     if not feeds:
-        print("reel: no reel lenses provisioned (prism.cli.feeds add --kind reel ...) — nothing rendered")
+        print("reel: no active reel lenses — nothing rendered")
         return 0
 
     date = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
