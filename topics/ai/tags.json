@@ -1,8 +1,8 @@
 {
   "_comment": "ai-scout tag rules (Layer C). Growth = add a topic or keyword here, no code. Keywords are matched case-insensitively against item title + summary. Order independent. Keep deduped, sleek.",
   "topics": {
-    "agents": ["agent", "agentic", "multi-agent", "autonomous", "tool use", "tool-calling", "mcp", "function calling"],
-    "rag": ["rag", "retrieval", "vector", "embedding", "semantic search", "knowledge base"],
+    "agents": ["agent", "agentic", "multi-agent", "autonomous", "tool use", "tool-calling", "mcp", "function calling", "orchestrat"],
+    "rag": ["rag", "retrieval", "vector", "embedding", "semantic search", "knowledge base", "rerank"],
     "fine-tuning": ["fine-tune", "fine-tuning", "finetune", "lora", "qlora", "sft", "dpo", "rlhf", "distillation"],
     "prompting": ["prompt", "prompting", "system prompt", "few-shot", "chain-of-thought", "context engineering", "prompt optimization", "dspy", "auto-prompt"],
     "local-llm": ["local", "ollama", "llama.cpp", "gguf", "quantization", "on-device", "edge", "llamafile", "lm studio", "mlc-llm"],
