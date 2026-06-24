@@ -28,5 +28,15 @@ class TestReel(unittest.TestCase):
             out = ReelMaker(seconds_per_card=1.0).build([], Path(d) / "r.mp4", outro="bye")
             self.assertTrue(out.exists())
 
+class TestReelScript(unittest.TestCase):
+    def test_no_endpoint_is_a_graceful_noop(self):
+        from prism.services.reel_script import ReelScripter
+        hook, cards = ReelScripter("", "m").script([(1, "Title", "Summary")])
+        self.assertEqual((hook, cards), ("", {}))
+
+    def test_no_items_is_a_noop(self):
+        from prism.services.reel_script import ReelScripter
+        self.assertEqual(ReelScripter("https://x", "m").script([]), ("", {}))
+
 if __name__ == "__main__":
     unittest.main()
