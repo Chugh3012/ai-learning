@@ -30,3 +30,4 @@ class Style(BaseModel):
     caption_y: float = 0.5            # vertical anchor (0=top, 1=bottom)
 
     kenburns: float = 0.10            # background zoom over a scene
+    scrim: float = 0.5                # dark overlay opacity over b-roll, so captions stay legible
