@@ -14,14 +14,14 @@ from prism.repositories.knowledge import KnowledgeBase
 from prism.services.embedder import Embedder
 from prism.services.selector import Selector
 from prism.services.reel_script import ReelScripter
+from prism.services.reel_playbook import Playbook, load_playbook
 from reelforge import AzureSpeech, PexelsVisuals, Scene, Storyboard, Style, render
 
 # A broadcast lens: the reel is a public "top AI updates" edition, not a personalized feed. Its
 # relevance is steered by config/reel.json (interest sentence) so it surfaces catchy, concrete
-# stories rather than dry academic papers.
+# stories rather than dry academic papers. The creative theory (hooks, structure, pacing) lives in
+# a swappable playbook (config/playbooks/<name>.json) — edit/add one to experiment, no code change.
 _LENS = "reel:broadcast"
-_INTRO_Q = "artificial intelligence abstract technology"
-_OUTRO_Q = "futuristic technology blue abstract"
 
 def _parse_args(argv=None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Render a vertical 'AI Radar' reel from the KB.")
@@ -29,6 +29,7 @@ def _parse_args(argv=None) -> argparse.Namespace:
                     help="roundup = several stories in one reel; deep = one story, explained")
     ap.add_argument("--count", type=int, default=5, help="stories to feature in roundup mode")
     ap.add_argument("--topic", default="ai", help="topic pack id to pull from")
+    ap.add_argument("--playbook", default="", help="creative playbook name (config/playbooks/<name>.json)")
     ap.add_argument("--upload", action="store_true", help="upload the mp4 to Blob digests/reels/")
     ap.add_argument("--no-voice", action="store_true", help="skip the Azure Speech voiceover")
     ap.add_argument("--no-broll", action="store_true", help="skip Pexels b-roll (branded gradient)")
@@ -46,6 +47,7 @@ def main(argv=None) -> int:
     kb = KnowledgeBase.open()
     gateway = ModelGateway(s.foundry_project_endpoint, s.foundry_model_name)
     scripter = ReelScripter(s.foundry_project_endpoint, gateway.model_for("brief"))
+    playbook = load_playbook(args.playbook or cfg.get("playbook", "explainer"))
 
     # Steer selection toward catchy, concrete stories via the configured interest sentence.
     interest_vec = Embedder(kb, s.foundry_project_endpoint, gateway.model_for("embed")).embed_interest(
@@ -58,9 +60,9 @@ def main(argv=None) -> int:
         return 0
 
     if args.mode == "deep":
-        scenes, label = _deep_scenes(pool[0], scripter), "deep"
+        scenes, label = _deep_scenes(pool[0], scripter, playbook), "deep"
     else:
-        scenes, label = _roundup_scenes(pool[: args.count], scripter), "roundup"
+        scenes, label = _roundup_scenes(pool[: args.count], scripter, playbook), "roundup"
 
     tts = None
     if not args.no_voice and s.speech_resource_id:
@@ -70,7 +72,8 @@ def main(argv=None) -> int:
     if not args.no_broll and s.pexels_api_key:
         visuals = PexelsVisuals(api_key=s.pexels_api_key)
 
-    style = Style(caption_y=0.62, words_per_chunk=int(cfg.get("words_per_chunk", 3)))
+    base_style = {"caption_y": 0.62, "words_per_chunk": int(cfg.get("words_per_chunk", 3))}
+    style = Style(**{**base_style, **playbook.style})
     name = f"{dt.date.today().isoformat()}-{label}.mp4"
     out = SCRATCH_DIR / "reels" / name
     render(Storyboard(style=style, scenes=scenes), out, tts=tts, visuals=visuals)
@@ -86,26 +89,26 @@ def main(argv=None) -> int:
               f"{s.blob_container} --name digests/reels/{name} --file {name} --auth-mode login")
     return 0
 
-def _roundup_scenes(rows: list, scripter: ReelScripter) -> list[Scene]:
-    hook, script = scripter.script([(r.id, r.title, r.summary) for r in rows])
+def _roundup_scenes(rows: list, scripter: ReelScripter, pb: Playbook) -> list[Scene]:
+    hook, script = scripter.script([(r.id, r.title, r.summary) for r in rows], pb.roundup_system)
     n = len(rows)
-    scenes = [Scene(kicker="AI RADAR", text=hook or "Today in AI", query=_INTRO_Q)]
+    scenes = [Scene(kicker="AI RADAR", text=hook or "Today in AI", query=pb.intro_query)]
     for i, r in enumerate(rows, 1):
         _headline, line, query = (script.get(r.id, ("", "", "")) + ("", "", ""))[:3]
         scenes.append(Scene(kicker=f"{i:02d} / {n:02d}", text=line or r.title,
                             query=query or "technology abstract"))
-    scenes.append(Scene(text="Follow for your daily AI signal.", query=_OUTRO_Q))
+    scenes.append(Scene(text=pb.cta, query=pb.outro_query))
     return scenes
 
-def _deep_scenes(row, scripter: ReelScripter) -> list[Scene]:
+def _deep_scenes(row, scripter: ReelScripter, pb: Playbook) -> list[Scene]:
     body = fulltext(row.url) or row.summary
-    hook, beats = scripter.script_deep(row.title, body)
-    scenes = [Scene(kicker="AI RADAR", text=hook or row.title, query=_INTRO_Q)]
+    hook, beats = scripter.script_deep(row.title, body, pb.deep_system)
+    scenes = [Scene(kicker="AI RADAR", text=hook or row.title, query=pb.intro_query)]
     total = len(beats)
     for i, (text, query) in enumerate(beats, 1):
         scenes.append(Scene(kicker=f"{i:02d} / {total:02d}", text=text,
                             query=query or "technology abstract"))
-    scenes.append(Scene(text="Follow for your daily AI signal.", query=_OUTRO_Q))
+    scenes.append(Scene(text=pb.cta, query=pb.outro_query))
     return scenes
 
 if __name__ == "__main__":

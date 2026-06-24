@@ -44,8 +44,9 @@ class ReelScripter:
         self.endpoint = endpoint
         self.model = model
 
-    def script(self, items: list[tuple]) -> tuple[str, dict[int, tuple[str, str, str]]]:
+    def script(self, items: list[tuple], system: str = "") -> tuple[str, dict[int, tuple[str, str, str]]]:
         # items: list of (id, title, summary). Returns (hook, {id: (headline, line, query)}).
+        # `system` = the creative brief (from a playbook); empty falls back to the built-in default.
         if not self.endpoint or not items:
             return "", {}
         try:
@@ -58,7 +59,7 @@ class ReelScripter:
         try:
             resp = client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "system", "content": _SYSTEM},
+                messages=[{"role": "system", "content": system or _SYSTEM},
                           {"role": "user", "content": listing}],
                 temperature=0.4, response_format={"type": "json_object"}, max_tokens=1100)
             foundry.log_usage("reel", resp, self.model)
@@ -72,8 +73,9 @@ class ReelScripter:
             print(f"reel: script generation failed ({e}); using raw titles")
             return "", {}
 
-    def script_deep(self, title: str, body: str) -> tuple[str, list[tuple[str, str]]]:
+    def script_deep(self, title: str, body: str, system: str = "") -> tuple[str, list[tuple[str, str]]]:
         # One article -> (hook, [(spoken_beat, broll_query), ...]). Catchy + explanatory.
+        # `system` = the creative brief (from a playbook); empty falls back to the built-in default.
         if not self.endpoint:
             return "", []
         try:
@@ -84,7 +86,7 @@ class ReelScripter:
         try:
             resp = client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "system", "content": _DEEP_SYSTEM},
+                messages=[{"role": "system", "content": system or _DEEP_SYSTEM},
                           {"role": "user", "content": f"{title}\n\n{clean(body, 4000)}"}],
                 temperature=0.5, response_format={"type": "json_object"}, max_tokens=1300)
             foundry.log_usage("reel-deep", resp, self.model)
