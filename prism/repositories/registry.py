@@ -68,6 +68,10 @@ class UserRegistry:
             return None
         return next((p for p in u.profiles if p.self_review), u.profiles[0])
 
+    def profiles_for_role(self, role: str) -> list[Profile]:
+        # All lenses owned by automation users of this kind (e.g. one reel profile per topic).
+        return [p for u in self._users if u.role == role for p in u.profiles]
+
     def find_profile(self, lens: str) -> Profile | None:
         return next((p for p in self.profiles() if p.lens == lens), None)
 

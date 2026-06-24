@@ -91,3 +91,10 @@ class BlobStore:
         if not blob.exists():
             return None
         return blob.download_blob().readall()
+
+    def read_edition(self, lens: str, date: str):
+        # Return the typed Edition a lens published on a date (or None). The Edition owns parsing;
+        # this just owns the blob IO. Consumers read structured data, never raw markdown.
+        from prism.domain.edition import Edition
+        data = self.download_digest(f"{lens}-{date}.md")
+        return Edition.from_markdown(lens, data.decode("utf-8", "replace")) if data else None

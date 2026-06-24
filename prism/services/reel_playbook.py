@@ -21,6 +21,28 @@ class Playbook(BaseModel):
     deep_beats: int = 5
     style: dict = {}
 
+    def deep_scenes(self, title: str, body: str, scripter) -> list:
+        # The playbook OWNS how its theory becomes scenes. Hook-first: scene 1 IS the spoken hook
+        # (beat 1) — no title card, no numbering — so a scroll-stopping line lands immediately.
+        from reelforge.domain.storyboard import Scene
+        _hook, beats = scripter.script_deep(title, body, self.deep_system)
+        if not beats:
+            beats = [(title, self.intro_query)]
+        beats = beats[: self.deep_beats]                 # keep it tight (~30s)
+        scenes = [Scene(text=t, query=q or "technology abstract") for t, q in beats]
+        scenes.append(Scene(text=self.cta, query=self.outro_query))
+        return scenes
+
+    def roundup_scenes(self, rows: list, scripter) -> list:
+        from reelforge.domain.storyboard import Scene
+        hook, script = scripter.script([(r.id, r.title, r.summary) for r in rows], self.roundup_system)
+        scenes = [Scene(text=hook or "Today in AI", query=self.intro_query)]
+        for r in rows:
+            _h, line, query = (script.get(r.id, ("", "", "")) + ("", "", ""))[:3]
+            scenes.append(Scene(text=line or r.title, query=query or "technology abstract"))
+        scenes.append(Scene(text=self.cta, query=self.outro_query))
+        return scenes
+
 def load_playbook(name: str) -> Playbook:
     path = CONFIG_DIR / "playbooks" / f"{name}.json"
     if not path.exists():

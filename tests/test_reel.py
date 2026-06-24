@@ -1,10 +1,21 @@
 import unittest
-import types
-from unittest import mock
 
-from prism.cli import reel
 from prism.services.reel_script import ReelScripter
-from prism.services.reel_playbook import load_playbook
+from prism.services.reel_playbook import load_playbook, Playbook
+
+
+class _FakeScripter:
+    def script_deep(self, title, body, system):
+        return ("hook", [("Beat one.", "city"), ("Beat two.", "lab"), ("Beat three.", "robot")])
+
+    def script(self, items, system):
+        return ("Today in AI", {i: (f"H{i}", f"line {i}", f"q{i}") for i, *_ in items})
+
+
+class _Row:
+    def __init__(self, i):
+        self.id, self.title, self.summary = i, f"T{i}", "s"
+
 
 class TestReelScript(unittest.TestCase):
     def test_no_endpoint_is_a_graceful_noop(self):
@@ -13,6 +24,7 @@ class TestReelScript(unittest.TestCase):
 
     def test_no_items_is_a_noop(self):
         self.assertEqual(ReelScripter("https://x", "m").script([]), ("", {}))
+
 
 class TestPlaybook(unittest.TestCase):
     def test_default_playbook_loads_and_joins_prompt(self):
@@ -26,35 +38,26 @@ class TestPlaybook(unittest.TestCase):
         self.assertEqual(pb.deep_system, "")          # empty -> ReelScripter uses its default
         self.assertEqual(pb.name, "does-not-exist")
 
-class TestPoolFromDigest(unittest.TestCase):
-    def test_blob_disabled_is_graceful(self):
-        s = types.SimpleNamespace(subscriber_storage="", feedback_storage="")
-        self.assertEqual(reel._pool_from_digest(types.SimpleNamespace(enabled=False), None, s), [])
 
-    def test_consumes_published_ids_in_rank_order(self):
-        # The consumer features exactly what kb-sync wrote to the reel-lens digest, in order.
-        s = types.SimpleNamespace(subscriber_storage="acct", feedback_storage="")
-        blob = types.SimpleNamespace(enabled=True,
-                                     download_digest=lambda name: b"body\n\n<!-- items: 3,1 -->\n")
-        rows = {3: object(), 1: object()}
+class TestPlaybookScenes(unittest.TestCase):
+    # The playbook OWNS turning a script into scenes — no free helper functions in the CLI.
+    def test_deep_scenes_are_hook_first_and_end_on_cta(self):
+        pb = Playbook(deep_beats=3, cta="Follow.", outro_query="abstract")
+        scenes = pb.deep_scenes("Title", "body", _FakeScripter())
+        self.assertEqual(scenes[0].text, "Beat one.")     # scene 1 IS the hook beat
+        self.assertEqual(scenes[-1].text, "Follow.")       # ends on the CTA
+        self.assertEqual(len(scenes), 4)                   # 3 beats + cta
 
-        class _Ses:
-            def __enter__(self): return self
-            def __exit__(self, *a): return False
-            def get(self, _model, iid): return rows.get(iid)
+    def test_deep_scenes_respects_deep_beats(self):
+        pb = Playbook(deep_beats=2)
+        self.assertEqual(len(pb.deep_scenes("T", "b", _FakeScripter())), 3)   # 2 beats + cta
 
-        kb = types.SimpleNamespace(session=lambda: _Ses())
-        reg = types.SimpleNamespace(profile_for_role=lambda r: types.SimpleNamespace(filesafe_lens="u-reel"))
-        with mock.patch.object(reel.UserRegistry, "from_subscribers", return_value=reg):
-            out = reel._pool_from_digest(blob, kb, s)
-        self.assertEqual(out, [rows[3], rows[1]])
+    def test_roundup_scenes_open_with_hook_and_one_card_per_story(self):
+        pb = Playbook(cta="Follow.")
+        scenes = pb.roundup_scenes([_Row(1), _Row(2)], _FakeScripter())
+        self.assertEqual(scenes[0].text, "Today in AI")
+        self.assertEqual(len(scenes), 4)                   # hook + 2 cards + cta
 
-    def test_missing_digest_falls_back_to_live_selection(self):
-        s = types.SimpleNamespace(subscriber_storage="acct", feedback_storage="")
-        blob = types.SimpleNamespace(enabled=True, download_digest=lambda name: None)
-        reg = types.SimpleNamespace(profile_for_role=lambda r: types.SimpleNamespace(filesafe_lens="u-reel"))
-        with mock.patch.object(reel.UserRegistry, "from_subscribers", return_value=reg):
-            self.assertEqual(reel._pool_from_digest(blob, None, s), [])
 
 if __name__ == "__main__":
     unittest.main()

@@ -57,6 +57,12 @@ class KnowledgeBase:
     def session(self) -> Session:
         return Session(self.engine)
 
+    def items(self, ids: list[int]) -> list:
+        # Resolve item rows for an Edition's ids, in the given order. The store owns row access.
+        from prism.repositories.models import Item
+        with self.session() as ses:
+            return [it for i in ids if (it := ses.get(Item, i)) is not None]
+
     def close(self) -> None:
         self.con.close()
         self.engine.dispose()
