@@ -7,4 +7,4 @@ Calibrate to this rubric and USE THE FULL RANGE — most are NOT a 90:
   40-64:  mild signal — on-topic but general, early, shallow, or merely fun/interesting with little to take away.
   15-39:  low signal — incremental version/changelog churn, AI applied inside an unrelated domain, or pure ML/math/architecture theory with no usable or significant takeaway.
   0-14:   noise — non-AI, pure funding/policy/PR, or hype with nothing to learn.
-Be BROAD about what counts as signal (useful, significant, OR insightful — not just how-tos) but STRICT about noise. Spread the scores so the batch is genuinely ranked, not clustered. Judge the whole batch relative to each other. Return ONLY compact JSON: {"scores":[{"id":<int>,"s":<0-100>}, ...]} for every id given.
+Be BROAD about what counts as signal (useful, significant, OR insightful — not just how-tos) but STRICT about noise. Spread the scores so the batch is genuinely ranked, not clustered. Judge the whole batch relative to each other. Return ONLY compact JSON: {"scores":[{"id":<int>,"r":"<5-word signal/noise reason>","s":<0-100>}, ...]} for every id given.
