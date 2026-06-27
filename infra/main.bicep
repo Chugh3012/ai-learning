@@ -69,6 +69,9 @@ param alertFeedsFailedMax int = 8
 @description('Fire the cost alert when a day of model spend (USD) exceeds this.')
 param alertCostBudgetUsd int = 1
 
+@description('Deploy the Sora 2 video model for AI reel visuals (preview). Default off until the model name/version/SKU are confirmed in the catalog for this account/region; passwordless, billed per second.')
+param deploySora bool = false
+
 // KB Storage Account (shared-key disabled, public blob access disabled)
 resource kbStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: kbStorageBaseName
@@ -288,6 +291,52 @@ resource embedDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-
       version: '1'
     }
     versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+  }
+}
+
+// Frontier creative model for the AI-visual prompt layer — the prompt quality decides whether the
+// Sora spend is worth it, and at one short call per reel/day the cost is negligible (~cents/month).
+// gpt-5.4 is a reasoning model, so VisualPromptWriter omits temperature + uses max_completion_tokens.
+// Serialized after 'embed' (one deploy op per account at a time).
+resource proDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  name: 'pro'
+  parent: cognitiveServices
+  dependsOn: [
+    embedDeployment
+  ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 50
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-5.4'
+      version: '2026-03-05'
+    }
+    versionUpgradeOption: 'OnceNewDefaultVersionAvailable'
+  }
+}
+
+// AI reel visuals: Azure OpenAI Sora 2 video generation (passwordless, same MI + OpenAI User role).
+// Gated default-off (deploySora) until the model name/version/SKU are confirmed in the catalog for
+// this account/region. Serialized after 'embed' (one deploy op per account at a time).
+resource soraDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deploySora) {
+  name: 'sora'
+  parent: cognitiveServices
+  dependsOn: [
+    proDeployment
+  ]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 1
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'sora-2'
+      version: '2025-12-08'
+    }
   }
 }
 

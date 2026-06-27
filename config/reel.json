@@ -1,13 +1,22 @@
 {
   "_comment": "GLOBAL reel creative DEFAULTS. Per-topic overrides live in topics/<id>/pack.json settings.reel. A lens's interest is NOT here — it lives on the reel profile (its single source of truth); interest_weight only steers the live-selection fallback.",
   "interest_weight": 32,
-  "voice": "en-US-AriaNeural",
-  "voice_style": "friendly",
-  "voice_rate": "+7%",
+  "voice": "en-US-Ava:DragonHDLatestNeural",
+  "voice_style": "",
+  "voice_rate": "",
   "words_per_chunk": 2,
   "playbook": "explainer",
   "music": "",
-  "reels": 2,
+  "reels": 1,
   "deep_max_chars": 4000,
-  "deep_min_body": 1000
+  "deep_min_body": 1000,
+  "visuals": "pexels",
+  "sora": {
+    "deployment": "sora",
+    "size": "720x1280",
+    "heroes": 2,
+    "max_clip_seconds": 12,
+    "max_seconds": 24,
+    "price_per_second": 0.10
+  }
 }

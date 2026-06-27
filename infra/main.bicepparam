@@ -22,3 +22,6 @@ param userPrincipalId = 'b180b691-ddd2-4365-a356-0e16bf5fd93e'
 // GitHub parameters
 param githubRepository = 'Chugh3012/ai-learning'
 param githubBranch = 'main'
+
+// Feature parameters
+param deploySora = true   // Sora 2 video deployment for AI reel visuals (hybrid mode); billed per second

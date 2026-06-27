@@ -1,4 +1,4 @@
 {
-  "tasks": { "rank": "mini", "brief": "mini", "synthesis": "mini", "embed": "embed" },
-  "pricing": { "mini": { "in": 0.40, "out": 1.60 } }
+  "tasks": { "rank": "mini", "brief": "mini", "synthesis": "mini", "embed": "embed", "visual": "pro" },
+  "pricing": { "mini": { "in": 0.40, "out": 1.60 }, "pro": { "in": 2.50, "out": 15.00 } }
 }
