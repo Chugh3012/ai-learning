@@ -335,6 +335,7 @@ resource soraDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-1
     model: {
       format: 'OpenAI'
       name: 'sora-2'
+      version: '2025-12-08'
     }
   }
 }

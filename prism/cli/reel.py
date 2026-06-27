@@ -141,8 +141,11 @@ def main(argv=None) -> int:
                 if ai_visuals_on:
                     prompts = visual_writer.write(cand.title, body, [sc.text for sc in scenes],
                                                   playbook.visual_system)
-                    for sc, vp in zip(scenes, prompts):
-                        if vp:
+                    # HYBRID: only the first `heroes` beats get a Sora prompt (the hook + reveal);
+                    # the rest keep their keyword query and stay on Pexels. heroes 0 = all beats.
+                    heroes = int(creative.get("sora", {}).get("heroes", 0)) or len(scenes)
+                    for hi, (sc, vp) in enumerate(zip(scenes, prompts)):
+                        if vp and hi < heroes:
                             sc.visual_prompt = vp
                 jobs.append((f"{date}-deep{suffix}.mp4", scenes))
         else:
@@ -151,8 +154,9 @@ def main(argv=None) -> int:
                 ctx = "\n".join((getattr(r, "summary", "") or getattr(r, "title", "")) for r in pool[: args.count])
                 prompts = visual_writer.write("Today in AI", ctx, [sc.text for sc in scenes],
                                               playbook.visual_system)
-                for sc, vp in zip(scenes, prompts):
-                    if vp:
+                heroes = int(creative.get("sora", {}).get("heroes", 0)) or len(scenes)
+                for hi, (sc, vp) in enumerate(zip(scenes, prompts)):
+                    if vp and hi < heroes:
                         sc.visual_prompt = vp
             jobs.append((f"{date}-roundup.mp4", scenes))
 

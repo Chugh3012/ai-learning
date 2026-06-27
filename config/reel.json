@@ -14,8 +14,9 @@
   "sora": {
     "deployment": "sora",
     "size": "720x1280",
+    "heroes": 2,
     "max_clip_seconds": 12,
-    "max_seconds": 0,
+    "max_seconds": 24,
     "price_per_second": 0.10
   }
 }

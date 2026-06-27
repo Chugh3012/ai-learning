@@ -63,7 +63,9 @@ class SoraVisuals:
 
     def background(self, query: str, seconds: float, style, tmp: Path, prompt: str = ""):
         from moviepy import VideoFileClip, vfx
-        text = (prompt or query or "").strip()
+        # Sora fires ONLY on beats carrying a rich `visual_prompt` (the hero beats); a bare keyword
+        # `query` is left to the Pexels fallback. This is what makes the HYBRID mode work.
+        text = (prompt or "").strip()
         if not text:
             return None
         clip_s = self._clip_seconds(seconds, self.max_clip_seconds)
