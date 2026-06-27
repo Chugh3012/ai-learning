@@ -33,6 +33,7 @@ class TestPlaybook(unittest.TestCase):
         pb = load_playbook("explainer")
         self.assertEqual(pb.name, "explainer")
         self.assertIn("HOOK", pb.deep_system)        # array-of-lines joined into one brief
+        self.assertIn("VISUAL DIRECTOR", pb.visual_system)   # the AI-visuals brief is editable config
         self.assertTrue(pb.cta)
 
     def test_missing_playbook_falls_back(self):

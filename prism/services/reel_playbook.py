@@ -15,6 +15,7 @@ class Playbook(BaseModel):
     name: str = "explainer"
     deep_system: str = ""
     roundup_system: str = ""
+    visual_system: str = ""   # brief for the AI-visuals prompt layer (VisualPromptWriter)
     intro_query: str = "artificial intelligence abstract technology"
     outro_query: str = "futuristic technology blue abstract"
     cta: str = "Follow for your daily AI signal."
@@ -51,7 +52,7 @@ def load_playbook(name: str) -> Playbook:
     data = json.loads(path.read_text(encoding="utf-8"))
     data.pop("_comment", None)
     # Prompt briefs are authored as arrays of lines for editability; join them.
-    for key in ("deep_system", "roundup_system"):
+    for key in ("deep_system", "roundup_system", "visual_system"):
         if isinstance(data.get(key), list):
             data[key] = " ".join(str(line) for line in data[key])
     return Playbook(**data)

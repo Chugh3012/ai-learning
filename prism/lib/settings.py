@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     foundry_project_endpoint: str = ""
     foundry_model_name: str = "nano"
     foundry_embed_name: str = "embed"
+    foundry_sora_deployment: str = "sora"
     pexels_api_key: str = ""
     speech_resource_id: str = ""
     speech_region: str = "eastus2"

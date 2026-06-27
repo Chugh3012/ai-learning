@@ -6,13 +6,14 @@ from reelforge.domain.style import Style
 
 class Scene(BaseModel):
     """One beat of the reel: a line that is captioned (and later voiced), over a background.
-    `query` is the b-roll search phrase (falls back to the text); `image` is reserved for a
-    provided asset."""
+    `query` is the short b-roll search phrase (stock providers); `visual_prompt` is the rich
+    cinematic prompt for an AI video provider; `image` is reserved for a provided asset."""
 
     text: str = ""
     seconds: float = 3.0
     kicker: str = ""        # small top label, e.g. "01 / 05" or "AI RADAR"
-    query: str = ""         # b-roll search terms; empty falls back to `text`
+    query: str = ""         # short b-roll keywords (stock search); empty falls back to `text`
+    visual_prompt: str = "" # rich cinematic prompt for an AI video provider; empty falls back to query
     image: str = ""         # explicit b-roll asset (reserved); empty = provider or gradient
 
 class Storyboard(BaseModel):

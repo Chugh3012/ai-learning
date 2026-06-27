@@ -9,7 +9,7 @@ from moviepy import (AudioFileClip, ColorClip, CompositeVideoClip, TextClip,
 
 from reelforge.domain.storyboard import Scene, Storyboard
 from reelforge.domain.style import Style, hexrgb
-from reelforge.providers.tts.base import TTS, chunk_word_timings
+from reelforge.providers.tts.base import TTS
 from reelforge.providers.visuals.base import Visual
 from reelforge.render.backgrounds import gradient_bg
 from reelforge.render.captions import caption_clips
@@ -18,6 +18,29 @@ from reelforge.render.fonts import resolve_font
 # A tiny pad after the last spoken word so cuts don't feel clipped (the TTS trailing silence,
 # which otherwise reads as a dead gap at every cut, is removed).
 _TAIL = 0.12
+
+def _grade(frame):
+    # One cinematic grade across every scene so mixed stock feels like a single film: a touch more
+    # contrast, a gentle shadow lift (so dark clips don't crush to black), and a warm push.
+    f = frame.astype("float32")
+    f = (f - 128.0) * 1.10 + 128.0
+    f = f.clip(0.0, 255.0)
+    f = 255.0 * (f / 255.0) ** 0.90          # gamma < 1 lifts shadows / midtones
+    f[..., 0] *= 1.05                          # warm: lift red
+    f[..., 2] *= 0.94                          # cool down blue
+    return f.clip(0, 255).astype("uint8")
+
+def _vignette_clip(w: int, h: int, strength: float, seconds: float):
+    # A static edge-darkening overlay (black with a radial alpha that's 0 across most of the frame and
+    # only rises near the CORNERS). Frame-aligned, so it stays at the edges even as the b-roll zooms.
+    import numpy as np
+    from moviepy import ImageClip
+    yy, xx = np.mgrid[0:h, 0:w]
+    r = np.sqrt(((xx - w / 2.0) / (w / 2.0)) ** 2 + ((yy - h / 2.0) / (h / 2.0)) ** 2)
+    alpha = (strength * np.clip((r - 0.78) / 0.42, 0.0, 1.0)).astype("float32")
+    base = ImageClip(np.zeros((h, w, 3), dtype="uint8")).with_duration(seconds)
+    mask = ImageClip(alpha, is_mask=True).with_duration(seconds)
+    return base.with_mask(mask)
 
 def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | None,
                 tmp: Path, idx: int, opened: list) -> CompositeVideoClip:
@@ -33,11 +56,20 @@ def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | N
     else:
         seconds = scene.seconds
 
-    broll = visuals.background(scene.query or scene.text, seconds, style, tmp) if visuals else None
+    broll = (visuals.background(scene.query or scene.text, seconds, style, tmp,
+                                prompt=scene.visual_prompt) if visuals else None)
     if broll is not None:
+        if style.grade:
+            broll = broll.image_transform(_grade)
+        # Slow push-in (Ken Burns) so static stock has momentum; a stronger HERO push on the hook.
+        push = style.kenburns * (1.7 if idx == 0 else 1.0)
+        if push > 0:
+            broll = broll.resized(lambda t: 1.0 + push * (t / max(seconds, 0.1)))
         scrim = ColorClip((style.width, style.height), color=(0, 0, 0)).with_opacity(
             style.scrim).with_duration(seconds)
         layers = [broll.with_position("center"), scrim]
+        if style.vignette > 0:
+            layers.append(_vignette_clip(style.width, style.height, style.vignette, seconds))
     else:
         layers = [gradient_bg(seconds, style).with_position("center")]
 
@@ -47,8 +79,7 @@ def _scene_clip(scene: Scene, style: Style, tts: TTS | None, visuals: Visual | N
                      font_size=style.kicker_size, color=hexrgb(style.accent), method="label",
                      stroke_color=style.caption_stroke, stroke_width=style.kicker_stroke_width)
             .with_position(("center", int(style.height * 0.18))).with_duration(seconds))
-    starts = chunk_word_timings(speech.words, style.words_per_chunk) if speech else None
-    layers += caption_clips(scene.text, seconds, style, starts=starts)
+    layers += caption_clips(scene.text, seconds, style, words=speech.words if speech else None)
 
     clip = CompositeVideoClip(layers, size=(style.width, style.height)).with_duration(seconds)
     if speech:
@@ -79,10 +110,12 @@ def render(storyboard: Storyboard, out_path: str | Path, tts: TTS | None = None,
         video = concatenate_videoclips(clips, method="compose")
 
         music = _music_bed(storyboard, video.duration, opened)
-        if music is not None:
-            video = video.with_audio(_mix(video.audio, music, style.music_volume))
+        sfx = _sfx(clips) if style.sfx else []
+        audio = _compose_audio(video.audio, music, sfx, style.music_volume)
+        if audio is not None:
+            video = video.with_audio(audio)
 
-        has_audio = tts is not None or music is not None
+        has_audio = audio is not None
         video.write_videofile(str(out_path), fps=style.fps, codec="libx264",
                               bitrate=style.bitrate,
                               audio_codec="aac" if has_audio else None, audio=has_audio,
@@ -108,8 +141,36 @@ def _music_bed(storyboard: Storyboard, duration: float, opened: list):
     opened.append(track)
     return track.subclipped(0, min(track.duration, duration))
 
-def _mix(voice, music, volume: float):
-    # Duck music under the voiceover; if there's no voice (silent captions), let it sit louder.
+def _sfx(clips: list) -> list:
+    # Build the sound-design layer: a riser under the hook + a whoosh just before each cut. Each piece
+    # is independently graceful so a synth hiccup never sinks the render.
+    starts, t = [], 0.0
+    for c in clips:
+        starts.append(t)
+        t += float(c.duration)
+    out: list = []
+    try:
+        from reelforge.render.sfx import riser_clip, whoosh_clip
+    except Exception:
+        return out
+    try:
+        out.append(riser_clip(min(1.2, starts[1] if len(starts) > 1 else 1.2)).with_start(0.0))
+    except Exception:
+        pass
+    for st in starts[1:]:
+        try:
+            out.append(whoosh_clip().with_start(max(0.0, st - 0.10)))
+        except Exception:
+            pass
+    return out
+
+def _compose_audio(voice, music, sfx: list, volume: float):
+    # One mix: ducked music bed + the sfx accents + the voiceover on top.
     from moviepy import CompositeAudioClip
-    music = music.with_volume_scaled(volume if voice is not None else min(0.6, volume * 4))
-    return CompositeAudioClip([music, voice]) if voice is not None else music
+    tracks = []
+    if music is not None:
+        tracks.append(music.with_volume_scaled(volume if voice is not None else min(0.6, volume * 4)))
+    tracks.extend(sfx)
+    if voice is not None:
+        tracks.append(voice)
+    return CompositeAudioClip(tracks) if tracks else None

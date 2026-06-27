@@ -6,9 +6,10 @@ from typing import Protocol, runtime_checkable
 @runtime_checkable
 class Visual(Protocol):
     """A b-roll provider: return a muted, full-frame background clip for a scene, or None to let
-    the caller fall back to the branded gradient."""
+    the caller fall back to the next provider / branded gradient. `query` is short stock-search
+    keywords; `prompt` (optional) is a rich cinematic instruction an AI provider prefers."""
 
-    def background(self, query: str, seconds: float, style, tmp: Path): ...
+    def background(self, query: str, seconds: float, style, tmp: Path, prompt: str = ""): ...
 
     def close(self) -> None: ...
 

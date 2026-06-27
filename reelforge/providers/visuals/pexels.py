@@ -39,7 +39,8 @@ class PexelsVisuals:
         files.sort(key=lambda f: abs((f.get("width") or 0) - target_w))
         return files[0] if files else None
 
-    def background(self, query: str, seconds: float, style, tmp: Path):
+    def background(self, query: str, seconds: float, style, tmp: Path, prompt: str = ""):
+        # Stock search wants short keywords, so `prompt` (the AI-provider instruction) is ignored.
         from moviepy import VideoFileClip, vfx
         try:
             videos = self._search(query) if self.api_key else []
@@ -47,7 +48,9 @@ class PexelsVisuals:
                 return None
             # Prefer clips we haven't used yet this render so footage doesn't repeat scene-to-scene.
             fresh = [v for v in videos if v.get("id") not in self._used] or videos
-            video = self.rng.choice(fresh[: min(8, len(fresh))])
+            # Pexels returns results in relevance order -- bias to the TOP few so the b-roll actually
+            # matches the beat (random over a wide pool was pulling off-topic/blank clips).
+            video = self.rng.choice(fresh[: min(3, len(fresh))])
             self._used.add(video.get("id"))
             vf = self._best_file(video, style.width)
             if not vf:

@@ -7,6 +7,9 @@ azure-storage-blob>=12.30.0
 # Microsoft Foundry SDK (P4 relevance ranking). v2.x = Foundry projects (new) API;
 # bundles openai + azure-identity. We call project.get_openai_client() — passwordless.
 azure-ai-projects>=2.2.0
+# openai: the official SDK, used directly for the Azure OpenAI Sora 2 video API (client.videos) —
+# passwordless. Bundled by azure-ai-projects, but pinned here because the video resource needs >=2.43.
+openai>=2.43.0
 # Azure Communication Services Email (P6 delivery), passwordless via azure-identity.
 azure-communication-email>=1.1.0
 # Azure Tables (P7 feedback): mint email feedback tokens + drain feedback events, passwordless.

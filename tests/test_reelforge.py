@@ -7,7 +7,7 @@ from pathlib import Path
 import imageio_ffmpeg
 
 from reelforge import Scene, Storyboard, Style, render
-from reelforge.render.captions import _chunks
+from reelforge.render.captions import _chunks, _phrase_chunks
 from reelforge.render.fonts import resolve_font
 from reelforge.providers.tts.base import Speech, chunk_word_timings, wav_duration
 
@@ -67,6 +67,16 @@ class TestReelforge(unittest.TestCase):
         self.assertEqual(_chunks("a b c d e", 3), ["a b c", "d e"])
         self.assertEqual(_chunks("", 3), [""])
 
+    def test_phrase_chunks_breaks_on_punctuation_and_avoids_weak_endings(self):
+        # (word, start, dur). max 3 words/chunk; orphan singles fold into a neighbor; never end weak.
+        words = [("It", 0.0, .2), ("has", .2, .2), ("warm", .4, .2), ("skin.", .6, .2),
+                 ("Talking", .8, .2), ("to", 1.0, .2), ("a", 1.2, .2), ("robot", 1.4, .2)]
+        chunks = [[w for w, _s, _d in c] for c in _phrase_chunks(words, 3)]
+        self.assertEqual(chunks[0], ["It", "has", "warm", "skin."])   # orphan 'skin.' folds up
+        for c in chunks:
+            self.assertGreater(len(c), 1)                              # no one-word flashes
+            self.assertNotIn(c[-1].strip(".").lower(), {"to", "a"})    # never end on a weak word
+
     def test_clean_caption_strips_stray_punctuation(self):
         from reelforge.render.captions import _clean_caption
         self.assertEqual(_clean_caption(", from text"), "from text")
@@ -109,7 +119,7 @@ class _FakeVisuals:
     def __init__(self):
         self.closed = False
 
-    def background(self, query, seconds, style, tmp):
+    def background(self, query, seconds, style, tmp, prompt=""):
         from moviepy import ColorClip
         return ColorClip((style.width, style.height), color=(12, 40, 12)).with_duration(seconds)
 

@@ -16,7 +16,9 @@ from prism.services.embedder import Embedder
 from prism.services.selector import Selector
 from prism.services.reel_script import ReelScripter
 from prism.services.reel_playbook import load_playbook
-from reelforge import AzureSpeech, PexelsVisuals, Storyboard, Style, bundled_music, render
+from prism.services.reel_visual_prompt import VisualPromptWriter
+from prism.services.reel_visuals import make_visuals
+from reelforge import AzureSpeech, Storyboard, Style, bundled_music, render
 
 # The reel is a CONSUMER. For each reel lens (one profile per topic, provisioned in the registry)
 # it features exactly what kb-sync published to that lens (its Edition) and renders vertical reels.
@@ -37,8 +39,12 @@ def _parse_args(argv=None) -> argparse.Namespace:
                     help="feature the lens's published Edition (falls back to live selection if absent)")
     ap.add_argument("--upload", action="store_true", help="upload the mp4s to Blob digests/reels/<topic>/")
     ap.add_argument("--no-voice", action="store_true", help="skip the Azure Speech voiceover")
-    ap.add_argument("--no-broll", action="store_true", help="skip Pexels b-roll (branded gradient)")
+    ap.add_argument("--no-broll", action="store_true", help="skip b-roll (branded gradient)")
     ap.add_argument("--no-music", action="store_true", help="skip the background music bed")
+    ap.add_argument("--ai-visuals", action="store_true", dest="ai_visuals",
+                    help="force AI-generated visuals (Sora) for this run, regardless of the flag")
+    ap.add_argument("--dry-visuals", action="store_true", dest="dry_visuals",
+                    help="AI-visuals dry-run: print each generated visual prompt, spend nothing")
     return ap.parse_args(argv)
 
 def groundable(pool, want_n, min_body, body_of):
@@ -67,6 +73,10 @@ def main(argv=None) -> int:
     gateway = ModelGateway(s.foundry_project_endpoint, s.foundry_model_name)
     scripter = ReelScripter(s.foundry_project_endpoint, gateway.model_for("brief"))
     embedder = Embedder(kb, s.foundry_project_endpoint, gateway.model_for("embed"))
+    visual_writer = VisualPromptWriter(s.foundry_project_endpoint, gateway.model_for("visual"))
+    flags = config_json("flags.json")
+    # AI visuals are off by default; the flag turns them on for everyone, the CLI flags for one run.
+    ai_visuals_on = bool(flags.get("ai_visuals")) or args.ai_visuals or args.dry_visuals
 
     account = s.subscriber_storage or s.feedback_storage
     feeds = UserRegistry.from_subscribers(account).profiles_for_role("reel") if account else []
@@ -127,13 +137,30 @@ def main(argv=None) -> int:
                 print(f"reel[{topic}]: no source thick enough to teach from (min {min_body}c) \u2014 skipped")
             for i, (cand, body) in enumerate(picks, 1):
                 suffix = f"-{i}" if want_n > 1 else ""
-                jobs.append((f"{date}-deep{suffix}.mp4", playbook.deep_scenes(cand.title, body, scripter)))
+                scenes = playbook.deep_scenes(cand.title, body, scripter)
+                if ai_visuals_on:
+                    prompts = visual_writer.write(cand.title, body, [sc.text for sc in scenes],
+                                                  playbook.visual_system)
+                    for sc, vp in zip(scenes, prompts):
+                        if vp:
+                            sc.visual_prompt = vp
+                jobs.append((f"{date}-deep{suffix}.mp4", scenes))
         else:
-            jobs.append((f"{date}-roundup.mp4", playbook.roundup_scenes(pool[: args.count], scripter)))
+            scenes = playbook.roundup_scenes(pool[: args.count], scripter)
+            if ai_visuals_on:
+                ctx = "\n".join((getattr(r, "summary", "") or getattr(r, "title", "")) for r in pool[: args.count])
+                prompts = visual_writer.write("Today in AI", ctx, [sc.text for sc in scenes],
+                                              playbook.visual_system)
+                for sc, vp in zip(scenes, prompts):
+                    if vp:
+                        sc.visual_prompt = vp
+            jobs.append((f"{date}-roundup.mp4", scenes))
 
         for name, scenes in jobs:
-            # Fresh b-roll provider per reel: render() closes the provider when it finishes.
-            visuals = PexelsVisuals(api_key=s.pexels_api_key) if (not args.no_broll and s.pexels_api_key) else None
+            # Fresh visual provider per reel: render() closes it when it finishes. The factory picks
+            # Pexels or Sora(+Pexels fallback) from config/flags; None => branded gradient.
+            visuals = None if args.no_broll else make_visuals(s, creative, ai_visuals_on,
+                                                              dry_run=args.dry_visuals)
             out = SCRATCH_DIR / "reels" / topic / name
             render(Storyboard(style=style, scenes=scenes, music=music), out, tts=tts, visuals=visuals)
             print(f"reel[{topic}]: wrote {out} ({out.stat().st_size} bytes, {len(scenes)} scenes, "
