@@ -9,7 +9,7 @@ azure-storage-blob>=12.30.0
 azure-ai-projects>=2.2.0
 # openai: the official SDK, used directly for the Azure OpenAI Sora 2 video API (client.videos) —
 # passwordless. Bundled by azure-ai-projects, but pinned here because the video resource needs >=2.43.
-openai>=2.43.0
+openai>=2.44.0
 # Azure Communication Services Email (P6 delivery), passwordless via azure-identity.
 azure-communication-email>=1.1.0
 # Azure Tables (P7 feedback): mint email feedback tokens + drain feedback events, passwordless.
@@ -29,22 +29,22 @@ Jinja2>=3.1.6
 # tenacity: declarative retry/backoff for transient feed fetches.
 tenacity>=9.1.4
 # numpy: vector math (two-tower interest match) + eval helpers.
-numpy>=2.4.6
+numpy>=2.5.0
 # scipy + scikit-learn: standard implementations for the ranking-eval metrics (spearman, ndcg).
 scipy>=1.18.0
 scikit-learn>=1.9.0
 # SQLModel (SQLAlchemy + Pydantic): the typed data layer for the owned knowledge base.
-sqlmodel>=0.0.38
+sqlmodel>=0.0.39
 # azure-monitor-ingestion: ship pipeline metrics to a Log Analytics custom table (passwordless,
 # via a Data Collection Rule) for the Grafana dashboard. Optional at runtime (no-op if unset).
 azure-monitor-ingestion>=1.1.0
 # Pillow + imageio-ffmpeg: render the vertical "AI radar" update video (title cards -> mp4).
 # imageio-ffmpeg bundles a static ffmpeg binary so it works locally and in CI with no system install.
-Pillow>=11.0.0
+Pillow>=12.2.0
 imageio-ffmpeg>=0.6.0
 # moviepy: the compositor for the reelforge video sub-library (MIT). Layers b-roll + word-synced
 # captions + voiceover + music into a vertical mp4. Uses the bundled imageio-ffmpeg binary.
-moviepy>=2.1.1
+moviepy>=2.2.1
 # Azure Speech SDK: neural TTS voiceover for reels, passwordless (AAD token) against the existing
 # AIServices account. Its word-boundary timestamps drive perfectly synced captions.
-azure-cognitiveservices-speech>=1.40.0
+azure-cognitiveservices-speech>=1.50.0
