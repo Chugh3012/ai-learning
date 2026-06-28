@@ -29,7 +29,7 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'builder-radar') )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.0
 
       - name: Resolve acted item ids
         id: ids
