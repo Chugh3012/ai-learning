@@ -110,6 +110,15 @@ class TestInterestRetrieval(unittest.TestCase):
         self.assertEqual([r[0] for r in a], [2])
         self.assertEqual([r[0] for r in b], [3])
 
+    def test_higher_relevance_wins_tie_on_similarity(self):
+        # Two items equally similar to the interest vector; the higher-relevance one should be
+        # preferred by the decision-aware blend.
+        vec = [1.0, 0.0, 0.0, 0.0]
+        pool = [self._row(10, vec, rel=80.0), self._row(11, vec, rel=20.0)]
+        out = Selector(_EmbKB(pool))._add_interest_candidates(
+            [], "L", vectors.normalize(vec), 1, None)
+        self.assertEqual([r[0] for r in out], [10])
+
     def test_no_interest_is_a_noop(self):
         pool = [self._row(2, [1.0, 0.0, 0.0, 0.0])]
         self.assertEqual(Selector(_EmbKB(pool))._add_interest_candidates([], "L", None, 5, None), [])
