@@ -56,7 +56,13 @@ class Selector:
         sims = match_bonus(interest_vec, {r[0]: r[8] for r in emb if r[8]}, 1.0)
         if not sims:
             return rows
-        top_ids = set(sorted(sims, key=sims.get, reverse=True)[:k])
+        # Decision-aware: blend z-scored similarity with normalised LLM relevance (rel/50 ∈ [0,2])
+        # so the interest tower preferentially retrieves items likely to change the final selection,
+        # not just the ones closest to the interest centroid regardless of quality.
+        # ponytail: fixed /50 weight; tune per-topic if relevance-vs-interest tradeoff needs adjustment.
+        rel_map = {r[0]: float(r[6] or 0) / 50.0 for r in emb}
+        combined = {iid: s + rel_map.get(iid, 0.0) for iid, s in sims.items()}
+        top_ids = set(sorted(combined, key=combined.get, reverse=True)[:k])
         have = {r[0] for r in rows}
         return rows + [r for r in emb if r[0] in top_ids and r[0] not in have]
 
