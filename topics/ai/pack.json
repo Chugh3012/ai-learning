@@ -3,7 +3,7 @@
   "name": "AI & LLMs",
   "brand": "Chugh Vibes",
   "tagline": "High-signal AI, minus the noise.",
-  "rubric_version": "v1",
+  "rubric_version": "v2",
   "settings": {
     "site": { "noun": "AI", "noun_title": "AI" }
   }
