@@ -12,7 +12,6 @@ class DeliverySink(Sink):
     def deliver(self, ctx: DeliveryContext) -> bool:
         p = ctx.profile
         rows = [(it.id, it.title, it.url) for it in ctx.items]
-        brief = ctx.brief_builder.build(p.lens, ctx.items)
         feedback_url = ctx.settings.feedback_url
         tokens = ctx.feedback_store.mint_tokens(p.lens, rows) if feedback_url else {}
         unsub = self._unsubscribe_url(ctx)
@@ -22,6 +21,7 @@ class DeliverySink(Sink):
             learned = ", ".join(ctx.brief_builder.kb.taste_summary(p.lens))
         except Exception:
             learned = ""
+        brief = ctx.brief_builder.build(p.lens, ctx.items, learned)
         plain, body_html = BriefBuilder.render(
             ctx.items, brief, feedback_url, tokens, unsub, pref, saved, learned)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
