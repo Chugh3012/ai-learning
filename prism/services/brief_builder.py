@@ -41,13 +41,13 @@ class BriefBuilder:
         self.endpoint = endpoint
         self.model = model
 
-    def build(self, lens: str, items: list) -> Brief:
+    def build(self, lens: str, items: list, learned: str = "") -> Brief:
         blurb = [(it.id, it.title, fulltext(it.url) or it.summary) for it in items]
-        theme, cards = self._lessons(blurb)
+        theme, cards = self._lessons(blurb, learned)
         connections = self._connections(lens, items)
         return Brief(theme=theme, cards=cards, connections=connections)
 
-    def _lessons(self, items: list[tuple]) -> tuple[str, dict[int, Card]]:
+    def _lessons(self, items: list[tuple], learned: str = "") -> tuple[str, dict[int, Card]]:
         if not self.endpoint:
             return "", {}
         try:
@@ -57,10 +57,12 @@ class BriefBuilder:
             return "", {}
         listing = "\n\n".join(
             f"[{i}] {t}\n{clean(s)}" if clean(s) else f"[{i}] {t}" for i, t, s in items)
+        system = (f"Reader's recent interests: {learned}.\n\n{_LESSON_SYSTEM}"
+                  if learned else _LESSON_SYSTEM)
         try:
             resp = client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "system", "content": _LESSON_SYSTEM},
+                messages=[{"role": "system", "content": system},
                           {"role": "user", "content": listing}],
                 temperature=0.3, response_format={"type": "json_object"}, max_tokens=1800)
             foundry.log_usage("email", resp, self.model)
