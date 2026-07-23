@@ -66,6 +66,10 @@ class RankEvaluator:
                     samples_by_id[iid].append(sc)
         scores = {iid: _median(v) if v else 0 for iid, v in samples_by_id.items()}
 
+        # ponytail: spread = mean per-item score range across samples; 0 when samples=1 (no variance data)
+        spread_vals = [max(v) - min(v) for v in samples_by_id.values() if len(v) > 1]
+        spread = round(float(np.mean(spread_vals)) if spread_vals else 0.0, 1)
+
         scored = [dict(it, score=scores.get(it["id"], 0)) for it in items]
         metrics = {
             "spearman": round(_spearman([(it["score"], it["tier"]) for it in scored]), 3),
@@ -73,6 +77,7 @@ class RankEvaluator:
             "prec5": round(sum(1 for it in sorted(scored, key=lambda x: x["score"], reverse=True)[:5]
                                if it["tier"] >= 1) / 5, 3),
             "nonai_leak": max((it["score"] for it in scored if it.get("is_nonai")), default=0),
+            "spread": spread,
         }
         _RESULTS.mkdir(parents=True, exist_ok=True)
         payload = {"topic": topic_id, "rubric_version": pack.rubric_version,
@@ -83,13 +88,15 @@ class RankEvaluator:
         (_RESULTS / "gate_latest.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
         mins = thresholds.get("min", {})
-        leak_max = thresholds.get("max", {}).get("nonai_leak", 100)
+        maxes = thresholds.get("max", {})
+        leak_max = maxes.get("nonai_leak", 100)
         failures = []
         for key, floor in mins.items():
             if metrics.get(key, 0) < floor:
                 failures.append(f"{key}={metrics.get(key)} < {floor}")
-        if metrics["nonai_leak"] > leak_max:
-            failures.append(f"nonai_leak={metrics['nonai_leak']} > {leak_max}")
+        for key, ceiling in maxes.items():
+            if metrics.get(key, 0) > ceiling:
+                failures.append(f"{key}={metrics.get(key)} > {ceiling}")
 
         print(f"eval[{topic_id}] ({self.ranker.model}, median-of-{samples}): "
               + "  ".join(f"{k}={v}" for k, v in metrics.items()))
