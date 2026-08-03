@@ -9,6 +9,7 @@
     "multimodal": ["multimodal", "vision", "image", "audio", "speech", "video", "voice"],
     "evaluation": ["eval", "evaluation", "benchmark", "leaderboard", "hallucination", "guardrail"],
     "coding": ["coding", "code", "copilot", "developer", "ide", "software engineering", "swe"],
-    "models": ["release", "model", "weights", "gpt", "claude", "gemini", "mistral", "qwen", "deepseek", "open-source model"]
+    "models": ["release", "model", "weights", "gpt", "claude", "gemini", "mistral", "qwen", "deepseek", "open-source model"],
+    "safety": ["safety", "alignment", "red-team", "jailbreak", "refusal", "adversarial", "misuse", "bias", "fairness", "toxicity"]
   }
 }
