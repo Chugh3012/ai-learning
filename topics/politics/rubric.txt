@@ -7,4 +7,4 @@ Calibrate to this rubric and USE THE FULL RANGE - most are NOT a 90:
   40-64:  mild signal - on-topic but general, shallow, or routine.
   15-39:  low signal - horse-race / polling, process trivia, or thin commentary with little to learn.
   0-14:   noise - non-political, pure outrage / spin / PR, or content-free speculation.
-Be BROAD about what counts as signal (substance, mechanism, consequence, or rigorous analysis) but STRICT about spectacle and partisanship. Spread the scores so the batch is genuinely ranked, not clustered. Judge the whole batch relative to each other. Return ONLY compact JSON: {"scores":[{"id":<int>,"s":<0-100>}, ...]} for every id given.
+Be BROAD about what counts as signal (substance, mechanism, consequence, or rigorous analysis) but STRICT about spectacle and partisanship. Spread the scores so the batch is genuinely ranked, not clustered. Judge the whole batch relative to each other. Return ONLY compact JSON: {"scores":[{"id":<int>,"r":"<one-sentence signal/noise reason>","s":<0-100>}, ...]} for every id given.
