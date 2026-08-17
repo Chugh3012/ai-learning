@@ -33,7 +33,7 @@ class Ranker:
             model=self.model,
             messages=[
                 {"role": "system", "content": system},
-                {"role": "user", "content": f"Rank and rate these {len(rows)} items:\n{listing}"},
+                {"role": "user", "content": f"Rate these {len(rows)} items:\n{listing}"},
             ],
             temperature=0,
             response_format={"type": "json_object"},
