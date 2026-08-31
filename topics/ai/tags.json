@@ -3,12 +3,13 @@
   "topics": {
     "agents": ["agent", "agentic", "multi-agent", "autonomous", "tool use", "tool-calling", "mcp", "function calling", "orchestrat"],
     "rag": ["rag", "retrieval", "vector", "embedding", "semantic search", "knowledge base", "rerank"],
-    "fine-tuning": ["fine-tune", "fine-tuning", "finetune", "lora", "qlora", "sft", "dpo", "rlhf", "distillation"],
+    "fine-tuning": ["fine-tune", "fine-tuning", "finetune", "lora", "qlora", "sft", "dpo", "rlhf", "distillation", "reinforcement learning", "grpo", "ppo"],
     "prompting": ["prompt", "prompting", "system prompt", "few-shot", "chain-of-thought", "context engineering", "prompt optimization", "dspy", "auto-prompt"],
     "local-llm": ["local", "ollama", "llama.cpp", "gguf", "quantization", "on-device", "edge", "llamafile", "lm studio", "mlc-llm"],
     "multimodal": ["multimodal", "vision", "image", "audio", "speech", "video", "voice"],
     "evaluation": ["eval", "evaluation", "benchmark", "leaderboard", "hallucination", "guardrail"],
     "coding": ["coding", "code", "copilot", "developer", "ide", "software engineering", "swe"],
-    "models": ["release", "model", "weights", "gpt", "claude", "gemini", "mistral", "qwen", "deepseek", "open-source model"]
+    "models": ["release", "model", "weights", "gpt", "claude", "gemini", "mistral", "qwen", "deepseek", "open-source model", "reasoning model", "thinking model"],
+    "reasoning": ["reasoning", "chain-of-thought reasoning", "step-by-step", "think", "o1", "o3", "r1", "qwq", "inference-time compute", "test-time compute"]
   }
 }
